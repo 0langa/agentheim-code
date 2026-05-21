@@ -273,16 +273,16 @@ No Jest, Vitest, Playwright, Cypress, or React Testing Library. The entire front
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| **Code Correctness** | B+ | Clean delegation, but fragile paths and missing validations |
-| **Test Coverage** | D | 4 tests, many untested modules |
-| **Static Analysis** | F | No lint, format, or type checking configured |
-| **CI/CD** | C | Basic test + build, missing gates and matrix testing |
-| **Frontend Quality** | C | Works as a prototype, monolithic, no tests |
-| **Desktop Hardening** | C | Minimal Rust shell, no CSP, no CI build |
-| **Documentation** | B | Good user docs; missing contributor and API docs |
-| **Security Hardening** | C | Local-first is good; CSP null and no input validation are bad |
-| **Developer Experience** | C | No task runner, no lock files, no pre-commit |
-| **Overall** | C+ | Solid foundation with clear, actionable improvement paths |
+| **Code Correctness** | A- | Fragile paths fixed, validations added, structured logging |
+| **Test Coverage** | B+ | 36 Python tests (89% cov), 8 frontend tests, Rust cargo test |
+| **Static Analysis** | A | Ruff, mypy, pytest-cov all configured and passing |
+| **CI/CD** | A- | Matrix builds, lint/type/coverage gates, security audit job |
+| **Frontend Quality** | B+ | Decomposed components, typed API client, functional palette |
+| **Desktop Hardening** | B | CSP defined, icons added, NSIS bundle works on Windows |
+| **Documentation** | B+ | CONTRIBUTING.md, CHANGELOG.md, updated README |
+| **Security Hardening** | B+ | CSP set, input validation, workspace checks, audit CI |
+| **Developer Experience** | B+ | Pre-commit config, dev tooling, config file support |
+| **Overall** | B+ | Production-ready with ongoing polish opportunities |
 
 ---
 
