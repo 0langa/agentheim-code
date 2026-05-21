@@ -1,0 +1,33 @@
+import React from "react";
+import { Bot, Command, FolderOpen, GitPullRequest, Settings, Terminal } from "lucide-react";
+
+interface RailProps {
+  onNewSession: () => void;
+  onSetInspector: (name: string) => void;
+  onOpenPalette: () => void;
+}
+
+export function Rail({ onNewSession, onSetInspector, onOpenPalette }: RailProps) {
+  return (
+    <nav className="rail" aria-label="Main">
+      <button title="New session" onClick={onNewSession}>
+        <Bot size={20} />
+      </button>
+      <button title="Open workspace">
+        <FolderOpen size={20} />
+      </button>
+      <button title="Runs" onClick={() => onSetInspector("runs")}>
+        <GitPullRequest size={20} />
+      </button>
+      <button title="Terminal" onClick={() => onSetInspector("terminal")}>
+        <Terminal size={20} />
+      </button>
+      <button title="Command palette" onClick={onOpenPalette}>
+        <Command size={20} />
+      </button>
+      <button title="Settings" onClick={() => onSetInspector("settings")}>
+        <Settings size={20} />
+      </button>
+    </nav>
+  );
+}

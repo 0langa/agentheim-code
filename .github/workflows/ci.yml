@@ -2,24 +2,43 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
   python:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install
+          python-version: ${{ matrix.python-version }}
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+      - name: Install agentheim dependency
         run: |
-          python -m pip install --upgrade pip
           git clone https://github.com/0langa/agentheim ../agentheim
-          python -m pip install -e ../agentheim
-          python -m pip install -e .[dev]
-      - name: Test
-        run: python -m pytest -q
+          pip install -e ../agentheim
+      - name: Install project
+        run: pip install -e .[dev]
+      - name: Lint
+        run: ruff check src/ tests/
+      - name: Format check
+        run: ruff format --check src/ tests/
+      - name: Type check
+        run: mypy src/
+      - name: Test with coverage
+        run: pytest --cov --cov-report=xml --cov-fail-under=70
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
 
   web:
     runs-on: ubuntu-latest
@@ -28,7 +47,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Build web
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('apps/web/package-lock.json') }}
+      - name: Install dependencies
+        run: npm --prefix apps/web ci
+      - name: Type check and build
+        run: npm --prefix apps/web run build
+
+  desktop-rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-action@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('apps/web/package-lock.json') }}
+      - name: Build web assets
         run: |
-          npm --prefix apps/web install
+          npm --prefix apps/web ci
           npm --prefix apps/web run build
+      - name: Build Tauri
+        run: npm --prefix apps/desktop run tauri build
+        env:
+          CI: true

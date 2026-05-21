@@ -21,4 +21,3 @@ def test_web_theme_uses_approved_palette() -> None:
 
     assert set(re.findall(r"#[0-9A-Fa-f]{6}", css)) <= approved
     assert "rgba(" not in css
-
