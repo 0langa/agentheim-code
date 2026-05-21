@@ -1,0 +1,16 @@
+{
+  "name": "@agentheim-code/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix ../web run dev",
+    "build:web": "npm --prefix ../web run build",
+    "tauri": "tauri",
+    "build": "npm run build:web && tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
+

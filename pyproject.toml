@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentheim-code"
+version = "0.1.0"
+description = "Focused local-first coding agent client built from Agentheim"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Agentheim Contributors" }]
+keywords = ["ai", "coding-agent", "local-first", "developer-tools"]
+dependencies = [
+  "agentheim>=1.0.0",
+  "typer>=0.12.3,<1.0.0",
+  "rich>=13.7.1,<14.0.0",
+  "fastapi>=0.111.0,<1.0.0",
+  "uvicorn>=0.30.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0.3,<10.0.0"]
+
+[project.scripts]
+agentheim-code = "agentheim_code.cli:main"
+
+[tool.uv.sources]
+agentheim = { path = "../agentheim", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../agentheim"]
+
