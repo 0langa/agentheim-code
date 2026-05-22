@@ -45,12 +45,12 @@ npm --prefix apps/desktop install
 # Run all Python tests with coverage
 pytest --cov
 
-# Linting and formatting
-ruff check src/ tests/
-ruff format src/ tests/
+# Linting and formatting (product-owned code only)
+ruff check src/agentheim_code src/memory src/tools/shell tests/
+ruff format --check src/agentheim_code src/memory src/tools/shell tests/
 
-# Type checking
-mypy src/
+# Type checking (product-owned code only)
+mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
 ```
 
 ### Frontend
@@ -71,6 +71,21 @@ npm run build
 cd apps/desktop/src-tauri
 
 cargo test
+```
+
+## Task Runner
+
+A `justfile` is provided for common tasks:
+
+```powershell
+just test      # Run all tests (Python + web + Rust)
+just test-py   # Python tests only
+just test-web  # Frontend tests only
+just test-rust # Rust tests only
+just lint      # Lint and type-check product code
+just fix       # Auto-fix lint/format issues
+just build-web
+just build-desktop
 ```
 
 ## Code Style

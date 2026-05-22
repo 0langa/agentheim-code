@@ -24,3 +24,17 @@ src/core/
 src/interfaces/
 src/providers/
 src/workflows/
+
+# External tool packages (only src/tools/shell/ is owned by this repo)
+src/tools/__init__.py
+src/tools/browser/
+src/tools/filesystem/
+src/tools/git/
+src/tools/http/
+src/tools/integrations/
+src/tools/local_db/
+src/tools/mcp/
+src/tools/memory/
+src/tools/network/
+src/tools/registry.py
+src/tools/tests.py
