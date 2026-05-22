@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from agentheim_code import __version__
+from agentheim_code.bakeoff import render_bakeoff_json, render_bakeoff_table, run_bakeoff
 from agentheim_code.coder_cli import coder_app
 from agentheim_code.config import ensure_default_config, load_config
 from agentheim_code.desktop import DesktopLaunchError, launch_desktop
@@ -155,6 +156,45 @@ def completions(
     console.print(script)
 
 
+@app.command("bake-off")
+def bake_off(
+    workspace: Path | None = typer.Option(
+        None, "--workspace", help="Workspace directory for bake-off runs."
+    ),
+    profile: str | None = typer.Option(None, "--profile", help="Filter to a specific profile."),
+    provider: str | None = typer.Option(None, "--provider", help="Filter to a specific provider."),
+    model: str | None = typer.Option(None, "--model", help="Filter to a specific model."),
+    timeout: int = typer.Option(300, "--timeout", help="Seconds to wait per provider."),
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Run a lightweight coding bake-off against configured providers.
+
+    Creates a temporary workspace, runs a minimal coding task for each
+    provider+model, and reports pass/fail. Costs real API tokens.
+    """
+    payload = list_model_options()
+    if not payload.get("configured"):
+        console.print("No provider profiles configured. Run `agentheim-code doctor`.")
+        raise typer.Exit(1)
+
+    results = run_bakeoff(
+        payload,
+        workspace=workspace,
+        profile_filter=profile,
+        provider_filter=provider,
+        model_filter=model,
+        timeout=float(timeout),
+    )
+
+    if as_json:
+        render_bakeoff_json(results)
+    else:
+        render_bakeoff_table(results)
+
+    if not all(r.passed for r in results):
+        raise typer.Exit(1)
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -164,6 +204,9 @@ def main() -> None:
     logging.getLogger("boto3").setLevel(logging.WARNING)
     logging.getLogger("botocore").setLevel(logging.WARNING)
     ensure_default_config()
+    if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-v"):
+        console.print(f"agentheim-code, version {__version__}")
+        return
     app()
 
 
