@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-import type { CoderCommand, Session, SessionView } from "../types";
+import { api } from "../api";
+import type { CoderCommand, Session, SessionView, ProviderProfile } from "../types";
 
 interface InspectorProps {
   inspector: string;
@@ -8,6 +9,7 @@ interface InspectorProps {
   active: SessionView | null;
   commands: CoderCommand[];
   onSelectSession: (sessionId: string) => void;
+  onOpenProviderWizard: () => void;
 }
 
 function EmptyPanel({ message }: { message: string }) {
@@ -20,8 +22,25 @@ export function Inspector({
   active,
   commands,
   onSelectSession,
+  onOpenProviderWizard,
 }: InspectorProps) {
   const title = inspector[0].toUpperCase() + inspector.slice(1);
+  const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
+  const [profilesConfigured, setProfilesConfigured] = useState(false);
+
+  useEffect(() => {
+    if (inspector === "settings") {
+      api<{ configured: boolean; profiles: ProviderProfile[] }>("/providers/profiles")
+        .then((data) => {
+          setProfilesConfigured(data.configured);
+          setProfiles(data.profiles);
+        })
+        .catch(() => {
+          setProfilesConfigured(false);
+          setProfiles([]);
+        });
+    }
+  }, [inspector]);
 
   return (
     <aside className="inspector" aria-label="Inspector">
@@ -103,6 +122,35 @@ export function Inspector({
             </span>
             <span>provider: {active?.session.model_selection?.provider ?? "auto"}</span>
           </article>
+
+          <article className="panel-item">
+            <strong>AI Providers</strong>
+            {!profilesConfigured && (
+              <EmptyPanel message="No providers configured. Add one to get started." />
+            )}
+            {profiles.map((profile) => (
+              <div key={profile.name} className="provider-row">
+                <span>
+                  <strong>{profile.name}</strong>
+                  {profile.default && <span className="badge">default</span>}
+                </span>
+                <span>
+                  {profile.providers.map((p) => p.kind).join(", ")}
+                </span>
+                <span>
+                  {profile.models.map((m) => m.model).join(", ")}
+                </span>
+              </div>
+            ))}
+            <button
+              onClick={onOpenProviderWizard}
+              style={{ marginTop: 8 }}
+              className="primary small"
+            >
+              + Add Provider
+            </button>
+          </article>
+
           <article className="panel-item">
             <strong>Commands</strong>
             {commands.map((command) => (

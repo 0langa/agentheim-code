@@ -83,3 +83,24 @@ export type SessionView = {
   command_results?: CommandResult[];
   artifacts?: string[];
 };
+
+// Provider wizard types
+export type WizardField = {
+  name: string;
+  label: string;
+  type: "text" | "password" | "url";
+  required: boolean;
+  default?: string;
+};
+
+export type ProviderTemplate = {
+  kind: string;
+  display_name: string;
+  endpoint: string;
+  auth_mode: string;
+  provider_type: string;
+  capabilities: string[];
+  docs_url: string;
+  support_state: string;
+  wizard_fields: WizardField[];
+};

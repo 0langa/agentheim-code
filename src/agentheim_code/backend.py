@@ -12,6 +12,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agentheim_code.provider_wizard import (
+    create_profile,
+    delete_profile,
+    get_templates,
+    test_provider_connection,
+)
 from config.config import list_provider_templates, load_profiles_document
 from core.run_view import list_run_views
 from workflows.coder.runtime import (
@@ -274,6 +280,34 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                 for profile in document.profiles.values()
             ],
         }
+
+    @app.get("/api/providers/wizard-templates")
+    def api_wizard_templates() -> list[dict[str, Any]]:
+        return cast(list[dict[str, Any]], get_templates(include_experimental=True))
+
+    @app.post("/api/providers/profiles")
+    def api_create_provider_profile(body: dict[str, Any]) -> dict[str, Any]:
+        profile = create_profile(
+            name=body["name"],
+            provider_kind=body["provider_kind"],
+            provider_id=body["provider_id"],
+            model_id=body["model_id"],
+            fields=body.get("fields", {}),
+            set_as_default=body.get("set_as_default", False),
+        )
+        return {"ok": True, "profile": profile.model_dump()}
+
+    @app.delete("/api/providers/profiles/{name}")
+    def api_delete_provider_profile(name: str) -> dict[str, Any]:
+        delete_profile(name)
+        return {"ok": True}
+
+    @app.post("/api/providers/test")
+    def api_test_provider(body: dict[str, Any]) -> dict[str, Any]:
+        return test_provider_connection(
+            provider_kind=body["provider_kind"],
+            fields=body.get("fields", {}),
+        )
 
     @app.websocket("/api/coder/sessions/{session_id}/events")
     async def api_events(websocket: WebSocket, session_id: str) -> None:

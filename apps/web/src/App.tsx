@@ -6,6 +6,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Inspector } from "./components/Inspector";
+import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
 import type { CoderCommand, ModelOptions, Session, SessionView } from "./types";
@@ -17,6 +18,7 @@ export function App() {
   const [modelOptions, setModelOptions] = useState<ModelOptions | null>(null);
   const [prompt, setPrompt] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [inspector, setInspector] = useState("timeline");
   const [selectedMode, setSelectedMode] = useState("code");
   const [selectedTrustMode, setSelectedTrustMode] = useState("ask");
@@ -236,7 +238,19 @@ export function App() {
           active={active}
           commands={commands}
           onSelectSession={selectSession}
+          onOpenProviderWizard={() => setWizardOpen(true)}
         />
+
+        {wizardOpen && (
+          <ProviderWizard
+            onClose={() => setWizardOpen(false)}
+            onSaved={() => {
+              api<ModelOptions>("/coder/models")
+                .then(setModelOptions)
+                .catch((err) => setError(err.message));
+            }}
+          />
+        )}
 
         {paletteOpen && (
           <CommandPalette

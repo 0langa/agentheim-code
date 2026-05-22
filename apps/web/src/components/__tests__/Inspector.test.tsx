@@ -37,6 +37,7 @@ describe("Inspector", () => {
         active={active}
         commands={commands}
         onSelectSession={() => undefined}
+        onOpenProviderWizard={() => undefined}
       />,
     );
     expect(screen.getByText("listed files")).toBeInTheDocument();
@@ -50,6 +51,7 @@ describe("Inspector", () => {
         active={active}
         commands={commands}
         onSelectSession={() => undefined}
+        onOpenProviderWizard={() => undefined}
       />,
     );
     expect(screen.getByText("pytest")).toBeInTheDocument();
@@ -64,6 +66,7 @@ describe("Inspector", () => {
         active={active}
         commands={commands}
         onSelectSession={() => undefined}
+        onOpenProviderWizard={() => undefined}
       />,
     );
     expect(screen.getByText("trust: ask")).toBeInTheDocument();
