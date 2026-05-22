@@ -12,38 +12,54 @@ license = "MIT"
 authors = [{ name = "Agentheim Contributors" }]
 keywords = ["ai", "coding-agent", "local-first", "developer-tools"]
 dependencies = [
-  "agentheim>=1.0.0",
   "typer>=0.12.3,<1.0.0",
   "rich>=13.7.1,<14.0.0",
   "fastapi>=0.111.0,<1.0.0",
   "uvicorn>=0.30.0,<1.0.0",
+  "pydantic>=2.8.0,<3.0.0",
+  "platformdirs>=4.2.0,<5.0.0",
+  "requests>=2.32.0,<3.0.0",
+  "cryptography>=42.0.0,<46.0.0",
+  "keyring>=25.0.0,<26.0.0",
+  "pathspec>=0.12.1,<1.0.0",
+  "openai>=1.90.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2.0,<2.0.0",
   "pytest>=9.0.3,<10.0.0",
   "pytest-cov>=6.0.0,<7.0.0",
   "ruff>=0.9.0,<1.0.0",
   "mypy>=1.14.0,<2.0.0",
   "tomli-w>=1.2.0,<2.0.0",
 ]
+cloud-aws = ["boto3>=1.34.0,<2.0.0"]
+cloud-google = ["google-auth>=2.29.0,<3.0.0"]
+cloud-oci = ["oci>=2.120.0,<3.0.0"]
+cloud = [
+  "boto3>=1.34.0,<2.0.0",
+  "google-auth>=2.29.0,<3.0.0",
+  "oci>=2.120.0,<3.0.0",
+]
 
 [project.scripts]
 agentheim-code = "agentheim_code.cli:main"
 
-[tool.uv.sources]
-agentheim = { path = "../agentheim", editable = true }
-
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+agentheim_code = ["web/**/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "../agentheim"]
+pythonpath = ["src"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-exclude = ["src/agentheim_code/vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
@@ -62,6 +78,7 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.coverage.run]
 source = ["src/agentheim_code"]

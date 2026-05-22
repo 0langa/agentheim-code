@@ -20,12 +20,22 @@ function MessageBubble({ entry }: { entry: TranscriptEntry }) {
         width: "100%",
       }}
     >
-      <strong style={{ fontSize: "12px", textTransform: "uppercase", color: isUser ? "var(--accent)" : "var(--ai)" }}>
+      <strong
+        style={{
+          fontSize: "12px",
+          textTransform: "uppercase",
+          color: isUser ? "var(--accent)" : "var(--ai)",
+        }}
+      >
         {entry.role}
       </strong>
-      <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>{entry.content}</p>
+      <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
+        {entry.content}
+      </p>
       {entry.timestamp && (
-        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{entry.timestamp}</span>
+        <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+          {entry.timestamp}
+        </span>
       )}
     </div>
   );
@@ -36,7 +46,10 @@ export function Chat({ active }: ChatProps) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [active?.transcript, active?.current_assistant_message]);
+  }, [
+    active?.session?.transcript,
+    active?.session?.current_assistant_message,
+  ]);
 
   if (!active) {
     return (
@@ -49,7 +62,7 @@ export function Chat({ active }: ChatProps) {
     );
   }
 
-  const entries = active.transcript ?? [];
+  const entries = active.session.transcript ?? [];
 
   return (
     <section
@@ -66,20 +79,27 @@ export function Chat({ active }: ChatProps) {
       {entries.map((entry, idx) => (
         <MessageBubble key={idx} entry={entry} />
       ))}
-      {active.current_assistant_message && (
+      {active.session.current_assistant_message && (
         <div
           className="message"
           style={{
             alignSelf: "flex-start",
-            borderColor: "color-mix(in srgb, var(--ai) 34%, transparent)",
+            borderColor:
+              "color-mix(in srgb, var(--ai) 34%, transparent)",
             opacity: 0.8,
           }}
         >
-          <strong style={{ fontSize: "12px", textTransform: "uppercase", color: "var(--ai)" }}>
+          <strong
+            style={{
+              fontSize: "12px",
+              textTransform: "uppercase",
+              color: "var(--ai)",
+            }}
+          >
             assistant
           </strong>
           <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
-            {active.current_assistant_message}
+            {active.session.current_assistant_message}
           </p>
         </div>
       )}

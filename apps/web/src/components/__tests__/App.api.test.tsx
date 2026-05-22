@@ -1,0 +1,202 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import React from "react";
+
+import { App } from "../../App";
+
+const mockApi = vi.fn();
+vi.mock("../../api", () => ({
+  api: <T,>(path: string, init?: RequestInit): Promise<T> => mockApi(path, init) as Promise<T>,
+  ApiError: class ApiError extends Error {
+    constructor(public status: number, message: string) {
+      super(message);
+    }
+  },
+}));
+
+describe("App API integration", () => {
+  beforeEach(() => {
+    mockApi.mockReset();
+  });
+
+  it("creates session without workspace_root and then fetches /view", async () => {
+    mockApi
+      .mockResolvedValueOnce([]) // /coder/commands
+      .mockResolvedValueOnce([]) // /coder/sessions
+      .mockResolvedValueOnce({ configured: false, profiles: [] }) // /coder/models
+      .mockResolvedValueOnce({
+        session_id: "sess-1",
+        status: "idle",
+        mode: "code",
+        workspace_root: ".",
+      }) // POST /coder/sessions
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-1",
+          status: "idle",
+          mode: "code",
+          workspace_root: ".",
+        },
+        queued_prompts: [],
+        available_commands: [],
+      }); // GET /coder/sessions/sess-1/view
+
+    render(<App />);
+
+    // Wait for initial data load to finish
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+
+    const newButton = screen.getAllByText("New")[0];
+    fireEvent.click(newButton);
+
+    await waitFor(() => {
+      const calls = mockApi.mock.calls;
+      const postCall = calls.find(
+        (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
+      );
+      expect(postCall).toBeTruthy();
+      const body = JSON.parse(postCall![1].body);
+      expect(body).not.toHaveProperty("workspace_root");
+      expect(body).toEqual({ trust_mode: "ask", mode: "code" });
+    });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/coder/sessions/sess-1/view", undefined);
+    });
+  });
+
+  it("selecting a session fetches /view", async () => {
+    mockApi
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { session_id: "sess-2", status: "idle", mode: "code", workspace_root: "." },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-2",
+          status: "idle",
+          mode: "code",
+          workspace_root: ".",
+        },
+        queued_prompts: [],
+        available_commands: [],
+      });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    fireEvent.click(screen.getByTitle("Runs"));
+
+    const sessionButton = await screen.findByText("sess-2");
+    fireEvent.click(sessionButton);
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/coder/sessions/sess-2/view", undefined);
+    });
+  });
+
+  it("refetches full session view after sending a prompt", async () => {
+    mockApi
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { session_id: "sess-3", status: "idle", mode: "code", workspace_root: "." },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-3",
+          status: "idle",
+          mode: "code",
+          workspace_root: ".",
+          transcript: [],
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-3",
+        status: "idle",
+        mode: "code",
+        workspace_root: ".",
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-3",
+          status: "idle",
+          mode: "code",
+          workspace_root: ".",
+          transcript: [{ role: "assistant", content: "done" }],
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [{ type: "message", message: "done" }],
+        command_results: [],
+      });
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-3"));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "build it" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-3/messages",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(mockApi).toHaveBeenLastCalledWith(
+        "/coder/sessions/sess-3/view",
+        undefined,
+      );
+    });
+  });
+
+  it("sends selected trust mode when creating a session", async () => {
+    mockApi
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session_id: "sess-4",
+        status: "idle",
+        mode: "code",
+        workspace_root: ".",
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-4",
+          status: "idle",
+          mode: "code",
+          workspace_root: ".",
+        },
+        queued_prompts: [],
+        available_commands: [],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    fireEvent.change(screen.getByLabelText("Trust mode"), {
+      target: { value: "workspace" },
+    });
+    fireEvent.click(screen.getAllByText("New")[0]);
+
+    await waitFor(() => {
+      const postCall = mockApi.mock.calls.find(
+        (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
+      );
+      expect(JSON.parse(postCall![1].body)).toEqual({
+        trust_mode: "workspace",
+        mode: "code",
+      });
+    });
+  });
+});

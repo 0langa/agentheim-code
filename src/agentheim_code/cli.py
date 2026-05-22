@@ -2,27 +2,20 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from pathlib import Path
 
 import typer
-from agentheim_coder_core.runtime import list_model_options
-from agentheim_core.readiness import build_readiness_state
-from core.run_view import list_run_views
-from interfaces.cli.coder_commands import coder_app
 from rich.console import Console
 from rich.table import Table
 
 from agentheim_code import __version__
+from agentheim_code.coder_cli import coder_app
 from agentheim_code.config import ensure_default_config, load_config
-from agentheim_code.desktop import launch_desktop
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-
-# Ensure default config exists on first import
-ensure_default_config()
+from agentheim_code.desktop import DesktopLaunchError, launch_desktop
+from agentheim_coder_core.runtime import list_model_options
+from agentheim_core.readiness import build_readiness_state
+from core.run_view import list_run_views
 
 app = typer.Typer(
     help="Agentheim Code: focused local coding-agent client.",
@@ -67,11 +60,20 @@ def app_cmd(
     web: bool = typer.Option(
         False, "--web", help="Use browser fallback instead of the Tauri shell."
     ),
+    dev: bool = typer.Option(
+        False, "--dev", help="Run source-tree Tauri dev mode. Requires Node, Rust, and checkout."
+    ),
 ) -> None:
     """Launch the Agentheim Code desktop app."""
+    if web and dev:
+        raise typer.BadParameter("Use only one of --web or --dev.")
     workspace_path = _resolve_workspace(workspace or _config_workspace())
     resolved_port = port if port is not None else _config_port()
-    launch_desktop(workspace=workspace_path, port=resolved_port, web_fallback=web)
+    try:
+        launch_desktop(workspace=workspace_path, port=resolved_port, web_fallback=web, dev=dev)
+    except DesktopLaunchError as exc:
+        console.print(f"[red]Desktop launch failed:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
 
 @app.command("models")
@@ -154,6 +156,14 @@ def completions(
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    ensure_default_config()
     app()
 
 

@@ -7,8 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from agentheim_code.backend import create_app
+from agentheim_code.backend import _origin_allowed, create_app
 from agentheim_code.cli import app
+from agentheim_code.desktop import DesktopLaunchError
 
 runner = CliRunner()
 
@@ -77,6 +78,22 @@ class TestAppCommand:
         _, kwargs = mock_launch.call_args
         assert kwargs["web_fallback"] is True
 
+    @patch("agentheim_code.cli.launch_desktop")
+    def test_app_command_with_dev_mode(self, mock_launch: MagicMock, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["app", "--workspace", str(tmp_path), "--dev"])
+        assert result.exit_code == 0
+        _, kwargs = mock_launch.call_args
+        assert kwargs["dev"] is True
+
+    @patch("agentheim_code.cli.launch_desktop")
+    def test_app_command_reports_missing_binary(
+        self, mock_launch: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_launch.side_effect = DesktopLaunchError("missing binary")
+        result = runner.invoke(app, ["app", "--workspace", str(tmp_path)])
+        assert result.exit_code == 1
+        assert "Desktop launch failed" in result.output
+
 
 class TestCompletions:
     def test_completions_bash(self) -> None:
@@ -104,6 +121,43 @@ class TestWorkspaceValidation:
         assert "must be a directory" in result.output
 
 
+class TestImportSideEffects:
+    def test_importing_cli_does_not_create_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: importing cli.py must not mutate the filesystem."""
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setattr(
+            "agentheim_code.config._config_file",
+            lambda: config_path,
+        )
+        # Force re-import by clearing cache.
+        import importlib
+        import sys
+
+        sys.modules.pop("agentheim_code.cli", None)
+        importlib.import_module("agentheim_code.cli")
+
+        assert not config_path.exists(), "Importing cli.py created config file"
+
+    def test_importing_cli_does_not_configure_root_logging(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import importlib
+        import logging
+        import sys
+
+        root = logging.getLogger()
+        original_handlers = list(root.handlers)
+        try:
+            root.handlers.clear()
+            sys.modules.pop("agentheim_code.cli", None)
+            importlib.import_module("agentheim_code.cli")
+            assert root.handlers == []
+        finally:
+            root.handlers[:] = original_handlers
+
+
 class TestBackendHealth:
     def test_backend_health_uses_shared_coder_hub(self, tmp_path: Path) -> None:
         client = TestClient(create_app(tmp_path))
@@ -124,3 +178,16 @@ class TestBackendHealth:
         file_path.write_text("hello")
         with pytest.raises(NotADirectoryError):
             create_app(file_path)
+
+    def test_backend_allows_localhost_origin(self, tmp_path: Path) -> None:
+        client = TestClient(create_app(tmp_path))
+        response = client.get(
+            "/api/health",
+            headers={"Origin": "http://127.0.0.1:5173"},
+        )
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+    def test_origin_helper_rejects_remote_origin(self) -> None:
+        assert _origin_allowed("https://example.com") is False
+        assert _origin_allowed("tauri://localhost") is True

@@ -36,4 +36,28 @@ describe("CommandPalette", () => {
     fireEvent.click(screen.getByText("New Session"));
     expect(onExecute).toHaveBeenCalledWith(COMMANDS[0]);
   });
+
+  it("executes the first filtered command on Enter", () => {
+    const onExecute = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <CommandPalette commands={COMMANDS} onClose={onClose} onExecute={onExecute} />,
+    );
+    const input = screen.getByPlaceholderText("Search commands");
+    fireEvent.change(input, { target: { value: "resume" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onExecute).toHaveBeenCalledWith(COMMANDS[1]);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("closes on Escape", () => {
+    const onClose = vi.fn();
+    render(
+      <CommandPalette commands={COMMANDS} onClose={onClose} onExecute={vi.fn()} />,
+    );
+    fireEvent.keyDown(screen.getByPlaceholderText("Search commands"), {
+      key: "Escape",
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

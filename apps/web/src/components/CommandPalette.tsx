@@ -52,6 +52,13 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
     );
   }, [commands, query]);
 
+  const executeFirst = () => {
+    if (filtered[0]) {
+      onExecute(filtered[0]);
+      onClose();
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -65,6 +72,16 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
         ref={inputRef}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            executeFirst();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
+        }}
         placeholder="Search commands"
       />
       <div>

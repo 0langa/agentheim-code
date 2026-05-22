@@ -8,16 +8,20 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Inspector } from "./components/Inspector";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
-import type { CoderCommand, Session, SessionView } from "./types";
+import type { CoderCommand, ModelOptions, Session, SessionView } from "./types";
 
 export function App() {
   const [commands, setCommands] = useState<CoderCommand[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<SessionView | null>(null);
+  const [modelOptions, setModelOptions] = useState<ModelOptions | null>(null);
   const [prompt, setPrompt] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [inspector, setInspector] = useState("timeline");
   const [selectedMode, setSelectedMode] = useState("code");
+  const [selectedTrustMode, setSelectedTrustMode] = useState("ask");
+  const [selectedProfile, setSelectedProfile] = useState("auto");
+  const [selectedModel, setSelectedModel] = useState("auto");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +31,12 @@ export function App() {
       .catch((err) => setError(err.message));
     api<Session[]>("/coder/sessions")
       .then(setSessions)
+      .catch((err) => setError(err.message));
+    api<ModelOptions>("/coder/models")
+      .then((options) => {
+        setModelOptions(options);
+        if (options.default_profile) setSelectedProfile(options.default_profile);
+      })
       .catch((err) => setError(err.message));
   }, []);
 
@@ -54,13 +64,16 @@ export function App() {
       const session = await api<Session>("/coder/sessions", {
         method: "POST",
         body: JSON.stringify({
-          workspace_root: ".",
-          trust_mode: "ask",
+          trust_mode: selectedTrustMode,
           mode: selectedMode,
+          profile: selectedProfile === "auto" ? undefined : selectedProfile,
+          model: selectedModel === "auto" ? undefined : selectedModel,
         }),
       });
       setSessions((current) => [session, ...current]);
-      const view = await api<SessionView>(`/coder/sessions/${session.session_id}`);
+      const view = await api<SessionView>(
+        `/coder/sessions/${session.session_id}/view`,
+      );
       setActive(view);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -74,14 +87,17 @@ export function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const session = await api<Session>(
+      await api<Session>(
         `/coder/sessions/${active.session.session_id}/messages`,
         {
           method: "POST",
           body: JSON.stringify({ prompt }),
         },
       );
-      setActive({ ...active, session });
+      const view = await api<SessionView>(
+        `/coder/sessions/${active.session.session_id}/view`,
+      );
+      setActive(view);
       setPrompt("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -94,8 +110,12 @@ export function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const view = await api<SessionView>(`/coder/sessions/${sessionId}`);
+      const view = await api<SessionView>(`/coder/sessions/${sessionId}/view`);
       setActive(view);
+      setSelectedMode(view.session.mode ?? "code");
+      setSelectedTrustMode(view.session.trust_mode ?? "ask");
+      setSelectedProfile(view.session.model_selection?.profile ?? "auto");
+      setSelectedModel(view.session.model_selection?.model ?? "auto");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -107,8 +127,42 @@ export function App() {
     if (command.id === "new") {
       createSession();
     } else {
-      // For CLI-only commands, we could show a toast or copy to clipboard
       console.log("Execute command:", command.cli);
+    }
+  };
+
+  const updateActiveModel = async (profile: string, model: string) => {
+    if (!active) return;
+    const session = await api<Session>(
+      `/coder/sessions/${active.session.session_id}/model`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          profile,
+          model,
+        }),
+      },
+    );
+    const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
+    setActive(view);
+  };
+
+  const changeProfile = async (profile: string) => {
+    setSelectedProfile(profile);
+    setSelectedModel("auto");
+    try {
+      await updateActiveModel(profile, "auto");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const changeModel = async (model: string) => {
+    setSelectedModel(model);
+    try {
+      await updateActiveModel(selectedProfile, model);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -128,7 +182,8 @@ export function App() {
             <div
               style={{
                 padding: "0.75rem 1rem",
-                background: "color-mix(in srgb, var(--error) 20%, transparent)",
+                background:
+                  "color-mix(in srgb, var(--error) 20%, transparent)",
                 border: "1px solid var(--error)",
                 borderRadius: "8px",
                 margin: "0 18px",
@@ -162,8 +217,15 @@ export function App() {
           <Composer
             prompt={prompt}
             selectedMode={selectedMode}
+            selectedTrustMode={selectedTrustMode}
+            selectedProfile={selectedProfile}
+            selectedModel={selectedModel}
+            modelOptions={modelOptions}
             onPromptChange={setPrompt}
             onModeChange={setSelectedMode}
+            onTrustModeChange={setSelectedTrustMode}
+            onProfileChange={changeProfile}
+            onModelChange={changeModel}
             onSend={sendPrompt}
           />
         </section>
@@ -171,6 +233,8 @@ export function App() {
         <Inspector
           inspector={inspector}
           sessions={sessions}
+          active={active}
+          commands={commands}
           onSelectSession={selectSession}
         />
 

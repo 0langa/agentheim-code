@@ -8,11 +8,10 @@ broader automation presets in Agentheim Full.
 
 ## Install
 
-Developer install from adjacent checkouts:
+Developer install from this checkout:
 
 ```powershell
 cd agentheim-code
-pip install -e ..\agentheim
 pip install -e ".[dev]"
 npm --prefix apps/web install
 npm --prefix apps/desktop install
@@ -27,8 +26,16 @@ agentheim-code coder --workspace .
 agentheim-code app --workspace .
 ```
 
-`agentheim-code` uses the same provider profiles and `.ai-team/runs/<session-id>/`
-artifacts as Agentheim Full, so coder sessions remain portable between products.
+`agentheim-code` is standalone. It carries the coder runtime it needs inside this
+repo and stores coder artifacts under `.ai-team/runs/<session-id>/`.
+
+## App Launch Modes
+
+- `agentheim-code app` launches the packaged Tauri desktop binary. If no binary
+  is installed or discoverable, it fails with build and fallback instructions.
+- `agentheim-code app --web` starts the local FastAPI/browser UI fallback.
+- `agentheim-code app --dev` runs source-tree Tauri dev mode and requires Node,
+  Rust, and the repository checkout.
 
 ## CLI Commands
 
@@ -50,12 +57,12 @@ artifacts as Agentheim Full, so coder sessions remain portable between products.
 # Run tests with coverage
 pytest --cov
 
-# Lint and format
-ruff check src/ tests/
-ruff format src/ tests/
+# Lint and format product-owned code
+ruff check src/agentheim_code src/memory src/tools/shell tests/
+ruff format src/agentheim_code src/memory src/tools/shell tests/
 
 # Type check
-mypy src/
+mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
 ```
 
 ### Frontend

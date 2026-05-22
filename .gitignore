@@ -14,3 +14,13 @@ apps/desktop/src-tauri/gen/
 .ai-team/
 *.log
 .DS_Store
+
+# External dependency packages (from pip install -e ../agentheim)
+# These should live in the agentheim repo, not this one
+src/agentheim_core/
+src/agentheim_coder_core/
+src/config/
+src/core/
+src/interfaces/
+src/providers/
+src/workflows/

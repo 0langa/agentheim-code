@@ -1,12 +1,12 @@
 # Providers
 
-Agentheim Code uses the same provider profiles and secret storage as Agentheim
-Full.
+Agentheim Code uses standalone provider/profile code copied into this product.
+It can read the same profile format and secret references as Agentheim Full, but
+does not depend on Agentheim Full being installed.
 
-Typical setup remains:
+Typical checks:
 
 ```powershell
-agentheim setup
 agentheim-code doctor
 agentheim-code models
 ```
@@ -19,3 +19,6 @@ agentheim-code coder --workspace . --profile default --provider openai --model g
 
 In the app, use the model pill near the composer.
 
+Provider secrets should be stored through the configured secret store or
+environment variables. They should not be committed, printed in CLI JSON, or
+written into `.ai-team/runs`.

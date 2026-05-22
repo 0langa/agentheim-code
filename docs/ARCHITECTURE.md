@@ -10,16 +10,16 @@ Agentheim Code CLI / Desktop App
   -> agentheim_core config, providers, tools, policy, runs
 ```
 
-Agentheim Full remains the superset platform. Agentheim Code depends on the
-shared package boundaries and does not copy coder runtime behavior.
+Agentheim Full remains the superset platform. Agentheim Code carries the shared
+package boundaries inside this repo for now, so it installs and runs without a
+sibling Agentheim Full checkout.
 
 ## Boundaries
 
 - `agentheim_code`: focused product CLI, app launcher, and local backend wrapper.
-- `agentheim_coder_core`: shared coder sessions, commands, models, runtime, and
-  event contracts.
-- `agentheim_core`: shared provider profiles, policy, tools, readiness, and run
-  views.
+- `agentheim_coder_core`: coder sessions, commands, models, runtime, and event
+  contracts.
+- `agentheim_core`: provider profiles, policy, tools, readiness, and run views.
 - `apps/web`: premium React frontend.
 - `apps/desktop`: Tauri shell.
 
@@ -27,4 +27,3 @@ shared package boundaries and does not copy coder runtime behavior.
 
 Coder sessions stay under `.ai-team/runs/<session-id>/` for compatibility with
 Agentheim Full.
-

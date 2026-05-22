@@ -22,3 +22,16 @@ agentheim-code coder resume <session-id> --workspace .
 Coder supports `ask`, `plan`, `code`, `review`, `fix`, `docs`, and `test`. The
 UI mode chips and CLI mode/slash commands use the same runtime contract.
 
+## Trust
+
+New UI sessions default to `ask`. Use the composer trust selector or CLI
+`--trust-mode` to choose `read_only`, `ask`, or `workspace`.
+
+## Inspectors
+
+The right inspector keeps secondary surfaces out of the main chat:
+
+- `timeline`: session events and activity.
+- `runs`: sessions plus changed-file summaries.
+- `terminal`: command results for the active session.
+- `settings`: mode, trust, provider/model, and available commands.

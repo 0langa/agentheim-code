@@ -1,5 +1,5 @@
 import React from "react";
-import { Bot, Command, FolderOpen, GitPullRequest, Settings, Terminal } from "lucide-react";
+import { Activity, Bot, Command, GitPullRequest, Settings, Terminal } from "lucide-react";
 
 interface RailProps {
   onNewSession: () => void;
@@ -13,8 +13,8 @@ export function Rail({ onNewSession, onSetInspector, onOpenPalette }: RailProps)
       <button title="New session" onClick={onNewSession}>
         <Bot size={20} />
       </button>
-      <button title="Open workspace">
-        <FolderOpen size={20} />
+      <button title="Timeline" onClick={() => onSetInspector("timeline")}>
+        <Activity size={20} />
       </button>
       <button title="Runs" onClick={() => onSetInspector("runs")}>
         <GitPullRequest size={20} />
