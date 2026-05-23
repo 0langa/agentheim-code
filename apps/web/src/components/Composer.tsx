@@ -1,6 +1,6 @@
 import React from "react";
-import { Play } from "lucide-react";
-import type { FileEntry, ModelOptions } from "../types";
+import { Play, AlertTriangle } from "lucide-react";
+import type { ContextPreviewItem, FileEntry, ModelOptions } from "../types";
 
 interface ComposerProps {
   prompt: string;
@@ -24,6 +24,7 @@ interface ComposerProps {
   onContextQuery?: (query: string) => void;
   onContextAdd?: (path: string) => void;
   onContextRemove?: (path: string) => void;
+  contextPreviews?: ContextPreviewItem[];
 }
 
 const MODES = ["ask", "plan", "code", "review", "fix", "docs", "test"];
@@ -56,6 +57,7 @@ export function Composer({
   onContextQuery,
   onContextAdd,
   onContextRemove,
+  contextPreviews = [],
 }: ComposerProps) {
   const activeProfile = modelOptions?.profiles?.find(
     (profile) => profile.name === selectedProfile,
@@ -136,9 +138,48 @@ export function Composer({
         }}
         placeholder="Ask Agentheim Code to build, fix, review, test, or explain..."
       />
-      {(selectedContextFiles.length > 0 || showFilePicker) && (
+      {(selectedContextFiles.length > 0 || showFilePicker || contextPreviews.length > 0) && (
         <div className="context-panel">
-          {selectedContextFiles.length > 0 && (
+          {contextPreviews.length > 0 && (
+            <div className="context-previews" aria-label="Context file previews">
+              <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "4px" }}>
+                Context{" "}
+                {contextPreviews.filter((i) => i.status === "ok").reduce((s, i) => s + i.token_estimate, 0)}{" "}
+                tokens estimated
+              </div>
+              {contextPreviews.map((item) => (
+                <div
+                  key={item.path}
+                  className="context-preview-item"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "2px 0",
+                    fontSize: "12px",
+                    color: item.status === "ok" ? "inherit" : "var(--error)",
+                  }}
+                >
+                  {item.status !== "ok" && <AlertTriangle size={12} />}
+                  <span style={{ fontFamily: "monospace" }}>{item.path}</span>
+                  <span style={{ color: "var(--muted)" }}>
+                    {item.status === "ok"
+                      ? `${item.token_estimate} tokens`
+                      : item.status}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove context ${item.path}`}
+                    onClick={() => onContextRemove?.(item.path)}
+                    style={{ marginLeft: "auto", fontSize: "11px" }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {!contextPreviews.length && selectedContextFiles.length > 0 && (
             <div className="context-chips" aria-label="Selected context files">
               {selectedContextFiles.map((path) => (
                 <button

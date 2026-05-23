@@ -16,11 +16,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agentheim_code import config as ui_config
+from agentheim_code.context_bundle import build_context_bundle
 from agentheim_code.provider_wizard import (
     create_profile,
     delete_profile,
     get_templates,
     verify_provider_connection,
+)
+from agentheim_code.structured_errors import (
+    E_CANCELLATION_FAILED,
+    E_CONTEXT_VALIDATION_FAILED,
+    E_RESUME_INVALID_STATE,
+    E_SESSION_LOCKED,
+    E_SESSION_NOT_FOUND,
+    from_exception,
 )
 from agentheim_code.usage_api import aggregate_session_usage
 from config.config import list_provider_templates, load_profiles_document
@@ -37,6 +46,7 @@ from workflows.coder.runtime import (
     list_sessions,
     post_message,
     queue_message,
+    resume_session,
     set_session_mode,
     update_session_model,
 )
@@ -54,6 +64,11 @@ class CoderSessionCreateRequest(BaseModel):
 class CoderSessionMessageRequest(BaseModel):
     prompt: str = Field(min_length=1)
     context_files: list[str] = Field(default_factory=list)
+    use_context_bundle: bool = True
+
+
+class ContextValidateRequest(BaseModel):
+    paths: list[str] = Field(default_factory=list)
 
 
 class CoderQueueRequest(BaseModel):
@@ -85,7 +100,7 @@ def _version() -> str:
     try:
         return package_version("agentheim-code")
     except PackageNotFoundError:
-        return "0.5.0"
+        return "0.6.0"
 
 
 def _json_model(model: Any) -> dict[str, Any]:
@@ -135,12 +150,28 @@ def _chunk_text(text: str, size: int = 24) -> list[str]:
     return [text[index : index + size] for index in range(0, len(text), size)]
 
 
-def _prompt_with_context(prompt: str, context_files: list[str]) -> str:
+def _prompt_with_context(
+    prompt: str, context_files: list[str], workspace: Path, use_bundle: bool = True
+) -> tuple[str, list[str]]:
+    """Build prompt with context. Returns (prompt, error_messages).
+
+    If use_bundle is True, reads file contents into explicit context blocks.
+    Otherwise falls back to legacy path-only listing.
+    """
     files = [path.strip() for path in context_files if path.strip()]
     if not files:
-        return prompt
-    listed = "\n".join(f"- {path}" for path in files)
-    return f"Selected context files:\n{listed}\n\nUser prompt:\n{prompt}"
+        return prompt, []
+
+    if not use_bundle:
+        listed = "\n".join(f"- {path}" for path in files)
+        return f"Selected context files:\n{listed}\n\nUser prompt:\n{prompt}", []
+
+    bundle = build_context_bundle(workspace, files)
+    block = bundle.to_prompt_block()
+    errors = bundle.errors
+    if block:
+        return f"{block}\n\nUser prompt:\n{prompt}", errors
+    return prompt, errors
 
 
 def _search_file_tree(workspace: Path, query: str, limit: int) -> list[dict[str, Any]]:
@@ -320,7 +351,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.get("/api/coder/sessions/{session_id}")
     def api_get_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
-        return _json_model(get_session(_workspace(workspace_path, workspace_root), session_id))
+        try:
+            return _json_model(get_session(_workspace(workspace_path, workspace_root), session_id))
+        except Exception as exc:
+            if "not found" in str(exc).lower():
+                raise HTTPException(status_code=404, detail=E_SESSION_NOT_FOUND.to_dict()) from exc
+            raise HTTPException(status_code=500, detail=from_exception(exc).to_dict()) from exc
 
     @app.get("/api/coder/sessions/{session_id}/view")
     def api_get_session_view(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
@@ -332,49 +368,82 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     def api_post_message(
         session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
     ) -> dict[str, Any]:
-        return _json_model(
-            post_message(
-                _workspace(workspace_path, workspace_root),
-                session_id,
-                _prompt_with_context(body.prompt, body.context_files),
-            )
+        workspace = _workspace(workspace_path, workspace_root)
+        prompt, errors = _prompt_with_context(
+            body.prompt, body.context_files, workspace, use_bundle=body.use_context_bundle
         )
+        if errors:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    **E_CONTEXT_VALIDATION_FAILED.to_dict(),
+                    "context_errors": errors,
+                },
+            )
+        try:
+            return _json_model(post_message(workspace, session_id, prompt))
+        except ValueError as exc:
+            if "already running" in str(exc).lower():
+                raise HTTPException(status_code=409, detail=E_SESSION_LOCKED.to_dict()) from exc
+            raise HTTPException(status_code=400, detail=from_exception(exc).to_dict()) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=from_exception(exc).to_dict()) from exc
 
     @app.post("/api/coder/sessions/{session_id}/messages/stream")
     async def api_post_message_stream(
         session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
     ) -> StreamingResponse:
         workspace = _workspace(workspace_path, workspace_root)
+        prompt, errors = _prompt_with_context(
+            body.prompt, body.context_files, workspace, use_bundle=body.use_context_bundle
+        )
 
         async def events() -> AsyncIterator[str]:
             yield _sse("start", {"session_id": session_id})
+            if errors:
+                yield _sse(
+                    "error",
+                    {
+                        "session_id": session_id,
+                        "structured_error": {
+                            **E_CONTEXT_VALIDATION_FAILED.to_dict(),
+                            "context_errors": errors,
+                        },
+                    },
+                )
+                return
+
             task = asyncio.create_task(
                 asyncio.to_thread(
                     post_message,
                     workspace,
                     session_id,
-                    _prompt_with_context(body.prompt, body.context_files),
+                    prompt,
                 )
             )
             sent_event_count = 0
             sent_text_length = 0
             try:
                 while not task.done():
-                    view = get_session_view(workspace, session_id)
-                    event_payloads = [event.model_dump(mode="json") for event in view.events]
-                    for payload in event_payloads[sent_event_count:]:
-                        yield _sse("activity", {"session_id": session_id, "event": payload})
-                    sent_event_count = len(event_payloads)
-                    text = view.session.current_assistant_message or ""
-                    if len(text) > sent_text_length:
-                        yield _sse(
-                            "token",
-                            {
-                                "session_id": session_id,
-                                "token": text[sent_text_length:],
-                            },
-                        )
-                        sent_text_length = len(text)
+                    try:
+                        view = get_session_view(workspace, session_id)
+                    except Exception:
+                        view = None
+                    if view is not None:
+                        event_payloads = [event.model_dump(mode="json") for event in view.events]
+                        for payload in event_payloads[sent_event_count:]:
+                            yield _sse("activity", {"session_id": session_id, "event": payload})
+                        sent_event_count = len(event_payloads)
+                        text = view.session.current_assistant_message or ""
+                        if len(text) > sent_text_length:
+                            yield _sse(
+                                "token",
+                                {
+                                    "session_id": session_id,
+                                    "token": text[sent_text_length:],
+                                },
+                            )
+                            sent_text_length = len(text)
                     await asyncio.sleep(0.2)
                 session = await task
             except Exception as exc:
@@ -382,8 +451,7 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                     "error",
                     {
                         "session_id": session_id,
-                        "error": str(exc),
-                        "error_type": type(exc).__name__,
+                        "structured_error": from_exception(exc).to_dict(),
                     },
                 )
                 return
@@ -441,7 +509,51 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.post("/api/coder/sessions/{session_id}/cancel")
     def api_cancel_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
-        return _json_model(cancel_session(_workspace(workspace_path, workspace_root), session_id))
+        try:
+            return _json_model(
+                cancel_session(_workspace(workspace_path, workspace_root), session_id)
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    **E_CANCELLATION_FAILED.to_dict(),
+                    "original_error": str(exc),
+                },
+            ) from exc
+
+    @app.post("/api/coder/sessions/{session_id}/resume")
+    def api_resume_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+        workspace = _workspace(workspace_path, workspace_root)
+        try:
+            session = resume_session(workspace, session_id)
+        except ValueError as exc:
+            if "not found" in str(exc).lower():
+                raise HTTPException(status_code=404, detail=E_SESSION_NOT_FOUND.to_dict()) from exc
+            if (
+                "not in a resumable state" in str(exc).lower()
+                or "already running" in str(exc).lower()
+            ):
+                raise HTTPException(
+                    status_code=409, detail=E_RESUME_INVALID_STATE.to_dict()
+                ) from exc
+            raise HTTPException(status_code=400, detail=from_exception(exc).to_dict()) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=from_exception(exc).to_dict()) from exc
+        return _json_model(session)
+
+    @app.post("/api/coder/sessions/{session_id}/context/validate")
+    def api_validate_context(
+        session_id: str, body: ContextValidateRequest, workspace_root: str | None = None
+    ) -> dict[str, Any]:
+        workspace = _workspace(workspace_path, workspace_root)
+        bundle = build_context_bundle(workspace, body.paths)
+        return {
+            "session_id": session_id,
+            "items": bundle.to_preview_payload(),
+            "errors": bundle.errors,
+            "total_token_estimate": bundle.total_token_estimate(),
+        }
 
     @app.post("/api/coder/sessions/{session_id}/approvals/{request_id}/grant")
     def api_grant_approval(

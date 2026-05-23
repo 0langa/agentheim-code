@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-import { api, streamSessionMessage } from "./api";
+import { api, cancelSession, streamSessionMessage, validateContext } from "./api";
 import { Chat } from "./components/Chat";
 import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
@@ -11,11 +11,13 @@ import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
 import type {
+  ContextPreviewItem,
   CoderCommand,
   FileEntry,
   ModelOptions,
   Session,
   SessionView,
+  StructuredError,
   UiConfig,
 } from "./types";
 
@@ -39,6 +41,9 @@ export function App() {
   const [selectedContextFiles, setSelectedContextFiles] = useState<string[]>([]);
   const [fileMatches, setFileMatches] = useState<FileEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [structuredError, setStructuredError] = useState<StructuredError | null>(null);
+  const [contextPreviews, setContextPreviews] = useState<ContextPreviewItem[]>([]);
+  const errorRef = React.useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     api<UiConfig>("/config")
@@ -66,6 +71,12 @@ export function App() {
     const theme = uiConfig?.theme ?? window.localStorage.getItem("agentheim-theme") ?? "dark";
     document.documentElement.dataset.theme = theme;
   }, [uiConfig?.theme]);
+
+  useEffect(() => {
+    if ((error || structuredError) && errorRef.current) {
+      errorRef.current.focus();
+    }
+  }, [error, structuredError]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -152,6 +163,7 @@ export function App() {
     setIsLoading(true);
     setStreamAbort(controller);
     setError(null);
+    setStructuredError(null);
     setLastPrompt(promptText);
     setPrompt("");
     setActive((current) => {
@@ -186,7 +198,13 @@ export function App() {
               };
             });
           },
-          onError: (message) => setError(message),
+          onError: (message, structured) => {
+            if (structured && typeof structured === "object") {
+              setStructuredError(structured as StructuredError);
+            } else {
+              setError(message);
+            }
+          },
         },
         controller.signal,
         selectedContextFiles,
@@ -207,8 +225,19 @@ export function App() {
     }
   };
 
-  const stopPrompt = () => {
+  const stopPrompt = async () => {
     streamAbort?.abort();
+    if (active) {
+      try {
+        await cancelSession(active.session.session_id);
+        const view = await api<SessionView>(
+          `/coder/sessions/${active.session.session_id}/view`,
+        );
+        setActive(view);
+      } catch {
+        // Best-effort cancel
+      }
+    }
   };
 
   const retryPrompt = () => {
@@ -226,16 +255,27 @@ export function App() {
     }
   };
 
-  const addContextFile = (path: string) => {
-    setSelectedContextFiles((current) =>
-      current.includes(path) ? current : [...current, path],
-    );
+  const addContextFile = async (path: string) => {
+    const next = selectedContextFiles.includes(path)
+      ? selectedContextFiles
+      : [...selectedContextFiles, path];
+    setSelectedContextFiles(next);
     setFileMatches([]);
     setPrompt((current) => current.replace(/(?:^|\s)@[^\s@]*$/, "").trimStart());
+    if (active) {
+      try {
+        const result = await validateContext(active.session.session_id, next);
+        setContextPreviews(result.items);
+      } catch {
+        setContextPreviews([]);
+      }
+    }
   };
 
   const removeContextFile = (path: string) => {
-    setSelectedContextFiles((current) => current.filter((item) => item !== path));
+    const next = selectedContextFiles.filter((item) => item !== path);
+    setSelectedContextFiles(next);
+    setContextPreviews((current) => current.filter((item) => item.path !== path));
   };
 
   const handleApproval = async (requestId: string, grant: boolean) => {
@@ -344,9 +384,11 @@ export function App() {
         <section className="work">
           <TopBar active={active} onNewSession={createSession} />
 
-          {error && (
+          {(error || structuredError) && (
             <div
+              ref={errorRef}
               role="alert"
+              tabIndex={-1}
               style={{
                 padding: "0.75rem 1rem",
                 background:
@@ -354,12 +396,29 @@ export function App() {
                 border: "1px solid var(--error)",
                 borderRadius: "8px",
                 margin: "0 18px",
+                outline: "none",
               }}
             >
-              <strong>Error:</strong> {error}
+              {structuredError ? (
+                <div>
+                  <strong>Error {structuredError.error_code}:</strong>{" "}
+                  {structuredError.message}
+                  {structuredError.recovery_action && (
+                    <div style={{ marginTop: "0.5rem", fontSize: "12px" }}>
+                      Recovery: {structuredError.recovery_action}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <strong>Error:</strong>
+              )}{" "}
+              {!structuredError && error}
               <button
                 aria-label="Dismiss error"
-                onClick={() => setError(null)}
+                onClick={() => {
+                  setError(null);
+                  setStructuredError(null);
+                }}
                 style={{ marginLeft: "1rem", float: "right" }}
                 type="button"
               >
@@ -405,6 +464,7 @@ export function App() {
             onContextQuery={(query) => void searchContextFiles(query)}
             onContextAdd={addContextFile}
             onContextRemove={removeContextFile}
+            contextPreviews={contextPreviews}
           />
         </section>
 

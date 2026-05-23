@@ -1,3 +1,5 @@
+import type { ContextPreviewItem, Session } from "./types";
+
 const DEFAULT_API_BASE = "/api";
 let resolvedApiBase: Promise<string> | null = null;
 
@@ -58,7 +60,7 @@ export interface StreamHandlers {
   onToken?: (token: string) => void;
   onActivity?: (event: unknown) => void;
   onDone?: (payload: unknown) => void;
-  onError?: (error: string) => void;
+  onError?: (error: string, structuredError?: unknown) => void;
 }
 
 function dispatchSseBlock(block: string, handlers: StreamHandlers): void {
@@ -77,7 +79,10 @@ function dispatchSseBlock(block: string, handlers: StreamHandlers): void {
   if (event === "token") handlers.onToken?.(String(payload.token ?? ""));
   if (event === "activity") handlers.onActivity?.(payload.event);
   if (event === "done") handlers.onDone?.(payload);
-  if (event === "error") handlers.onError?.(String(payload.error ?? "Stream failed"));
+  if (event === "error") {
+    const structured = (payload as Record<string, unknown>)?.structured_error;
+    handlers.onError?.(String(payload.error ?? "Stream failed"), structured);
+  }
 }
 
 export async function streamSessionMessage(
@@ -93,7 +98,7 @@ export async function streamSessionMessage(
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt, context_files: contextFiles }),
+      body: JSON.stringify({ prompt, context_files: contextFiles, use_context_bundle: true }),
       signal,
     },
   );
@@ -120,4 +125,22 @@ export async function streamSessionMessage(
   }
 
   if (buffer.trim()) dispatchSseBlock(buffer, handlers);
+}
+
+export async function cancelSession(sessionId: string): Promise<Session> {
+  return api<Session>(`/coder/sessions/${sessionId}/cancel`, { method: "POST" });
+}
+
+export async function validateContext(
+  sessionId: string,
+  paths: string[],
+): Promise<{ items: ContextPreviewItem[]; errors: string[]; total_token_estimate: number }> {
+  return api<{ items: ContextPreviewItem[]; errors: string[]; total_token_estimate: number }>(
+    `/coder/sessions/${sessionId}/context/validate`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ paths }),
+    },
+  );
 }

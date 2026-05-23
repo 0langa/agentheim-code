@@ -37,7 +37,7 @@ describe("streamSessionMessage", () => {
       "/api/coder/sessions/sess-1/messages/stream",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ prompt: "hi", context_files: [] }),
+        body: JSON.stringify({ prompt: "hi", context_files: [], use_context_bundle: true }),
       }),
     );
     expect(onToken).toHaveBeenNthCalledWith(1, "hello ");
@@ -60,7 +60,7 @@ describe("streamSessionMessage", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/coder/sessions/sess-1/messages/stream",
       expect.objectContaining({
-        body: JSON.stringify({ prompt: "hi", context_files: ["src/app.py"] }),
+        body: JSON.stringify({ prompt: "hi", context_files: ["src/app.py"], use_context_bundle: true }),
       }),
     );
 

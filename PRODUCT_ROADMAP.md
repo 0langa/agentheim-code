@@ -1,365 +1,485 @@
-# Agentheim Code Phased Plan
+# Agentheim Code Roadmap To 1.0.0
 
 Updated: 2026-05-23
 
-This is the canonical product plan. It replaces the separate audit/report file
-and keeps current-state facts, priorities, release targets, and gates in one
-place.
+This is the canonical forward roadmap after the `0.5.0` beta release. It is a
+plan, not a claim that every item is already true. Keep it synchronized with
+fresh repo audits as work lands.
 
-## Goal
+## Product Goal
 
-Make Agentheim Code a fast, legible, safe GUI-first coding assistant while
-preserving the local-first BYOK architecture.
+Agentheim Code should feel like a real premium local-first coding workbench:
+fast to start, clear under pressure, trustworthy with files and shell commands,
+useful across providers, and easy to install without contributor knowledge.
 
-First-session success is the priority:
+The 1.0.0 bar is not "more features." It is:
 
-1. User opens the app.
-2. User chooses or detects a provider.
-3. User opens a workspace.
-4. User sends a prompt.
-5. Response streams visibly.
-6. Code renders clearly.
-7. Risky actions have understandable approvals.
+1. A new user can install, connect a provider, open a workspace, and get a useful
+   coding result without reading source docs.
+2. A returning user can run multi-step coding sessions with visible context,
+   approvals, terminal output, diffs, usage, and history.
+3. The agent can stop, recover, explain failures, and preserve work.
+4. Packaging, release, and support paths are repeatable enough for non-developer
+   users.
 
 ## Current Baseline
 
-### Product Shape
-
-- Python package: `agentheim-code`
-- Version: `0.5.0`
-- Python requirement: `>=3.12`
-- CLI entrypoint: `agentheim-code`
+- Current release: `0.5.0`
 - Backend: FastAPI in `src/agentheim_code/backend.py`
 - Web app: React/TypeScript/Vite in `apps/web`
 - Desktop shell: Tauri v2 in `apps/desktop`
-- Packaged web assets: `src/agentheim_code/web`
-- Session/run storage: `.ai-team/runs/<session-id>/`
+- CLI: `agentheim-code`
+- Session storage: `.ai-team/runs/<session-id>/`
+- Distribution: Windows-first NSIS beta installer plus Python wheel
+- Release tag: `v0.5.0`
 
-### Owned Repository Surface
+## What 0.5.0 Already Has
 
-Tracked Agentheim Code surface:
-
-- `src/agentheim_code`
-- `src/memory`
-- `src/tools/shell`
-- `apps/web`
-- `apps/desktop`
-- `docs`
-- root project docs/config
-
-This checkout can also contain ignored sibling Agentheim packages, such as
-`src/core`, `src/config`, `src/providers`, and `src/workflows`. Treat those as
-development/runtime dependencies unless a task explicitly targets them.
-
-### Already Present
-
-- Local FastAPI backend
-- CLI entrypoint and desktop/web launch modes
-- React/Tauri shell
-- Provider wizard templates
-- Provider profile create/delete/test flow
-- Model/profile selectors in the composer
-- Session list/view/message APIs
-- Approval APIs
-- File tree API
-- Usage aggregation endpoint and panel
-- Shell sandbox and policy-gated tools
-- CI for Python, web unit/e2e, and Windows Tauri build
+- Local backend and GUI shell
 - First-run onboarding with Ollama detection
-- `@` file context selection in the composer
-- Dedicated approval inspector with trust-mode descriptions
+- Provider wizard with create/delete/test paths
+- Streaming chat and markdown/code rendering
+- Composer mode, trust, profile, model, and `@` context controls
+- Approval inspector for pending shell/file/tool actions
+- Usage panel, timeline, terminal panel, and run list
 - Dark, light, and high-contrast themes
-- Keyboard/modal accessibility improvements
-- Windows beta packager script and NSIS artifact upload
-- User-first README and end-user docs refresh
-
-### Main Gaps
-
-No remaining gaps inside the scoped `0.5.0` release band.
-
-Follow-up work after `0.5.0`:
-
-- Standalone backend co-bundling beyond the current local launcher contract
-- macOS/Linux installer paths
-- Polished onboarding screenshots for docs
-
-### Current Verification
-
-Last verified on 2026-05-23:
-
-- `ruff check src/agentheim_code src/memory src/tools/shell tests/`: passed
-- `ruff format --check src/agentheim_code src/memory src/tools/shell tests/`: passed
-- `mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip`: passed
-- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 197 passed, 3 deselected, 83.66% coverage
-- `npm --prefix apps/web run test -- --run`: 36 passed
-- `npm --prefix apps/web run build`: passed
-- `npm --prefix apps/web run e2e`: 2 passed
-- `cd apps/desktop/src-tauri && cargo test`: 1 passed
-- `powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1`: passed, including NSIS build and clean wheel smoke
-
-Known test noise:
-
-- Python provider-wizard tests emit third-party OCI/urllib3 deprecation warnings.
-
-## Phase 0: Truth And Baseline Cleanup
-
-Status: complete on 2026-05-23.
-
-Deliverable: repo facts and quality gates are consistent.
-
-Completed:
-
-- Coverage threshold is 80 in both `pyproject.toml` and CI.
-- Inspector test waits for async provider state and no longer emits a React
-  `act(...)` warning.
-- Separate report content is folded into this canonical phased plan.
-- `docs/ARCHITECTURE.md` documents tracked Agentheim Code scope vs ignored
-  sibling packages.
-
-Gate:
-
-- Normal local verification is green without threshold contradictions.
-
-## Phase 1: Streaming And Chat Legibility
-
-Status: complete on 2026-05-23.
-
-Deliverable: chat feels alive and code-heavy output is readable.
-
-Backend:
-
-- Added a streaming message endpoint alongside existing
-  `POST /api/coder/sessions/{id}/messages`.
-- Kept existing non-streaming endpoint working during migration.
-- Chose SSE over `fetch` for assistant delivery while retaining WebSocket for
-  event snapshots.
-- Added cancellation behavior through `AbortController`.
-- Added tests for stream lifecycle and frontend stream consumption.
-
-Frontend:
-
-- Added streaming chat state.
-- Render partial assistant output while generation runs.
-- Added stop/retry controls.
-- Added markdown rendering with strict component mapping.
-- Added syntax highlighting for code blocks.
-- Added copy buttons for code blocks.
-- Kept transcript auto-scroll predictable.
-
-Gate:
-
-- User sees incremental streamed output, can stop or retry generation, and code
-  blocks render with highlighting and copy controls.
-
-Note:
-
-- The tracked backend/frontend SSE transport is complete. Runtime/provider code
-  currently exposes final assistant content and activity updates; provider-level
-  token callbacks can further improve granularity later inside the shared runtime.
-
-Release target: v0.2.0.
-
-## Phase 2: First-Run Onboarding
-
-Status: complete on 2026-05-23.
-
-Deliverable: a new user can reach a working chat session without reading docs.
-
-Flow:
-
-1. Welcome
-2. Workspace selection
-3. Provider path selection
-4. Provider verification
-5. Start first session
-
-Provider paths:
-
-- Local model: detect common local endpoints such as Ollama.
-- API key: route into existing provider wizard with sensible defaults.
-- Expert setup: expose provider/model/profile details directly.
-- Skip for later: allowed, but leaves a clear next action.
-
-Implementation notes:
-
-- Reuse existing provider wizard APIs.
-- Do not duplicate provider form logic.
-- Store onboarding completion in local config.
-- Provide empty states that point to the next useful action.
-
-Gate:
-
-- Fresh config opens to onboarding, configured users go directly to app, and at
-  least one provider path can be completed end to end.
-
-Completed:
-
-- Added local UI config APIs for onboarding status, default workspace, and theme.
-- Added Ollama local-provider detection through `GET /api/onboarding/local-providers`.
-- Added first-run onboarding overlay with workspace, provider, skip, and start
-  actions.
-- Kept provider setup routed through the existing provider wizard.
-
-Release target: v0.3.0.
-
-## Phase 3: Context Selection
-
-Status: complete on 2026-05-23.
-
-Deliverable: users can explicitly scope prompts to files without typing paths
-manually.
-
-Frontend:
-
-- Add `@` trigger in composer.
-- Show fuzzy file picker from workspace file tree.
-- Insert removable context chips.
-- Support drag/drop files into composer if feasible.
-- Make selected context visible before send.
-
-Backend:
-
-- Extend file tree/search API if current file list is too heavy.
-- Add payload shape for selected context.
-- Preserve compatibility with plain-text prompts.
-
-Gate:
-
-- User can type `@`, choose a file, send prompt, and see selected context
-  attached to the turn.
-
-Completed:
-
-- Added file search API for composer context selection.
-- Added optional `context_files` payload support to streaming and non-streaming
-  message endpoints.
-- Added `@` composer picker, removable context chips, and context payload
-  delivery.
-- Decorated runtime prompts with explicit selected file references without
-  inlining file contents.
-
-Release target: v0.3.0.
-
-## Phase 4: Approval UX And Trust
-
-Status: complete on 2026-05-23.
-
-Deliverable: safety model becomes visible and understandable.
-
-UI:
-
-- Add approval queue surface.
-- Show pending action type, command/path, risk level, and reason.
-- For file writes, show diff preview.
-- For shell commands, show exact command and working directory.
-- Provide clear grant/deny controls.
-- Keep terminal output linked to the action that produced it.
-
-Trust modes:
-
-- Keep exact internal names: `read_only`, `ask`, `workspace`.
-- Add short human descriptions in UI.
-- Make current trust mode visible in the composer and approval panel.
-
-Gate:
-
-- Pending approvals are hard to miss and can be handled entirely from the GUI.
-
-Completed:
-
-- Extended session approval view data with params, target, and action kind.
-- Added dedicated approvals inspector view with grant/deny actions.
-- Highlighted pending approvals in the rail and auto-opened the approval view.
-- Added command/file detail previews and trust-mode descriptions.
-
-Release target: v0.4.0.
-
-## Phase 5: Themes And Accessibility
-
-Status: complete on 2026-05-23.
-
-Deliverable: app is usable across light/dark/high-contrast preferences and
-stronger keyboard/screen-reader paths.
-
-Completed:
-
-- Added theme tokens for dark, light, and high contrast.
-- Added a persisted theme selector in Settings with local-storage fallback.
-- Improved visible focus states across primary controls.
-- Added modal focus trapping and Escape handling for palette/onboarding/wizard flows.
-- Added chat `aria-live`/`role="log"` semantics and keyboard shortcut coverage.
-- Added focused accessibility component tests plus Playwright keyboard smoke flows.
-- Performed a manual browser screenshot pass against mocked live UI.
-
-Gate:
-
-- Core flows work with keyboard only, focus is visible, and all three themes are
-  usable.
-
-Release target: v0.4.0.
-
-## Phase 6: Distribution
-
-Status: complete on 2026-05-23.
-
-Deliverable: repeatable consumer install path.
-
-Completed:
-
-- Kept Windows NSIS as the required installer target.
-- Added Tauri backend-URL bridge so the packaged shell follows the local launcher contract.
-- Added Windows beta packager script that cleans, builds web assets, builds the NSIS shell,
-  builds the wheel, and runs clean wheel smoke.
-- Updated CI to run Playwright smoke, use non-integration pytest coverage, and upload the
-  Windows NSIS installer artifact.
-- Documented unsigned beta expectations and kept auto-updater deferred.
-
-Gate:
-
-- A user can launch the packaged shell through `agentheim-code app` without relying on a
-  source checkout, and CI produces the Windows installer artifact needed for beta distribution.
-
-Release target: v0.5.0.
-
-## Phase 7: End-User Docs
-
-Status: complete on 2026-05-23.
-
-Deliverable: docs match the GUI-first product.
-
-Completed:
-
-- Rewrote `README.md` for install, first run, provider setup, first prompt, and approvals.
-- Refreshed `docs/PROVIDERS.md`, `docs/USER_GUIDE.md`, `docs/TROUBLESHOOTING.md`,
-  `docs/API_REFERENCE.md`, and `docs/RELEASE_CHECKLIST.md`.
-- Kept developer-heavy verification commands in the release checklist instead of the user guide.
-- Deferred polished screenshots until onboarding/theme UI is ready for a stable capture pass.
-
-Gate:
-
-- A non-contributor can install, configure, and run the app using docs alone.
-
-Release target: v0.5.0.
-
-## Deferred Platform Work
-
-Defer until first-session experience is strong:
-
-- Semantic indexing
-- MCP marketplace or plugin ecosystem
-- Advanced usage dashboards
-- Rich terminal emulator
-- Full file explorer/editor surface
-- Managed API-key billing model
-
-These may become important, but they should not outrank streaming, onboarding,
-context selection, approvals, accessibility, and installability.
-
-## Working Principles
-
-- Preserve local-first behavior.
-- Reuse existing provider wizard and backend contracts.
-- Keep old APIs during migrations until tests cover the new path.
-- Prioritize first-session success over broad platform features.
-- Avoid market/legal claims unless backed by current sources.
-- Avoid precise competitor/product claims unless re-verified at the time of use.
+- Keyboard and modal accessibility improvements
+- Windows beta packager and CI installer artifact upload
+- User-first docs and release checklist
+
+## V1.0 Gap Audit
+
+These are the main reasons the product is still beta-shaped:
+
+- **Context is shallow:** selected files are passed as path references, not a
+  validated, bounded context bundle with previews, token estimates, and clear
+  runtime semantics.
+- **Cancellation is incomplete:** UI abort stops the stream, but backend/runtime
+  cancellation must become reliable and observable.
+- **Session recovery is thin:** history exists, but resume, search, summaries,
+  checkpoints, and failure recovery need workbench-level polish.
+- **Provider reliability varies:** bake-off results show weak behavior for some
+  providers and no repeatable first-class provider quality matrix.
+- **Approvals are useful but not premium:** shell/file approvals need richer
+  diffs, command metadata, grouped risk explanations, and post-action audit
+  trails.
+- **File/diff UX is not a workbench yet:** no full file explorer, changed-file
+  review flow, editor preview, or apply/revert affordances.
+- **Settings are too shallow:** provider health, secrets state, default
+  workspace, theme, telemetry/logging preferences, and model diagnostics should
+  live in one coherent settings surface.
+- **Command palette is mostly navigation:** it should execute supported commands
+  and make unavailable commands honest.
+- **Error handling is ad hoc:** errors should be structured, actionable,
+  focus-managed, and traceable to logs/session events.
+- **Packaging is beta-grade:** Windows works, but standalone backend bundling,
+  signing strategy, update story, release automation, and installed-app smoke
+  need hard gates.
+- **Docs lack v1 support depth:** docs explain first use, but not recovery,
+  approvals, logs, privacy, provider reliability, and support diagnostics at a
+  premium level.
+
+## Release Cadence
+
+Use one release branch per minor version:
+
+- `codex/roadmap-0.6.0`
+- `codex/roadmap-0.7.0`
+- `codex/roadmap-0.8.0`
+- `codex/roadmap-0.9.0`
+- `codex/roadmap-1.0.0`
+
+Commit at least once per phase and make a release-sync commit at each version:
+
+- `chore: release sync v0.6.0`
+- `chore: release sync v0.7.0`
+- `chore: release sync v0.8.0`
+- `chore: release sync v0.9.0`
+- `chore: release sync v1.0.0`
+
+Do not tag, push, or create GitHub releases unless explicitly requested.
+
+## Shared Gates For Every Phase
+
+Each minor release must pass:
+
+```powershell
+ruff check src/agentheim_code src/memory src/tools/shell tests/
+ruff format --check src/agentheim_code src/memory src/tools/shell tests/
+mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
+pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
+npm --prefix apps/web run test -- --run
+npm --prefix apps/web run build
+npm --prefix apps/web run e2e
+cd apps/desktop/src-tauri; cargo test
+powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
+```
+
+Frontend phases must also include:
+
+- Playwright keyboard smoke for every changed core flow
+- Screenshot or browser visual pass for desktop and narrow viewport
+- No incoherent text overlap, hidden controls, or unusable focus states
+
+Release phases must also include:
+
+- installed-app smoke from packaged assets
+- clean wheel smoke
+- release checklist updated with exact verification output
+- roadmap statuses and version numbers updated
+
+## Phase 8: Context And Runtime Correctness
+
+Target: `0.6.0`
+
+Status: **complete** on 2026-05-23.
+
+Goal: make agent turns reliable, cancellable, and grounded in explicit context.
+
+### User Value
+
+Users can trust that selected files are actually considered, long runs can be
+stopped, and failures produce useful next actions instead of mystery states.
+
+### Scope
+
+- Build a bounded context bundle pipeline for selected files:
+  - validate workspace-relative paths
+  - reject missing, binary, huge, ignored, or out-of-workspace paths
+  - include file metadata, preview text, and truncation reason
+  - show selected file previews before send
+  - include a token/size estimate before send
+- Replace path-only prompt decoration with explicit runtime context blocks.
+- Preserve legacy prompt-only payloads.
+- Add backend cancellation that calls the runtime cancel path and marks session
+  state consistently.
+- Wire Stop button to backend cancellation after aborting the stream.
+- Add structured run errors:
+  - `error_code`
+  - human message
+  - technical detail
+  - recovery action
+  - related session event id
+- Add session resume sanity checks for interrupted, failed, and approval-pending
+  runs.
+- Add backend tests for context validation, path traversal rejection, truncation,
+  cancellation, and structured errors.
+- Add frontend tests for context preview, context removal, stop behavior, and
+  actionable error rendering.
+
+### Acceptance Gates
+
+- Sending with `@README.md` includes bounded README context in the runtime input,
+  not only a file name.
+- Selecting an ignored, missing, binary, huge, or out-of-workspace file gives a
+  clear error before the model call.
+- Stop cancels the backend session and the next session view shows a stopped or
+  canceled state.
+- Legacy `{ "prompt": "..." }` message payloads still work.
+- Error UI has `role="alert"`, receives focus for blocking errors, and links to
+  session details when available.
+
+### Verification
+
+- Python tests: 219 passed, 83%+ coverage
+- Web unit tests: 39 passed
+- Playwright e2e: 2 passed
+- Rust tests: 1 passed
+- Package script: passed, NSIS artifact produced
+
+### Release Work
+
+- Bump all package versions to `0.6.0`.
+- Update API docs for context bundle and error shape.
+- Commit implementation work in focused commits.
+- Final commit: `chore: release sync v0.6.0`.
+
+## Phase 9: Premium Workbench UX
+
+Target: `0.7.0`
+
+Goal: turn the shell into a daily-use coding workbench instead of a chat page
+with side panels.
+
+### User Value
+
+Users can inspect files, diffs, terminal output, approvals, and session history
+without losing their place in the conversation.
+
+### Scope
+
+- Add a real workspace explorer:
+  - fast searchable tree
+  - changed-file badges
+  - open file preview
+  - copy path
+  - attach to context
+- Add a diff review surface:
+  - per-file before/after diff
+  - syntax-aware display where practical
+  - collapse unchanged regions
+  - copy diff
+  - clear relationship to approvals and command results
+- Upgrade terminal output:
+  - collapsible long stdout/stderr
+  - copy command/output buttons
+  - status badges
+  - command duration and cwd
+- Make command palette execute supported commands:
+  - new session
+  - open settings
+  - open approvals
+  - open files
+  - open terminal
+  - retry last prompt
+  - stop current run
+  - attach current file when applicable
+- Add session search and filters:
+  - by status, workspace, provider, model, date, and text
+  - resume from selected result
+- Replace ad hoc inline styles in core UI with reusable components/tokens where
+  it reduces duplication and improves consistency.
+- Add responsive layout polish for small screens without hiding core actions.
+
+### Acceptance Gates
+
+- User can open a changed file from the run list, inspect its diff, copy the
+  patch, and return to chat without losing prompt state.
+- User can operate new session, settings, approvals, files, terminal, stop, and
+  retry from keyboard only.
+- Long terminal output does not break layout or freeze the UI.
+- Command palette never silently ignores a visible command.
+- Visual pass confirms desktop and narrow viewport layouts are coherent.
+
+### Release Work
+
+- Bump all package versions to `0.7.0`.
+- Update user guide screenshots or diagrams only after UI stabilizes.
+- Update API docs if file/diff endpoints change.
+- Final commit: `chore: release sync v0.7.0`.
+
+## Phase 10: Provider Quality And Agent Intelligence
+
+Target: `0.8.0`
+
+Goal: make provider/model behavior measurable, diagnosable, and good enough for
+real coding work.
+
+### User Value
+
+Users can choose providers with confidence, understand degraded behavior, and
+avoid wasting time on models that are currently bad for coding sessions.
+
+### Scope
+
+- Create a repeatable provider bake-off command:
+  - deterministic temporary workspace
+  - same coding prompt per provider
+  - real verification command
+  - structured JSON and markdown reports
+  - redaction of secrets and local paths
+- Add provider health state to settings and composer:
+  - last test time
+  - latency
+  - model availability
+  - usage extraction support
+  - known limitations
+- Add model recommendation metadata:
+  - planner suitability
+  - executor suitability
+  - context-window hint
+  - cost/usage support
+  - confidence level from bake-off history
+- Improve provider failure handling:
+  - empty response detection
+  - max-token truncation diagnostics
+  - provider-specific retry/fallback messaging
+  - guidance for Gemini/OCI/Bedrock/Azure/OpenAI profile tuning
+- Improve agent loop quality:
+  - require explicit verification plans for non-trivial code edits
+  - show last verification command and result in the UI
+  - expose repair attempts and final failure reason
+  - preserve generated artifacts and run summaries for review
+- Keep provider additions focused on currently supported configuration paths.
+  Do not add a marketplace or plugin ecosystem in this phase.
+
+### Acceptance Gates
+
+- `agentheim-code bake-off` can run a provider matrix and produce JSON plus
+  markdown reports without manual temp-workspace scripting.
+- Settings shows provider health and last test result for each configured
+  profile.
+- Composer warns when a selected model/profile has known coding-session
+  failures or missing usage support.
+- At least OpenAI-compatible/Ollama and one cloud provider path pass the standard
+  non-integration test suite and documented optional live smoke path.
+- Bake-off docs explain how to interpret pass, degraded, and fail states.
+
+### Release Work
+
+- Bump all package versions to `0.8.0`.
+- Update `docs/PROVIDERS.md`, `docs/USER_GUIDE.md`, and
+  `docs/BAKEOFF_REPORT.md`.
+- Commit provider-quality implementation and docs separately.
+- Final commit: `chore: release sync v0.8.0`.
+
+## Phase 11: Packaging, Security, And Supportability
+
+Target: `0.9.0`
+
+Goal: make installation, updates, diagnostics, and privacy/security posture feel
+production-grade.
+
+### User Value
+
+Users can install and run the app without a source checkout, understand unsigned
+or signed build status, gather diagnostics, and trust local-first boundaries.
+
+### Scope
+
+- Finish installed-app launch story:
+  - packaged desktop shell finds or starts the backend reliably
+  - no source checkout required for the normal user path
+  - clear fallback when Python/backend prerequisites are missing
+- Decide and document the backend distribution model:
+  - embedded sidecar, bundled Python environment, or managed local CLI contract
+  - choose one primary path for Windows 1.0
+  - document macOS/Linux as supported, beta, or deferred
+- Add release automation:
+  - build wheel
+  - build Windows installer
+  - upload CI artifacts
+  - generate checksums
+  - produce release notes from changelog/roadmap
+- Add security/support diagnostics:
+  - local diagnostics bundle command
+  - config redaction
+  - provider secret redaction
+  - app/backend log locations
+  - privacy/security doc aligned to actual behavior
+- Add update story:
+  - manual update path if auto-updater remains deferred
+  - version check command or UI notice if lightweight and privacy-safe
+  - clear no-surprises behavior
+- Harden CI:
+  - dependency audit where practical
+  - packaged artifact smoke
+  - docs link check if dependency cost is low
+  - release checklist enforcement script
+
+### Acceptance Gates
+
+- A clean Windows machine or clean Windows VM can install and launch the app via
+  documented user steps.
+- Release artifacts include installer, wheel, checksums, and release notes.
+- Diagnostics bundle can be generated without leaking configured secrets.
+- Privacy/security docs match actual network, storage, and provider behavior.
+- CI can produce release artifacts without manual local-only steps.
+
+### Release Work
+
+- Bump all package versions to `0.9.0`.
+- Update README install section from beta language to release-candidate language
+  only if the gates are actually met.
+- Update `docs/RELEASE_CHECKLIST.md` with artifact and diagnostic gates.
+- Final commit: `chore: release sync v0.9.0`.
+
+## Phase 12: 1.0 Polish, Freeze, And Launch Readiness
+
+Target: `1.0.0`
+
+Goal: remove beta roughness, freeze public contracts, and ship a credible 1.0.
+
+### User Value
+
+Users get a stable, documented, supportable product that feels intentional from
+install through recovery from failed agent runs.
+
+### Scope
+
+- Public contract freeze:
+  - API request/response shapes documented
+  - CLI commands documented
+  - config file behavior documented
+  - session/run storage compatibility documented
+- UX polish pass:
+  - consistent copy and labels
+  - consistent button/icon language
+  - no debug-looking empty states
+  - no unsupported visible commands
+  - no known layout overlap at supported sizes
+- Accessibility pass:
+  - keyboard-only full core flow
+  - focus order review
+  - screen-reader labels for primary controls
+  - color contrast review for all themes
+- Reliability burn-in:
+  - repeated create/send/stop/retry/resume sessions
+  - repeated provider wizard add/test/delete
+  - repeated approval grant/deny
+  - repeated package install/launch smoke
+- Documentation finalization:
+  - README becomes product-first, not contributor-first
+  - user guide covers first run, context, approvals, diffs, terminal, settings,
+    provider health, troubleshooting, privacy, diagnostics, and updates
+  - release notes summarize user-visible value, known limits, and upgrade path
+- Version and artifact finalization:
+  - bump to `1.0.0`
+  - final screenshots if stable
+  - final checksums
+  - final release checklist with exact verification numbers
+
+### Acceptance Gates
+
+- A non-contributor can install, configure, run a first prompt, attach context,
+  approve a safe command, inspect a diff, and recover from a failed run using
+  docs alone.
+- No known P0/P1 bugs remain.
+- No beta-only language remains in primary install docs unless explicitly
+  describing an intentionally beta platform.
+- All shared gates pass.
+- Packaged install smoke passes from a clean environment.
+- Roadmap and changelog agree on what shipped.
+
+### Release Work
+
+- Bump all package versions to `1.0.0`.
+- Update changelog and release notes.
+- Final commit: `chore: release sync v1.0.0`.
+- Tag/push/release only when explicitly requested.
+
+## Non-Goals Before 1.0
+
+Avoid adding bloat that does not strengthen the core workbench:
+
+- No managed billing platform.
+- No plugin marketplace.
+- No broad MCP marketplace UI.
+- No multi-user/team workspace features.
+- No cloud sync requirement.
+- No full IDE replacement promise.
+- No speculative provider list expansion without testable value.
+
+## Measurement Targets
+
+Track these numbers in each release-sync commit:
+
+- Python test count and coverage
+- Web unit test count
+- Playwright e2e count
+- Package script result
+- Installer artifact path/name
+- Optional provider bake-off summary once Phase 10 lands
+- Known limits that remain for the next phase
+
+## Handoff Instructions For Implementers
+
+Implementers should work one minor release at a time. For each version:
+
+1. Create or switch to the matching release branch.
+2. Re-audit the repo before coding.
+3. Use TDD for backend and frontend behavior.
+4. Keep changes scoped to the phase.
+5. Run the shared gates before the release-sync commit.
+6. Update this roadmap with actual status, test numbers, and known limits.
+7. Commit the version bump as the final commit for that version.

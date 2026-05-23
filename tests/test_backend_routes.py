@@ -350,6 +350,10 @@ def test_stream_message_endpoint_emits_sse_tokens(client: TestClient, workspace_
 def test_stream_message_includes_selected_context_in_prompt(
     client: TestClient, workspace_dir: str
 ) -> None:
+    workspace = Path(workspace_dir)
+    (workspace / "src").mkdir()
+    (workspace / "src" / "app.py").write_text("print('hi')", encoding="utf-8")
+
     resp = client.post(
         "/api/coder/sessions",
         json={"trust_mode": "ask", "mode": "code"},
@@ -374,4 +378,6 @@ def test_stream_message_includes_selected_context_in_prompt(
 
     assert response.status_code == 200
     prompt = post.call_args.args[2]
-    assert prompt.startswith("Selected context files:\n- src/app.py\n\nUser prompt:\nexplain this")
+    assert "<context_files>" in prompt
+    assert 'path="src/app.py"' in prompt
+    assert "User prompt:\nexplain this" in prompt

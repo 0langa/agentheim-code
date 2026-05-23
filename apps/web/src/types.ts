@@ -54,6 +54,23 @@ export type TranscriptEntry = {
   timestamp?: string;
 };
 
+export type StructuredError = {
+  error_code: string;
+  message: string;
+  technical_detail?: string;
+  recovery_action?: string;
+  related_event_id?: string;
+};
+
+export type ContextPreviewItem = {
+  path: string;
+  status: string;
+  size: number;
+  preview: string;
+  truncation_reason: string;
+  token_estimate: number;
+};
+
 export type Session = {
   session_id: string;
   status: string;
