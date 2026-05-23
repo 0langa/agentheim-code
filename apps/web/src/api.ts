@@ -2,7 +2,10 @@ import type { ContextPreviewItem, Session } from "./types";
 
 const DEFAULT_API_BASE = "/api";
 let resolvedApiBase: Promise<string> | null = null;
-let lastRequestId = "";
+
+function newRequestId(): string {
+  return crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function normalizeApiBase(base: string): string {
   return `${base.replace(/\/+$/, "")}/api`;
@@ -60,8 +63,7 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${await getApiBase()}${path}`;
-  const requestId = lastRequestId || crypto.randomUUID?.() || `${Date.now()}`;
-  lastRequestId = requestId;
+  const requestId = newRequestId();
   const response = await fetchWithRetry(url, {
     headers: {
       "content-type": "application/json",
@@ -120,7 +122,7 @@ export async function streamSessionMessage(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-request-id": lastRequestId || crypto.randomUUID?.() || `${Date.now()}`,
+        "x-request-id": newRequestId(),
       },
       body: JSON.stringify({ prompt, context_files: contextFiles, use_context_bundle: true }),
       signal,

@@ -2,9 +2,48 @@ import React, { useState } from "react";
 import { Copy, ChevronDown, ChevronUp } from "lucide-react";
 import type { SessionDiff } from "../types";
 
-function computeDiffLines(before: string, after: string) {
-  const a = before.split("\n");
-  const b = after.split("\n");
+export type DiffLine = { type: "same" | "add" | "rem"; a?: string; b?: string };
+
+const MAX_DIFF_MATRIX_CELLS = 20_000;
+const MAX_RENDERED_LINES = 241;
+
+function splitLines(text: string): string[] {
+  return text ? text.split("\n") : [];
+}
+
+function truncatedMarker(omittedLines: number): DiffLine {
+  const message = `... ${omittedLines} lines omitted for performance ...`;
+  return { type: "same", a: message, b: message };
+}
+
+function clampDiffLines(lines: DiffLine[]): DiffLine[] {
+  if (lines.length <= MAX_RENDERED_LINES) {
+    return lines;
+  }
+
+  const headCount = 120;
+  const tailCount = 120;
+  const omittedCount = lines.length - headCount - tailCount;
+  return [
+    ...lines.slice(0, headCount),
+    truncatedMarker(omittedCount),
+    ...lines.slice(-tailCount),
+  ];
+}
+
+function buildFallbackDiffLines(beforeLines: string[], afterLines: string[]): DiffLine[] {
+  return clampDiffLines([
+    ...beforeLines.map((line) => ({ type: "rem", a: line }) satisfies DiffLine),
+    ...afterLines.map((line) => ({ type: "add", b: line }) satisfies DiffLine),
+  ]);
+}
+
+export function computeDiffLines(before: string, after: string): DiffLine[] {
+  const a = splitLines(before);
+  const b = splitLines(after);
+  if (a.length * b.length > MAX_DIFF_MATRIX_CELLS) {
+    return buildFallbackDiffLines(a, b);
+  }
   const dp: number[][] = Array(a.length + 1)
     .fill(null)
     .map(() => Array(b.length + 1).fill(0));
@@ -17,7 +56,7 @@ function computeDiffLines(before: string, after: string) {
       }
     }
   }
-  const lines: Array<{ type: "same" | "add" | "rem"; a?: string; b?: string }> = [];
+  const lines: DiffLine[] = [];
   let i = 0, j = 0;
   while (i < a.length || j < b.length) {
     if (i < a.length && j < b.length && a[i] === b[j]) {
@@ -32,7 +71,7 @@ function computeDiffLines(before: string, after: string) {
       j++;
     }
   }
-  return lines;
+  return clampDiffLines(lines);
 }
 
 export function DiffViewer({ diff }: { diff: SessionDiff }) {

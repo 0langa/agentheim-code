@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from agentheim_code.backend import create_app
 
 
-@pytest.fixture
-def client(tmp_path):
-    app = create_app(tmp_path)
-    return TestClient(app)
+def test_lifespan_shutdown_completes_cleanly(monkeypatch, tmp_path) -> None:
+    messages: list[str] = []
 
+    def capture(message: str, *args: object) -> None:
+        rendered = message % args if args else message
+        messages.append(rendered)
 
-def test_lifespan_shutdown_completes_cleanly(client: TestClient) -> None:
-    app = client.app
-    assert app.title == "Agentheim Code"
+    monkeypatch.setattr("agentheim_code.lifecycle.logger.info", capture)
+
+    with TestClient(create_app(tmp_path)) as client:
+        response = client.get("/api/health")
+        assert response.status_code == 200
+
+    assert any("backend starting" in message.lower() for message in messages)
+    assert any("backend shutting down" in message.lower() for message in messages)

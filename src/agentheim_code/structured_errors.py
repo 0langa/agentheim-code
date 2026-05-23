@@ -6,7 +6,7 @@ recovery action, and optional related session event id.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 
@@ -115,8 +115,44 @@ def redact_text(text: str) -> str:
     return result
 
 
+def _materialize_error(
+    template: StructuredError,
+    exc: Exception,
+    *,
+    event_id: str = "",
+) -> StructuredError:
+    detail = redact_text(str(exc) or type(exc).__name__)
+    technical_detail = template.technical_detail or type(exc).__name__
+    if detail and detail not in technical_detail:
+        technical_detail = f"{technical_detail} Cause: {detail}"
+    return replace(
+        template,
+        technical_detail=technical_detail,
+        related_event_id=event_id,
+    )
+
+
 def from_exception(exc: Exception, *, event_id: str = "") -> StructuredError:
     """Build a structured error from an arbitrary exception."""
+    try:
+        import requests
+    except ImportError:  # pragma: no cover - dependency is present in normal installs
+        requests = None
+
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return _materialize_error(E_NETWORK_ERROR, exc, event_id=event_id)
+    if requests and isinstance(
+        exc,
+        (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.RequestException,
+        ),
+    ):
+        return _materialize_error(E_NETWORK_ERROR, exc, event_id=event_id)
+    if isinstance(exc, OSError):
+        return _materialize_error(E_FILESYSTEM_ERROR, exc, event_id=event_id)
+
     name = type(exc).__name__
     return StructuredError(
         error_code="E2099",

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import requests
+
 from agentheim_code import diagnostics
 from agentheim_code.provider_health import (
     ProviderHealth,
@@ -34,6 +36,20 @@ def test_structured_error_from_exception_includes_recovery() -> None:
     assert error.technical_detail == "RuntimeError"
     assert error.related_event_id == "event-1"
     assert "try again" in error.recovery_action.lower()
+
+
+def test_structured_error_maps_network_failures() -> None:
+    error = from_exception(requests.exceptions.ConnectionError("network failed"))
+
+    assert error.error_code == "E2009"
+    assert "network" in error.message.lower()
+
+
+def test_structured_error_maps_filesystem_failures() -> None:
+    error = from_exception(OSError("disk full"))
+
+    assert error.error_code == "E2010"
+    assert "filesystem" in error.message.lower()
 
 
 def test_provider_health_round_trips_to_redacted_json_file(tmp_path: Path, monkeypatch) -> None:

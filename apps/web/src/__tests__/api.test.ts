@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { streamSessionMessage } from "../api";
+import { api, streamSessionMessage } from "../api";
 
 function streamFromText(text: string): ReadableStream<Uint8Array> {
   return new ReadableStream({
@@ -63,6 +63,66 @@ describe("streamSessionMessage", () => {
         body: JSON.stringify({ prompt: "hi", context_files: ["src/app.py"], use_context_bundle: true }),
       }),
     );
+
+    fetchMock.mockRestore();
+  });
+
+  it("generates a fresh request id for each streamed prompt", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(streamFromText('event: done\ndata: {"session_id":"sess-1"}\n\n'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(streamFromText('event: done\ndata: {"session_id":"sess-2"}\n\n'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      );
+
+    await streamSessionMessage("sess-1", "hi", {});
+    await streamSessionMessage("sess-2", "again", {});
+
+    const firstHeaders = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = fetchMock.mock.calls[1]?.[1]?.headers as Record<string, string>;
+
+    expect(firstHeaders["x-request-id"]).toBeTruthy();
+    expect(secondHeaders["x-request-id"]).toBeTruthy();
+    expect(secondHeaders["x-request-id"]).not.toBe(firstHeaders["x-request-id"]);
+
+    fetchMock.mockRestore();
+  });
+});
+
+describe("api", () => {
+  it("generates a fresh request id for each request", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+    await api<{ ok: boolean }>("/config");
+    await api<{ ok: boolean }>("/config");
+
+    const firstHeaders = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = fetchMock.mock.calls[1]?.[1]?.headers as Record<string, string>;
+
+    expect(firstHeaders["x-request-id"]).toBeTruthy();
+    expect(secondHeaders["x-request-id"]).toBeTruthy();
+    expect(secondHeaders["x-request-id"]).not.toBe(firstHeaders["x-request-id"]);
 
     fetchMock.mockRestore();
   });
