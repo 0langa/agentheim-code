@@ -1,8 +1,19 @@
 # Release Checklist
 
-## Required Verification
+Use this file as a release template. Do not leave old verification numbers in
+place. Replace every placeholder with fresh command output for the release you
+are preparing.
 
-Run fresh before claiming release readiness:
+## Scope And Intent
+
+- current repo version: `1.5.0`
+- primary packaged target: Windows NSIS installer
+- Python wheel remains part of the release surface
+- no tag, push, or hosted release creation unless explicitly requested
+
+## Canonical Verification Commands
+
+Run these fresh:
 
 ```powershell
 ruff check src/agentheim_code src/memory src/tools/shell tests/
@@ -14,85 +25,93 @@ npm --prefix apps/web run build
 npm --prefix apps/web run e2e
 cd apps/desktop/src-tauri; cargo test
 python -m build --wheel
-npm --prefix apps/desktop run build
 ```
 
-## Windows Packaging
+## Packaging Commands
 
-Preferred local packager:
+### Preferred local packaging pass
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 ```
 
-It performs:
+This currently performs:
 
+- clean prior build artifacts
 - web build
-- Windows Tauri build
+- Windows desktop build
 - wheel build
-- clean wheel smoke in a temporary venv
-- NSIS installer artifact lookup
+- clean-wheel smoke test in a temporary virtual environment
+- NSIS installer lookup
 
-Release automation script:
+### Local release artifact staging
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.0.0
 ```
 
-It performs:
-
-- web build
-- desktop build
-- wheel build
-- installer copy into `dist/`
-- checksum generation
-- release notes generation
-
-## Last Verified For 1.0.0
-
-Date: 2026-05-23
-
-- `ruff check src/agentheim_code src/memory src/tools/shell tests/`: passed
-- `ruff format --check src/agentheim_code src/memory src/tools/shell tests/`: passed
-- `mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip`: passed
-- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 225 passed, 3 deselected, 82.55% coverage
-- `npm --prefix apps/web run test -- --run`: 39 passed
-- `npm --prefix apps/web run build`: passed
-- `npm --prefix apps/web run e2e`: 2 passed
-- `cd apps/desktop/src-tauri; cargo test`: 1 passed
-- `powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1 -PythonExe python`: passed with clean wheel smoke
-- `powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.0.0`: passed with wheel, Windows installer copy, checksums, and release notes
-- Browser visual smoke: passed for the main workbench surface
+This script is Windows-only and currently stages local artifacts only. It does
+not create tags, publish to PyPI, or push to GitHub.
 
 ## CI Expectations
 
-- Python job uses the non-integration pytest coverage gate.
-- Web job runs unit tests, build, and Playwright smoke.
-- `desktop-rust` uploads `agentheim-code-windows-installer` and wheel artifacts with checksums.
+- Python job runs lint, format, mypy, non-integration pytest coverage, and wheel build
+- Web job runs unit tests, build, and Playwright smoke
+- CI caches:
+  - pip dependencies via `actions/cache@v4` on `~/.cache/pip`
+  - npm dependencies via `actions/cache@v4` on `~/.npm`
+  - Playwright browsers via `actions/cache@v4` on `~/.cache/ms-playwright`
+  - Rust/cargo dependencies via `Swatinem/rust-cache@v2`
+- `desktop-rust` uploads:
+  - `agentheim-code-windows-installer`
+  - `agentheim-code-wheel`
 
-## Manual Checks
+## Manual Product Checks
 
-- onboarding appears on fresh config
-- existing configured user lands in app
-- `@` context picker can add and remove files
-- context previews show token estimates and rejections
-- stop cancels the backend session
-- structured errors show codes and recovery actions
-- approvals are readable and actionable in the GUI
-- diff viewer shows before/after with copy
-- terminal panel shows collapsible output with copy
-- workspace explorer shows file tree with changed badges
-- command palette executes new session, settings, approvals, files, terminal, retry, stop
-- session search filters by status and mode
-- dark, light, high-contrast themes are usable
-- keyboard flow covers new session, settings, send, modal close, approvals
-- `agentheim-code app --workspace .` launches packaged shell with local backend
-- `agentheim-code diagnostics` produces a redacted bundle
-- docs match actual CLI and UI labels
+- fresh config shows onboarding
+- existing configured user lands in the main workbench
+- Ollama detection path is visible when Ollama is running
+- provider wizard can test and save a provider
+- `@` context search can add and remove files
+- context preview shows token estimates and rejected files
+- stop cancels an active run
+- structured errors are readable in the alert area
+- approvals are readable and actionable
+- diff copy works
+- terminal output expand/collapse and copy work
+- files panel preview/copy/attach work
+- runs filter works by session id, status, or mode
+- dark, light, and high-contrast themes all apply correctly
+- keyboard flow covers command palette, settings, new session, send, and modal close
+- browser mode launches from a Python-only install
+- packaged desktop shell launches only from an installed or built binary
+- diagnostics bundle is generated and redacted
+- docs match actual CLI commands and UI labels
 
-## Distribution
+## Release Record
 
-- Windows is the primary packaging target for 1.0.
-- macOS/Linux are supported via pip install.
-- App updates are manual: `pip install --upgrade agentheim-code`.
-- Unsigned builds may trigger Windows reputation warnings.
+Fill this section for the actual release:
+
+- date:
+- branch:
+- version:
+- `ruff check`:
+- `ruff format --check`:
+- `mypy`:
+- `pytest`:
+- `npm --prefix apps/web run test -- --run`:
+- `npm --prefix apps/web run build`:
+- `npm --prefix apps/web run e2e`:
+- `cargo test`:
+- `python -m build --wheel`:
+- `scripts/package-beta.ps1`:
+- `scripts/release.ps1 -Version <version>`:
+- manual browser smoke:
+- packaged desktop smoke:
+
+## Distribution Notes
+
+- Windows is the primary packaged desktop target today
+- macOS/Linux are currently best served by the Python package plus browser mode
+- updates are manual
+- unsigned Windows installers may trigger reputation warnings
