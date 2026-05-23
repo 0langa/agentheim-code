@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from agentheim_code import config as ui_config
 from agentheim_code.context_bundle import build_context_bundle
+from agentheim_code.provider_health import load_health
 from agentheim_code.provider_wizard import (
     create_profile,
     delete_profile,
@@ -100,7 +101,7 @@ def _version() -> str:
     try:
         return package_version("agentheim-code")
     except PackageNotFoundError:
-        return "0.7.0"
+        return "0.8.0"
 
 
 def _json_model(model: Any) -> dict[str, Any]:
@@ -624,7 +625,29 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.get("/api/coder/models")
     def api_models() -> dict[str, Any]:
-        return cast(dict[str, Any], list_model_options())
+        options = cast(dict[str, Any], list_model_options())
+        health = load_health()
+        for profile in options.get("profiles", []):
+            for model in profile.get("models", []):
+                provider_id = model.get("provider", "")
+                key = f"{profile['name']}/{provider_id}"
+                h = health.get(key)
+                if h:
+                    model["health"] = h.to_dict()
+                else:
+                    model["health"] = None
+                # Basic recommendation metadata
+                model["recommendations"] = {
+                    "planner_suitable": "json" in model.get("capabilities", []),
+                    "context_window_hint": "unknown",
+                    "cost_support": True,
+                }
+        return options
+
+    @app.get("/api/providers/health")
+    def api_provider_health() -> dict[str, Any]:
+        health = load_health()
+        return {"health": {k: v.to_dict() for k, v in health.items()}}
 
     @app.get("/api/coder/commands")
     def api_commands() -> list[dict[str, str]]:

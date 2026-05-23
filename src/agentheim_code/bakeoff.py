@@ -5,12 +5,14 @@ import shutil
 import tempfile
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from rich.console import Console
 from rich.table import Table
 
+from agentheim_code.structured_errors import redact_text
 from workflows.coder.runtime import (
     create_session,
     get_session_view,
@@ -34,11 +36,14 @@ class BakeOffResult:
     provider: str
     model: str
     passed: bool
+    degraded: bool = False
     files_created: list[str] = field(default_factory=list)
     verification_exit: int | None = None
     verification_output: str = ""
     error: str = ""
     duration: float = 0.0
+    latency_ms: float = 0.0
+    usage_extracted: bool = False
 
 
 def _run_single_bakeoff(
@@ -181,12 +186,68 @@ def render_bakeoff_json(results: list[BakeOffResult]) -> None:
             "provider": r.provider,
             "model": r.model,
             "passed": r.passed,
+            "degraded": r.degraded,
             "files_created": r.files_created,
             "verification_exit": r.verification_exit,
             "verification_output": r.verification_output,
             "error": r.error,
             "duration": round(r.duration, 2),
+            "latency_ms": round(r.latency_ms, 2),
+            "usage_extracted": r.usage_extracted,
         }
         for r in results
     ]
     console.print_json(json.dumps(payload))
+
+
+def render_bakeoff_markdown(results: list[BakeOffResult]) -> str:
+    lines = [
+        "# Bake-Off Report",
+        "",
+        f"Generated: {datetime.now(tz=UTC).isoformat()}",
+        "",
+        "| Profile | Provider | Model | Result | Duration | Error |",
+        "|---------|----------|-------|--------|----------|-------|",
+    ]
+    for r in results:
+        status = "PASS" if r.passed else "DEGRADED" if r.degraded else "FAIL"
+        error = redact_text(r.error) if r.error else "-"
+        lines.append(
+            f"| {r.profile} | {r.provider} | {r.model} | {status} | {r.duration:.1f}s | {error} |"
+        )
+    lines.append("")
+    lines.append("## Summary")
+    total = len(results)
+    passed = sum(1 for r in results if r.passed)
+    degraded = sum(1 for r in results if r.degraded)
+    lines.append(f"- Total: {total}")
+    lines.append(f"- Pass: {passed}")
+    lines.append(f"- Degraded: {degraded}")
+    lines.append(f"- Fail: {total - passed - degraded}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_bakeoff_reports(results: list[BakeOffResult], out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    json_path = out_dir / "bakeoff-report.json"
+    md_path = out_dir / "bakeoff-report.md"
+    payload = [
+        {
+            "profile": r.profile,
+            "provider": r.provider,
+            "model": r.model,
+            "passed": r.passed,
+            "degraded": r.degraded,
+            "files_created": r.files_created,
+            "verification_exit": r.verification_exit,
+            "verification_output": r.verification_output,
+            "error": r.error,
+            "duration": round(r.duration, 2),
+            "latency_ms": round(r.latency_ms, 2),
+            "usage_extracted": r.usage_extracted,
+        }
+        for r in results
+    ]
+    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    md_path.write_text(render_bakeoff_markdown(results), encoding="utf-8")

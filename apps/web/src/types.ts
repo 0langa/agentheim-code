@@ -12,6 +12,8 @@ export type ModelBinding = {
   model: string;
   display_name?: string;
   capabilities?: string[];
+  health?: unknown;
+  recommendations?: unknown;
 };
 
 export type ProviderProfile = {
@@ -88,6 +90,10 @@ export type Session = {
   current_user_prompt?: string;
   current_assistant_message?: string;
   changed_files?: string[];
+  repair_attempts?: number;
+  last_failure_reason?: string;
+  last_verification_command?: string[];
+  last_verification_exit_code?: number | null;
 };
 
 export type SessionEvent = {

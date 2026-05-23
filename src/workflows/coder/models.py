@@ -189,6 +189,10 @@ class CoderSession(BaseModel):
     next_action_index: int = 0
     git_available: bool = False
     queued_prompts: list[str] = Field(default_factory=list)
+    repair_attempts: int = 0
+    last_failure_reason: str = ""
+    last_verification_command: list[str] = Field(default_factory=list)
+    last_verification_exit_code: int | None = None
 
 
 class CoderSessionView(BaseModel):

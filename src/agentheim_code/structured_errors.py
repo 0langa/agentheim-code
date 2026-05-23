@@ -79,6 +79,21 @@ E_RESUME_INVALID_STATE = StructuredError(
 )
 
 
+def redact_text(text: str) -> str:
+    """Remove common secret patterns from text."""
+    import re
+
+    patterns = [
+        (r"sk-[a-zA-Z0-9]{20,}", "sk-***"),
+        (r"Bearer\s+[a-zA-Z0-9_-]+", "Bearer ***"),
+        (r"api[_-]?key[:\s=]+[a-zA-Z0-9_-]+", "api_key=***"),
+    ]
+    result = text
+    for pattern, replacement in patterns:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    return result
+
+
 def from_exception(exc: Exception, *, event_id: str = "") -> StructuredError:
     """Build a structured error from an arbitrary exception."""
     name = type(exc).__name__

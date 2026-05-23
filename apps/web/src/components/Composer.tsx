@@ -64,6 +64,21 @@ export function Composer({
   );
   const plannerModels =
     activeProfile?.models.filter((model) => model.role === "planner") ?? [];
+
+  const modelHealth = (model: (typeof plannerModels)[number]) => {
+    const h = model.health as {
+      available?: boolean;
+      bakeoff_passed?: boolean;
+      bakeoff_degraded?: boolean;
+      known_limitations?: string[];
+    } | null;
+    if (!h) return null;
+    if (!h.available) return { level: "error", text: "Provider unavailable" };
+    if (!h.bakeoff_passed) return { level: "warning", text: "No bake-off pass" };
+    if (h.bakeoff_degraded) return { level: "warning", text: "Degraded in bake-off" };
+    if (h.known_limitations?.length) return { level: "warning", text: h.known_limitations[0] };
+    return null;
+  };
   const mention = prompt.match(/(?:^|\s)@([^\s@]*)$/);
   const showFilePicker = Boolean(mention && fileMatches.length > 0);
   React.useEffect(() => {
@@ -119,11 +134,15 @@ export function Composer({
           disabled={!activeProfile}
         >
           <option value="auto">Auto model</option>
-          {plannerModels.map((model) => (
-            <option key={`${model.provider}:${model.model}`} value={model.model}>
-              {model.provider} / {model.display_name ?? model.model}
-            </option>
-          ))}
+          {plannerModels.map((model) => {
+            const health = modelHealth(model);
+            return (
+              <option key={`${model.provider}:${model.model}`} value={model.model}>
+                {model.provider} / {model.display_name ?? model.model}
+                {health ? ` (${health.text})` : ""}
+              </option>
+            );
+          })}
         </select>
       </div>
       <textarea

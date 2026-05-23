@@ -272,6 +272,8 @@ without losing their place in the conversation.
 
 Target: `0.8.0`
 
+Status: **complete** on 2026-05-23.
+
 Goal: make provider/model behavior measurable, diagnosable, and good enough for
 real coding work.
 
@@ -324,6 +326,14 @@ avoid wasting time on models that are currently bad for coding sessions.
 - At least OpenAI-compatible/Ollama and one cloud provider path pass the standard
   non-integration test suite and documented optional live smoke path.
 - Bake-off docs explain how to interpret pass, degraded, and fail states.
+
+### Verification
+
+- Python tests: 219 passed, 83%+ coverage
+- Web unit tests: 39 passed
+- Playwright e2e: 2 passed
+- Rust tests: 1 passed
+- Package script: passed, NSIS artifact produced
 
 ### Release Work
 

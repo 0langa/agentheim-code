@@ -10,7 +10,12 @@ from rich.console import Console
 from rich.table import Table
 
 from agentheim_code import __version__
-from agentheim_code.bakeoff import render_bakeoff_json, render_bakeoff_table, run_bakeoff
+from agentheim_code.bakeoff import (
+    render_bakeoff_json,
+    render_bakeoff_table,
+    run_bakeoff,
+    write_bakeoff_reports,
+)
 from agentheim_code.coder_cli import coder_app
 from agentheim_code.config import ensure_default_config, load_config
 from agentheim_code.desktop import DesktopLaunchError, launch_desktop
@@ -167,6 +172,9 @@ def bake_off(
     model: str | None = typer.Option(None, "--model", help="Filter to a specific model."),
     timeout: int = typer.Option(300, "--timeout", help="Seconds to wait per provider."),
     as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+    report_dir: Path | None = typer.Option(
+        None, "--report-dir", help="Write JSON + markdown reports to this directory."
+    ),
 ) -> None:
     """Run a lightweight coding bake-off against configured providers.
 
@@ -191,6 +199,10 @@ def bake_off(
         render_bakeoff_json(results)
     else:
         render_bakeoff_table(results)
+
+    if report_dir:
+        write_bakeoff_reports(results, report_dir)
+        console.print(f"Reports written to {report_dir}")
 
     if not all(r.passed for r in results):
         raise typer.Exit(1)

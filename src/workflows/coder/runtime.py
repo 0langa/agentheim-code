@@ -495,6 +495,13 @@ def _invoke_planner_json(
                 "usage": response.usage.to_dict(),
             },
         )
+    if not response.content or not response.content.strip():
+        raise ValueError("Provider returned an empty response.")
+    if response.usage and max_output_tokens and response.usage.output_tokens >= int(max_output_tokens * 0.95):
+        raise ValueError(
+            f"Provider response may be truncated: output_tokens={response.usage.output_tokens} "
+            f"approaches max_output_tokens={max_output_tokens}."
+        )
     try:
         return _parse_turn_plan(response.content)
     except Exception as exc:
@@ -952,6 +959,13 @@ def _repair_failed_verification(
         if last_result is None or last_result.exit_code in (None, 0):
             return session
         session = _set_status(session, SessionStatus.RUNNING)
+        session = session.model_copy(
+            update={
+                "repair_attempts": attempt,
+                "last_verification_command": list(last_result.command),
+                "last_verification_exit_code": last_result.exit_code,
+            }
+        )
         session = _record_activity(
             workspace,
             session,
@@ -1005,6 +1019,7 @@ def _repair_failed_verification(
                 update={
                     "current_summary": "Coder repair failed",
                     "current_assistant_message": str(exc),
+                    "last_failure_reason": str(exc),
                 }
             )
             return _set_status(failed, SessionStatus.FAILED)
@@ -1322,6 +1337,7 @@ def post_message(workspace_root: str | Path, session_id: str, prompt: str) -> Co
                 update={
                     "current_summary": "Coder turn failed",
                     "current_assistant_message": str(exc),
+                    "last_failure_reason": str(exc),
                 }
             )
             session = _set_status(session, SessionStatus.FAILED)
