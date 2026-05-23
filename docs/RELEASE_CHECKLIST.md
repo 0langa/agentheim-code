@@ -6,7 +6,7 @@ are preparing.
 
 ## Scope And Intent
 
-- current repo version: `1.5.0`
+- current repo version: `2.0.0`
 - primary packaged target: Windows NSIS installer
 - Python wheel remains part of the release surface
 - no tag, push, or hosted release creation unless explicitly requested
@@ -112,9 +112,21 @@ Last verified: 2026-05-23
 ### Unverified / Deferred
 - `scripts/release.ps1` local staging flow was not run because no local release bundle was requested
 
+## Windows Signing Strategy
+
+Agentheim Code installers are currently unsigned. To sign future releases:
+
+1. Obtain a Windows code-signing certificate (OV or EV)
+2. Export certificate thumbprint and set `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env vars
+3. Tauri v2 will sign the NSIS installer automatically during `npm run tauri build`
+4. Document the signed thumbprint in release notes so users can verify
+
+Until signing is configured, the installer is built unsigned and Windows SmartScreen may show a reputation warning. Users can verify integrity via the SHA256 checksum published with each release.
+
 ## Distribution Notes
 
 - Windows is the primary packaged desktop target today
 - macOS/Linux are currently best served by the Python package plus browser mode
-- updates are manual
-- unsigned Windows installers may trigger reputation warnings
+- updates are manual: `pip install --upgrade agentheim-code` or reinstall the Windows installer
+- unsigned Windows installers may trigger reputation warnings; verify with SHA256 checksums
+- settings can be migrated between installs with `agentheim-code config export` and `agentheim-code config import`

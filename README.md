@@ -6,7 +6,7 @@ Agentheim Code is a standalone local-first coding workbench with:
 - a React/Vite frontend in `apps/web`
 - an optional Tauri desktop shell in `apps/desktop`
 
-Current verified baseline: `1.5.0`
+Current verified baseline: `2.0.0`
 
 The product flow is simple:
 
@@ -54,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 
 ## Current Product Baseline
 
-- Release-synced `1.5.0` baseline with verified Python, web, desktop, and packaging checks
+- Release-synced `2.0.0` baseline with verified Python, web, desktop, and packaging checks
 - First-run onboarding with workspace selection and Ollama auto-detection
 - Provider wizard with test, create, and delete flows
 - Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
@@ -91,6 +91,21 @@ Useful checks:
 agentheim-code doctor
 agentheim-code models
 agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
+```
+
+## Upgrade And Migration
+
+Upgrade the Python package:
+
+```powershell
+pip install --upgrade agentheim-code
+```
+
+Export and import settings for migration or backup:
+
+```powershell
+agentheim-code config export --path agentheim-code-backup.json
+agentheim-code config import --path agentheim-code-backup.json
 ```
 
 ## Docs
@@ -137,4 +152,6 @@ npm --prefix apps/web run test -- --run
 npm --prefix apps/web run build
 npm --prefix apps/web run e2e
 cd apps/desktop/src-tauri; cargo test
+python -m build --wheel
+powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 ```

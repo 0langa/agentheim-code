@@ -265,6 +265,36 @@ def provider_test(
         raise typer.Exit(1)
 
 
+@app.command("config")
+def config_cmd(
+    action: str = typer.Argument(..., help="Action: export or import"),
+    path: Path = typer.Option(
+        Path("agentheim-code-config.json"), "--path", help="Export/import file path."
+    ),
+) -> None:
+    """Export or import UI configuration for migration or backup."""
+    from agentheim_code.config import load_config, save_config
+
+    if action == "export":
+        cfg = load_config()
+        import json
+
+        path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        console.print(f"[green]Config exported to {path}[/green]")
+    elif action == "import":
+        import json
+
+        if not path.exists():
+            console.print(f"[red]Config file not found: {path}[/red]")
+            raise typer.Exit(1)
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+        save_config(cfg)
+        console.print(f"[green]Config imported from {path}[/green]")
+    else:
+        console.print(f"[red]Unknown action: {action}. Use 'export' or 'import'.[/red]")
+        raise typer.Exit(1)
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,

@@ -1,11 +1,21 @@
 # Release automation for Agentheim Code
-# Usage: powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.0.0
+# Usage: powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 2.0.0
 param(
     [Parameter(Mandatory=$true)]
     [string]$Version
 )
 
 $ErrorActionPreference = "Stop"
+
+# Validate version matches pyproject.toml
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$projectVersion = Select-String -Path (Join-Path $repoRoot "pyproject.toml") -Pattern '^version = "([^"]+)"' |
+    Select-Object -First 1 |
+    ForEach-Object { $_.Matches[0].Groups[1].Value }
+
+if ($projectVersion -ne $Version) {
+    throw "Version mismatch: requested $Version but pyproject.toml has $projectVersion"
+}
 
 function Write-Step($msg) {
     Write-Host "`n==> $msg" -ForegroundColor Cyan
