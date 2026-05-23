@@ -78,6 +78,27 @@ E_RESUME_INVALID_STATE = StructuredError(
     recovery_action="Wait for the session to finish, or create a new session.",
 )
 
+E_REQUEST_TOO_LARGE = StructuredError(
+    error_code="E2008",
+    message="Request body is too large.",
+    technical_detail="The request payload exceeded the configured body limit.",
+    recovery_action="Reduce the prompt size or attached context and retry.",
+)
+
+E_NETWORK_ERROR = StructuredError(
+    error_code="E2009",
+    message="A network error occurred while contacting the provider.",
+    technical_detail="",
+    recovery_action="Check your network connection and provider endpoint, then retry.",
+)
+
+E_FILESYSTEM_ERROR = StructuredError(
+    error_code="E2010",
+    message="A filesystem error occurred while reading or writing session data.",
+    technical_detail="",
+    recovery_action="Check disk space, file permissions, and workspace path.",
+)
+
 
 def redact_text(text: str) -> str:
     """Remove common secret patterns from text."""

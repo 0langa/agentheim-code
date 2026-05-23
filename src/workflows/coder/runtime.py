@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from datetime import UTC, datetime
@@ -44,7 +45,6 @@ from workflows.coder.models import (
     SessionStatus,
     TrustMode,
 )
-
 
 WORKFLOW_ID = "coder"
 PRESET_ID = "coder"
@@ -381,9 +381,13 @@ def _offline_violations(plan: CoderTurnPlan, prompt: str) -> list[str]:
         return []
     violations: list[str] = []
     for action in plan.actions:
-        if action.kind == "write_file" and action.path and action.content:
-            if "http://" in action.content or "https://" in action.content:
-                violations.append(action.path)
+        if (
+            action.kind == "write_file"
+            and action.path
+            and action.content
+            and ("http://" in action.content or "https://" in action.content)
+        ):
+            violations.append(action.path)
     return violations
 
 
@@ -402,10 +406,8 @@ class _SessionLock:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             self.path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def _coder_output_token_budget(model_config: Any) -> tuple[int, int]:
@@ -1183,6 +1185,10 @@ def cancel_session(workspace_root: str | Path, session_id: str) -> CoderSession:
             created_at=_utcnow(),
         ),
     )
+    # Release any stale lock so the session can be resumed or re-used.
+    lock_path = _session_paths(workspace, session_id)["lock"]
+    with contextlib.suppress(FileNotFoundError):
+        lock_path.unlink()
     return _save_session(workspace, _set_status(session, SessionStatus.CANCELLED))
 
 

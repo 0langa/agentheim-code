@@ -31,6 +31,7 @@ def test_health_endpoint(client: TestClient, workspace_dir: str) -> None:
     assert data["status"] == "ok"
     assert "version" in data
     assert workspace_dir in data["workspace"]
+    assert resp.headers["x-request-id"]
 
 
 def test_config_endpoint_reads_and_updates_ui_config(

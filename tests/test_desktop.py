@@ -118,6 +118,7 @@ class TestStopBackend:
     def test_terminates_gracefully(self) -> None:
         mock_proc = MagicMock()
         mock_proc.pid = 123
+        mock_proc.poll.return_value = None
         mock_proc.wait.return_value = 0
         _stop_backend(mock_proc)
         mock_proc.terminate.assert_called_once()
@@ -126,12 +127,21 @@ class TestStopBackend:
     def test_kills_on_timeout(self) -> None:
         mock_proc = MagicMock()
         mock_proc.pid = 123
+        mock_proc.poll.return_value = None
         mock_proc.wait.side_effect = [
             subprocess.TimeoutExpired("cmd", 5),
             0,
         ]
         _stop_backend(mock_proc)
         mock_proc.kill.assert_called_once()
+
+    def test_skips_already_exited_process(self) -> None:
+        mock_proc = MagicMock()
+        mock_proc.pid = 123
+        mock_proc.poll.return_value = 0
+        _stop_backend(mock_proc)
+        mock_proc.terminate.assert_not_called()
+        mock_proc.kill.assert_not_called()
 
 
 class TestLaunchDesktop:

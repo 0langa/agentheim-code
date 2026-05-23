@@ -122,6 +122,8 @@ def serve_web(
             port=resolved_port,
             log_level="warning",
         )
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt; shutting down.")
     finally:
         os.chdir(original_cwd)
 
@@ -148,6 +150,9 @@ def _start_backend_subprocess(workspace_path: Path, port: int) -> subprocess.Pop
 
 def _stop_backend(proc: subprocess.Popen[bytes]) -> None:
     """Terminate the backend subprocess gracefully."""
+    if proc.poll() is not None:
+        logger.info("Backend (pid %s) already exited.", proc.pid)
+        return
     logger.info("Stopping backend (pid %s)...", proc.pid)
     proc.terminate()
     try:

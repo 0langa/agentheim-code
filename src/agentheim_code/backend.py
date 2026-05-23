@@ -9,14 +9,16 @@ from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agentheim_code import config as ui_config
 from agentheim_code.context_bundle import build_context_bundle
+from agentheim_code.http_context import MAX_JSON_BODY_BYTES, REQUEST_ID_HEADER, new_request_id
+from agentheim_code.lifecycle import build_lifespan
 from agentheim_code.provider_health import load_health
 from agentheim_code.provider_wizard import (
     create_profile,
@@ -27,6 +29,7 @@ from agentheim_code.provider_wizard import (
 from agentheim_code.structured_errors import (
     E_CANCELLATION_FAILED,
     E_CONTEXT_VALIDATION_FAILED,
+    E_REQUEST_TOO_LARGE,
     E_RESUME_INVALID_STATE,
     E_SESSION_LOCKED,
     E_SESSION_NOT_FOUND,
@@ -293,7 +296,7 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     if not workspace_path.is_dir():
         raise NotADirectoryError(f"Workspace must be a directory: {workspace_path}")
 
-    app = FastAPI(title="Agentheim Code", version=_version())
+    app = FastAPI(title="Agentheim Code", version=_version(), lifespan=build_lifespan())
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=(
@@ -304,6 +307,26 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def attach_request_context(request: Request, call_next: Any) -> Any:
+        request_id = request.headers.get(REQUEST_ID_HEADER, new_request_id())
+        request.state.request_id = request_id
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                if int(content_length) > MAX_JSON_BODY_BYTES:
+                    error_detail = {**E_REQUEST_TOO_LARGE.to_dict(), "request_id": request_id}
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": error_detail},
+                        headers={REQUEST_ID_HEADER: request_id},
+                    )
+            except ValueError:
+                pass
+        response = await call_next(request)
+        response.headers[REQUEST_ID_HEADER] = request_id
+        return response
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -369,6 +392,8 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     def api_post_message(
         session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
     ) -> dict[str, Any]:
+        if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
+            raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
         workspace = _workspace(workspace_path, workspace_root)
         prompt, errors = _prompt_with_context(
             body.prompt, body.context_files, workspace, use_bundle=body.use_context_bundle
@@ -394,6 +419,8 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     async def api_post_message_stream(
         session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
     ) -> StreamingResponse:
+        if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
+            raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
         workspace = _workspace(workspace_path, workspace_root)
         prompt, errors = _prompt_with_context(
             body.prompt, body.context_files, workspace, use_bundle=body.use_context_bundle
@@ -482,6 +509,8 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     def api_queue_message(
         session_id: str, body: CoderQueueRequest, workspace_root: str | None = None
     ) -> dict[str, Any]:
+        if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
+            raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
         return _json_model(
             queue_message(_workspace(workspace_path, workspace_root), session_id, body.prompt)
         )
