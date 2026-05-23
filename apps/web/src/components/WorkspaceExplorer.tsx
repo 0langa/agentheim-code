@@ -3,6 +3,8 @@ import { FileText, Folder, Copy, Eye, Plus } from "lucide-react";
 import { api } from "../api";
 import type { FileEntry } from "../types";
 
+const BATCH_SIZE = 100;
+
 interface WorkspaceExplorerProps {
   workspaceRoot?: string;
   changedFiles?: string[];
@@ -13,17 +15,22 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<{ path: string; content: string } | null>(null);
+  const [displayCount, setDisplayCount] = useState(BATCH_SIZE);
 
   useEffect(() => {
     if (!workspaceRoot) return;
     api<FileEntry[]>("/coder/files")
-      .then(setFiles)
+      .then((data) => {
+        setFiles(data);
+        setDisplayCount(BATCH_SIZE);
+      })
       .catch(() => setFiles([]));
   }, [workspaceRoot]);
 
-  const filtered = files
-    .filter((f) => f.path.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 500);
+  const filtered = files.filter((f) => f.path.toLowerCase().includes(query.toLowerCase()));
+  const visible = filtered.slice(0, displayCount);
+  const hasMore = visible.length < filtered.length;
+  const isBackendTruncated = files.length >= 500;
 
   const isChanged = (path: string) => changedFiles.includes(path);
 
@@ -47,10 +54,23 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
           type="text"
           placeholder="Search files..."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setDisplayCount(BATCH_SIZE);
+          }}
           style={{ width: "100%", fontSize: "13px" }}
         />
       </div>
+      <div style={{ padding: "4px 12px", fontSize: "11px", color: "var(--muted)" }}>
+        {hasMore
+          ? `Showing ${visible.length} of ${filtered.length} files`
+          : `${filtered.length} files total`}
+      </div>
+      {isBackendTruncated && (
+        <div style={{ padding: "4px 12px", fontSize: "11px", color: "var(--warning)" }}>
+          Large workspace — first 500 files shown
+        </div>
+      )}
       {preview ? (
         <div style={{ padding: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -63,7 +83,7 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
         </div>
       ) : (
         <div style={{ display: "grid" }}>
-          {filtered.map((file) => (
+          {visible.map((file) => (
             <div
               key={file.path}
               style={{
@@ -104,6 +124,15 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
               )}
             </div>
           ))}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setDisplayCount((c) => c + BATCH_SIZE)}
+              style={{ padding: "8px 12px", fontSize: "12px", margin: "4px 12px" }}
+            >
+              Load more
+            </button>
+          )}
         </div>
       )}
     </div>

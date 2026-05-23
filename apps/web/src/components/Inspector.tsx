@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import { api } from "../api";
 import type { CoderCommand, Session, SessionView, ProviderProfile } from "../types";
+import { formatRelativeTime } from "../utils/time";
 import { DiffViewer } from "./DiffViewer";
 import { SessionUsage } from "./SessionUsage";
 import { TerminalPanel } from "./TerminalPanel";
@@ -79,7 +80,7 @@ export function Inspector({
           {active?.events?.map((event, index) => (
             <article key={event.event_id ?? index} className="panel-item">
               <strong>{event.type ?? "event"}</strong>
-              <span>{event.timestamp ?? "live"}</span>
+              <span>{event.timestamp ? formatRelativeTime(event.timestamp) : "live"}</span>
               {event.message && <p>{event.message}</p>}
             </article>
           ))}
@@ -106,11 +107,24 @@ export function Inspector({
                 s.status.toLowerCase().includes(sessionFilter.toLowerCase()) ||
                 s.mode.toLowerCase().includes(sessionFilter.toLowerCase())
             )
-            .map((session) => (
+            .map((session, index, arr) => (
               <button
                 key={session.session_id}
                 type="button"
+                className="run-session-button"
                 onClick={() => onSelectSession(session.session_id)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const next = e.currentTarget.nextElementSibling as HTMLButtonElement | null;
+                    next?.focus();
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prev = e.currentTarget.previousElementSibling as HTMLButtonElement | null;
+                    prev?.focus();
+                  }
+                }}
               >
                 <strong>{session.session_id}</strong>
                 <span>
@@ -158,7 +172,22 @@ export function Inspector({
                 <pre>{approval.params.command.map(String).join(" ")}</pre>
               )}
               {approval.action_kind === "file" && (
-                <pre>{String(approval.params?.content ?? approval.target ?? "")}</pre>
+                <div style={{ display: "grid", gap: 4, marginTop: 4 }}>
+                  {approval.params?.old_content != null && (
+                    <div>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>Before</span>
+                      <pre style={{ maxHeight: 120, overflow: "auto" }}>
+                        {String(approval.params.old_content)}
+                      </pre>
+                    </div>
+                  )}
+                  <div>
+                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>After</span>
+                    <pre style={{ maxHeight: 120, overflow: "auto" }}>
+                      {String(approval.params?.content ?? approval.target ?? "")}
+                    </pre>
+                  </div>
+                </div>
               )}
               <div className="approval-actions">
                 <button
@@ -249,6 +278,17 @@ export function Inspector({
                 {command.label} · {command.cli}
               </span>
             ))}
+          </article>
+
+          <article className="panel-item">
+            <strong>Keyboard Shortcuts</strong>
+            <div style={{ display: "grid", gap: 4, fontSize: "12px" }}>
+              <span>Ctrl+K / Cmd+K — Open command palette</span>
+              <span>Ctrl+, / Cmd+, — Open settings</span>
+              <span>Ctrl+Shift+N / Cmd+Shift+N — New session</span>
+              <span>Ctrl+Enter / Cmd+Enter — Send message</span>
+              <span>Escape — Close palette</span>
+            </div>
           </article>
         </div>
       )}

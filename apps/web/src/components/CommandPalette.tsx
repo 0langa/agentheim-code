@@ -11,6 +11,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const descriptionId = React.useId();
@@ -30,9 +31,33 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
     );
   }, [commands, query]);
 
-  const executeFirst = () => {
-    if (filtered[0]) {
-      onExecute(filtered[0]);
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [filtered.length, query]);
+
+  const executeSelected = () => {
+    const cmd = filtered[selectedIndex];
+    if (cmd) {
+      onExecute(cmd);
+      onClose();
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedIndex((i) => (filtered.length ? (i + 1) % filtered.length : 0));
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedIndex((i) => (filtered.length ? (i - 1 + filtered.length) % filtered.length : 0));
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      executeSelected();
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
       onClose();
     }
   };
@@ -48,32 +73,33 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
       tabIndex={-1}
     >
       <p id={descriptionId} className="sr-only">
-        Search commands, press Enter to run the first result, or Escape to close.
+        Search commands, press Enter to run the selected result, or Escape to close.
       </p>
       <input
         ref={inputRef}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            executeFirst();
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         placeholder="Search commands"
       />
       <div>
-        {filtered.map((command) => (
+        {filtered.map((command, index) => (
           <button
             key={command.id}
             type="button"
             onClick={() => {
               onExecute(command);
               onClose();
+            }}
+            style={{
+              background:
+                index === selectedIndex
+                  ? "color-mix(in srgb, var(--accent) 20%, transparent)"
+                  : undefined,
+              borderColor:
+                index === selectedIndex
+                  ? "color-mix(in srgb, var(--accent) 50%, transparent)"
+                  : undefined,
             }}
           >
             <strong>{command.label}</strong>
@@ -82,9 +108,19 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
         ))}
         {filtered.length === 0 && (
           <div style={{ padding: "0.5rem", color: "var(--muted)" }}>
-            No commands found
+            No matching commands
           </div>
         )}
+      </div>
+      <div
+        style={{
+          padding: "4px 8px",
+          fontSize: "11px",
+          color: "var(--muted)",
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
+        ↑↓ navigate · Enter run · Escape close
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ describe("CommandPalette", () => {
     expect(onExecute).toHaveBeenCalledWith(COMMANDS[0]);
   });
 
-  it("executes the first filtered command on Enter", () => {
+  it("executes the selected command on Enter", () => {
     const onExecute = vi.fn();
     const onClose = vi.fn();
     render(
@@ -75,5 +75,29 @@ describe("CommandPalette", () => {
     fireEvent.keyDown(dialog, { key: "Tab" });
 
     expect(input).toHaveFocus();
+  });
+
+  it("navigates with arrow keys and highlights the selected command", () => {
+    render(
+      <CommandPalette commands={COMMANDS} onClose={vi.fn()} onExecute={vi.fn()} />,
+    );
+    const input = screen.getByPlaceholderText("Search commands");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    const buttons = screen.getAllByRole("button").filter((b) => b.textContent?.includes("New Session") || b.textContent?.includes("Resume Session"));
+    // First item should be selected/highlighted by default; arrow down moves to second
+    expect(buttons[1]).toHaveStyle("background: color-mix(in srgb, var(--accent) 20%, transparent)");
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(buttons[0]).toHaveStyle("background: color-mix(in srgb, var(--accent) 20%, transparent)");
+  });
+
+  it("shows 'No matching commands' when filter returns nothing", () => {
+    render(
+      <CommandPalette commands={COMMANDS} onClose={vi.fn()} onExecute={vi.fn()} />,
+    );
+    const input = screen.getByPlaceholderText("Search commands");
+    fireEvent.change(input, { target: { value: "zzzzz" } });
+    expect(screen.getByText("No matching commands")).toBeInTheDocument();
   });
 });

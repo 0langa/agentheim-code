@@ -119,6 +119,7 @@ export type CommandResult = {
   status?: string;
   stdout?: string;
   stderr?: string;
+  timestamp?: string;
 };
 
 export type SessionDiff = {
