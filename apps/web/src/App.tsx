@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-import { api } from "./api";
+import { api, streamSessionMessage } from "./api";
 import { Chat } from "./components/Chat";
 import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
@@ -25,6 +25,8 @@ export function App() {
   const [selectedProfile, setSelectedProfile] = useState("auto");
   const [selectedModel, setSelectedModel] = useState("auto");
   const [isLoading, setIsLoading] = useState(false);
+  const [streamAbort, setStreamAbort] = useState<AbortController | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,28 +86,74 @@ export function App() {
     }
   };
 
-  const sendPrompt = async () => {
-    if (!active || !prompt.trim()) return;
+  const sendPrompt = async (overridePrompt?: string) => {
+    const promptText = overridePrompt ?? prompt;
+    if (!active || !promptText.trim()) return;
+    const sessionId = active.session.session_id;
+    const controller = new AbortController();
     setIsLoading(true);
+    setStreamAbort(controller);
     setError(null);
-    try {
-      await api<Session>(
-        `/coder/sessions/${active.session.session_id}/messages`,
-        {
-          method: "POST",
-          body: JSON.stringify({ prompt }),
+    setLastPrompt(promptText);
+    setPrompt("");
+    setActive((current) => {
+      if (!current || current.session.session_id !== sessionId) return current;
+      return {
+        ...current,
+        session: {
+          ...current.session,
+          status: "running",
+          transcript: [
+            ...(current.session.transcript ?? []),
+            { role: "user", content: promptText },
+          ],
+          current_assistant_message: "",
         },
+      };
+    });
+    try {
+      await streamSessionMessage(
+        sessionId,
+        promptText,
+        {
+          onToken: (token) => {
+            setActive((current) => {
+              if (!current || current.session.session_id !== sessionId) return current;
+              return {
+                ...current,
+                session: {
+                  ...current.session,
+                  current_assistant_message: `${current.session.current_assistant_message ?? ""}${token}`,
+                },
+              };
+            });
+          },
+          onError: (message) => setError(message),
+        },
+        controller.signal,
       );
       const view = await api<SessionView>(
-        `/coder/sessions/${active.session.session_id}/view`,
+        `/coder/sessions/${sessionId}/view`,
       );
       setActive(view);
-      setPrompt("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Generation stopped.");
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
+      setStreamAbort(null);
       setIsLoading(false);
     }
+  };
+
+  const stopPrompt = () => {
+    streamAbort?.abort();
+  };
+
+  const retryPrompt = () => {
+    if (lastPrompt) void sendPrompt(lastPrompt);
   };
 
   const selectSession = async (sessionId: string) => {
@@ -228,7 +276,11 @@ export function App() {
             onTrustModeChange={setSelectedTrustMode}
             onProfileChange={changeProfile}
             onModelChange={changeModel}
-            onSend={sendPrompt}
+            onSend={() => void sendPrompt()}
+            onCancel={stopPrompt}
+            onRetry={retryPrompt}
+            canRetry={Boolean(lastPrompt)}
+            isSending={Boolean(streamAbort)}
           />
         </section>
 

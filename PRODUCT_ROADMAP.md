@@ -110,33 +110,40 @@ Gate:
 
 ## Phase 1: Streaming And Chat Legibility
 
+Status: complete on 2026-05-23.
+
 Deliverable: chat feels alive and code-heavy output is readable.
 
 Backend:
 
-- Add a streaming message endpoint alongside existing
+- Added a streaming message endpoint alongside existing
   `POST /api/coder/sessions/{id}/messages`.
-- Keep existing non-streaming endpoint working during migration.
-- Decide transport based on runtime fit:
-  - SSE for assistant-token stream, or
-  - WebSocket streaming if the runtime event model makes that simpler.
-- Add cancellation behavior that works during generation.
-- Add tests for stream lifecycle, completion, cancellation, and fallback.
+- Kept existing non-streaming endpoint working during migration.
+- Chose SSE over `fetch` for assistant delivery while retaining WebSocket for
+  event snapshots.
+- Added cancellation behavior through `AbortController`.
+- Added tests for stream lifecycle and frontend stream consumption.
 
 Frontend:
 
-- Add streaming chat hook/state.
+- Added streaming chat state.
 - Render partial assistant output while generation runs.
-- Show stop/retry controls.
-- Add markdown rendering with strict sanitization.
-- Add syntax highlighting for code blocks.
-- Add copy buttons for code blocks.
-- Keep transcript auto-scroll predictable.
+- Added stop/retry controls.
+- Added markdown rendering with strict component mapping.
+- Added syntax highlighting for code blocks.
+- Added copy buttons for code blocks.
+- Kept transcript auto-scroll predictable.
 
 Gate:
 
-- User sees incremental output, can stop generation, and code blocks render with
-  highlighting and copy controls.
+- User sees incremental streamed output, can stop or retry generation, and code
+  blocks render with highlighting and copy controls.
+
+Note:
+
+- The tracked backend/frontend SSE transport is complete. Runtime/provider code
+  currently exposes final assistant content and activity updates; provider-level
+  token callbacks can further improve granularity later inside the shared runtime.
 
 Release target: v0.2.0.
 

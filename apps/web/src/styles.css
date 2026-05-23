@@ -154,6 +154,84 @@ select {
   border-radius: 8px;
 }
 
+.markdown-message {
+  margin-top: 0.5rem;
+  color: var(--text);
+}
+
+.markdown-message > :first-child {
+  margin-top: 0;
+}
+
+.markdown-message > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message p,
+.markdown-message ul,
+.markdown-message ol {
+  margin: 0.5rem 0;
+}
+
+.markdown-message code {
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 0.1rem 0.3rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.code-block {
+  overflow: hidden;
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #4B6584;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding: 0.45rem 0.65rem;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.code-block-header button {
+  padding: 0.2rem 0.45rem;
+  font-size: 12px;
+}
+
+.code-block pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0.85rem;
+}
+
+.code-block pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-selector-tag {
+  color: #4B7BEC;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-name {
+  color: #20BF6B;
+}
+
+.hljs-comment {
+  color: #A5B1C2;
+}
+
 .composer {
   display: grid;
   gap: 10px;
@@ -177,6 +255,12 @@ textarea {
 
 .composer-row span {
   color: var(--muted);
+}
+
+.composer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .inspector {

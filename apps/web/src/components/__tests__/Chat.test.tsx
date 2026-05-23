@@ -52,4 +52,28 @@ describe("Chat", () => {
     render(<Chat active={NO_TRANSCRIPT_VIEW} />);
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
   });
+
+  it("renders markdown code blocks with copy controls", () => {
+    render(
+      <Chat
+        active={{
+          ...ACTIVE_VIEW,
+          session: {
+            ...ACTIVE_VIEW.session,
+            transcript: [
+              {
+                role: "assistant",
+                content: "Use this:\n\n```ts\nconst ok = true;\n```",
+              },
+            ],
+            current_assistant_message: undefined,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Use this:")).toBeInTheDocument();
+    expect(screen.getByText("const ok = true;")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy code block" })).toBeInTheDocument();
+  });
 });

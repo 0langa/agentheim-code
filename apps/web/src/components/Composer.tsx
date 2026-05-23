@@ -15,6 +15,10 @@ interface ComposerProps {
   onProfileChange: (profile: string) => void;
   onModelChange: (model: string) => void;
   onSend: () => void;
+  onCancel?: () => void;
+  onRetry?: () => void;
+  canRetry?: boolean;
+  isSending?: boolean;
 }
 
 const MODES = ["ask", "plan", "code", "review", "fix", "docs", "test"];
@@ -33,6 +37,10 @@ export function Composer({
   onProfileChange,
   onModelChange,
   onSend,
+  onCancel,
+  onRetry,
+  canRetry = false,
+  isSending = false,
 }: ComposerProps) {
   const activeProfile = modelOptions?.profiles?.find(
     (profile) => profile.name === selectedProfile,
@@ -108,9 +116,22 @@ export function Composer({
       />
       <div className="composer-row">
         <span>Ctrl/Cmd+Enter sends · Shift+Enter adds a line</span>
-        <button className="primary" onClick={onSend} disabled={!prompt.trim()}>
-          <Play size={16} /> Send
-        </button>
+        <div className="composer-actions">
+          {canRetry && !isSending && (
+            <button className="secondary" onClick={onRetry} type="button">
+              Retry
+            </button>
+          )}
+          {isSending ? (
+            <button className="secondary" onClick={onCancel} type="button">
+              Stop
+            </button>
+          ) : (
+            <button className="primary" onClick={onSend} disabled={!prompt.trim()}>
+              <Play size={16} /> Send
+            </button>
+          )}
+        </div>
       </div>
     </footer>
   );

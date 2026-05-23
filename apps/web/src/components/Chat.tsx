@@ -1,9 +1,70 @@
 import React, { useEffect, useRef } from "react";
+import rehypeHighlight from "rehype-highlight";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type { SessionView, TranscriptEntry } from "../types";
 
 interface ChatProps {
   active: SessionView | null;
+}
+
+function textFromNode(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textFromNode).join("");
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return textFromNode(node.props.children);
+  }
+  return "";
+}
+
+const markdownComponents: Components = {
+  pre({ children }) {
+    return <>{children}</>;
+  },
+  code({ children, className, ...props }) {
+    const content = textFromNode(children).replace(/\n$/, "");
+    if (!className?.includes("language-")) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return (
+      <div className="code-block">
+        <div className="code-block-header">
+          <span>{className.replace("hljs", "").replace("language-", "").trim()}</span>
+          <button
+            type="button"
+            aria-label="Copy code block"
+            onClick={() => navigator.clipboard?.writeText(content)}
+          >
+            Copy
+          </button>
+        </div>
+        <pre>
+          <code className={className} {...props}>
+            {content}
+          </code>
+        </pre>
+      </div>
+    );
+  },
+};
+
+function MarkdownMessage({ content }: { content: string }) {
+  return (
+    <div className="markdown-message">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={markdownComponents}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function MessageBubble({ entry }: { entry: TranscriptEntry }) {
@@ -29,9 +90,7 @@ function MessageBubble({ entry }: { entry: TranscriptEntry }) {
       >
         {entry.role}
       </strong>
-      <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
-        {entry.content}
-      </p>
+      <MarkdownMessage content={entry.content} />
       {entry.timestamp && (
         <span style={{ fontSize: "11px", color: "var(--muted)" }}>
           {entry.timestamp}
@@ -98,9 +157,7 @@ export function Chat({ active }: ChatProps) {
           >
             assistant
           </strong>
-          <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
-            {active.session.current_assistant_message}
-          </p>
+          <MarkdownMessage content={active.session.current_assistant_message} />
         </div>
       )}
       <div ref={bottomRef} />

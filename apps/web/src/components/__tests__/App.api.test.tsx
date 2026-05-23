@@ -5,8 +5,10 @@ import React from "react";
 import { App } from "../../App";
 
 const mockApi = vi.fn();
+const mockStreamSessionMessage = vi.fn();
 vi.mock("../../api", () => ({
   api: <T,>(path: string, init?: RequestInit): Promise<T> => mockApi(path, init) as Promise<T>,
+  streamSessionMessage: (...args: unknown[]) => mockStreamSessionMessage(...args),
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string) {
       super(message);
@@ -17,6 +19,7 @@ vi.mock("../../api", () => ({
 describe("App API integration", () => {
   beforeEach(() => {
     mockApi.mockReset();
+    mockStreamSessionMessage.mockReset();
   });
 
   it("creates session without workspace_root and then fetches /view", async () => {
@@ -96,7 +99,7 @@ describe("App API integration", () => {
     });
   });
 
-  it("refetches full session view after sending a prompt", async () => {
+  it("streams prompt updates before refetching full session view", async () => {
     mockApi
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
@@ -117,12 +120,6 @@ describe("App API integration", () => {
         command_results: [],
       })
       .mockResolvedValueOnce({
-        session_id: "sess-3",
-        status: "idle",
-        mode: "code",
-        workspace_root: ".",
-      })
-      .mockResolvedValueOnce({
         session: {
           session_id: "sess-3",
           status: "idle",
@@ -135,6 +132,16 @@ describe("App API integration", () => {
         events: [{ type: "message", message: "done" }],
         command_results: [],
       });
+    mockStreamSessionMessage.mockImplementation(
+      async (
+        _sessionId: string,
+        _prompt: string,
+        handlers: { onToken: (token: string) => void },
+      ) => {
+        handlers.onToken("streamed ");
+        handlers.onToken("draft");
+      },
+    );
 
     render(<App />);
 
@@ -149,10 +156,13 @@ describe("App API integration", () => {
     fireEvent.click(screen.getByText(/Send/));
 
     await waitFor(() => {
-      expect(mockApi).toHaveBeenCalledWith(
-        "/coder/sessions/sess-3/messages",
-        expect.objectContaining({ method: "POST" }),
+      expect(mockStreamSessionMessage).toHaveBeenCalledWith(
+        "sess-3",
+        "build it",
+        expect.objectContaining({ onToken: expect.any(Function) }),
+        expect.any(AbortSignal),
       );
+      expect(screen.getByText("streamed draft")).toBeInTheDocument();
       expect(mockApi).toHaveBeenLastCalledWith(
         "/coder/sessions/sess-3/view",
         undefined,

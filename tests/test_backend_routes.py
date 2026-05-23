@@ -191,3 +191,35 @@ def test_update_session_mode(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["mode"] == "review"
+
+
+def test_stream_message_endpoint_emits_sse_tokens(client: TestClient, workspace_dir: str) -> None:
+    resp = client.post(
+        "/api/coder/sessions",
+        json={"trust_mode": "ask", "mode": "code"},
+    )
+    session_id = resp.json()["session_id"]
+
+    from workflows.coder.runtime import get_session
+
+    session = get_session(Path(workspace_dir), session_id).model_copy(
+        update={"current_assistant_message": "Hello streaming world"}
+    )
+
+    with (
+        patch("agentheim_code.backend.post_message", return_value=session),
+        client.stream(
+            "POST",
+            f"/api/coder/sessions/{session_id}/messages/stream",
+            json={"prompt": "say hello"},
+        ) as response,
+    ):
+        body = response.read().decode("utf-8")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: start" in body
+    assert "event: token" in body
+    assert "Hello" in body
+    assert "streaming" in body
+    assert "event: done" in body

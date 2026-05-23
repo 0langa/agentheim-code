@@ -21,6 +21,9 @@ origin check is hygiene, not a replacement for API auth.
 - `GET /api/coder/sessions/{id}`: session metadata.
 - `GET /api/coder/sessions/{id}/view`: full UI/API session view.
 - `POST /api/coder/sessions/{id}/messages`: run a user turn.
+- `POST /api/coder/sessions/{id}/messages/stream`: run a user turn and stream
+  Server-Sent Events. Emits `start`, `activity`, `token`, `done`, and `error`
+  events.
 - `POST /api/coder/sessions/{id}/queue`: queue a prompt.
 - `POST /api/coder/sessions/{id}/cancel`: cancel active work.
 - `PATCH /api/coder/sessions/{id}/model`: update per-session model selection.
@@ -80,3 +83,6 @@ origin check is hygiene, not a replacement for API auth.
 
 - `WS /api/coder/sessions/{id}/events`: event replay/snapshot stream for a
   session. Disconnects are handled without leaking background tasks.
+
+The WebSocket remains for session event snapshots. Chat response delivery should
+use the streaming message endpoint.

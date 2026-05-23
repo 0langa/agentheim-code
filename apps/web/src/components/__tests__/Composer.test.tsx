@@ -88,6 +88,46 @@ describe("Composer", () => {
     expect(onSend).toHaveBeenCalled();
   });
 
+  it("shows stop control while sending", () => {
+    const onCancel = vi.fn();
+    render(
+      <Composer
+        prompt="test prompt"
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+        onCancel={onCancel}
+        isSending
+      />,
+    );
+    fireEvent.click(screen.getByText("Stop"));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("shows retry control when retry is available", () => {
+    const onRetry = vi.fn();
+    render(
+      <Composer
+        prompt=""
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+        onRetry={onRetry}
+        canRetry
+      />,
+    );
+    fireEvent.click(screen.getByText("Retry"));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
   it("calls onTrustModeChange when trust mode changes", () => {
     const onTrustModeChange = vi.fn();
     render(

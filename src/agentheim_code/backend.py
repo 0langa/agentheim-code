@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from collections.abc import AsyncIterator
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -8,7 +10,7 @@ from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -108,6 +110,17 @@ def _workspace(base: Path, workspace_root: str | None = None) -> Path:
     return resolved
 
 
+def _sse(event: str, data: dict[str, Any]) -> str:
+    payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+def _chunk_text(text: str, size: int = 24) -> list[str]:
+    if not text:
+        return []
+    return [text[index : index + size] for index in range(0, len(text), size)]
+
+
 def create_app(workspace: str | Path = ".") -> FastAPI:
     """Create the local-only standalone Agentheim Code backend app."""
     workspace_path = Path(workspace).resolve()
@@ -165,6 +178,70 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     ) -> dict[str, Any]:
         return _json_model(
             post_message(_workspace(workspace_path, workspace_root), session_id, body.prompt)
+        )
+
+    @app.post("/api/coder/sessions/{session_id}/messages/stream")
+    async def api_post_message_stream(
+        session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
+    ) -> StreamingResponse:
+        workspace = _workspace(workspace_path, workspace_root)
+
+        async def events() -> AsyncIterator[str]:
+            yield _sse("start", {"session_id": session_id})
+            task = asyncio.create_task(
+                asyncio.to_thread(post_message, workspace, session_id, body.prompt)
+            )
+            sent_event_count = 0
+            sent_text_length = 0
+            try:
+                while not task.done():
+                    view = get_session_view(workspace, session_id)
+                    event_payloads = [event.model_dump(mode="json") for event in view.events]
+                    for payload in event_payloads[sent_event_count:]:
+                        yield _sse("activity", {"session_id": session_id, "event": payload})
+                    sent_event_count = len(event_payloads)
+                    text = view.session.current_assistant_message or ""
+                    if len(text) > sent_text_length:
+                        yield _sse(
+                            "token",
+                            {
+                                "session_id": session_id,
+                                "token": text[sent_text_length:],
+                            },
+                        )
+                        sent_text_length = len(text)
+                    await asyncio.sleep(0.2)
+                session = await task
+            except Exception as exc:
+                yield _sse(
+                    "error",
+                    {
+                        "session_id": session_id,
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                return
+
+            final_text = session.current_assistant_message or ""
+            if len(final_text) > sent_text_length:
+                remaining = final_text[sent_text_length:]
+                for chunk in _chunk_text(remaining):
+                    yield _sse("token", {"session_id": session_id, "token": chunk})
+                    await asyncio.sleep(0)
+
+            yield _sse(
+                "done",
+                {
+                    "session_id": session_id,
+                    "session": session.model_dump(mode="json"),
+                },
+            )
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @app.post("/api/coder/sessions/{session_id}/queue")
