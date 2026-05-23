@@ -386,8 +386,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.post("/api/coder/sessions/{session_id}/messages")
     def api_post_message(
-        session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
+        session_id: str,
+        request: Request,
+        body: CoderSessionMessageRequest,
+        workspace_root: str | None = None,
     ) -> dict[str, Any]:
+        request_id = str(getattr(request.state, "request_id", ""))
         if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
             raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
         workspace = _workspace(workspace_path, workspace_root)
@@ -403,7 +407,7 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                 },
             )
         try:
-            return _json_model(post_message(workspace, session_id, prompt))
+            return _json_model(post_message(workspace, session_id, prompt, request_id=request_id))
         except ValueError as exc:
             if "already running" in str(exc).lower():
                 raise HTTPException(status_code=409, detail=E_SESSION_LOCKED.to_dict()) from exc
@@ -413,8 +417,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.post("/api/coder/sessions/{session_id}/messages/stream")
     async def api_post_message_stream(
-        session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
+        session_id: str,
+        request: Request,
+        body: CoderSessionMessageRequest,
+        workspace_root: str | None = None,
     ) -> StreamingResponse:
+        request_id = str(getattr(request.state, "request_id", ""))
         if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
             raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
         workspace = _workspace(workspace_path, workspace_root)
@@ -443,6 +451,7 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                     workspace,
                     session_id,
                     prompt,
+                    request_id=request_id,
                 )
             )
             sent_event_count = 0
@@ -534,10 +543,17 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         )
 
     @app.post("/api/coder/sessions/{session_id}/cancel")
-    def api_cancel_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+    def api_cancel_session(
+        session_id: str,
+        request: Request,
+        workspace_root: str | None = None,
+    ) -> dict[str, Any]:
+        request_id = str(getattr(request.state, "request_id", ""))
         try:
             return _json_model(
-                cancel_session(_workspace(workspace_path, workspace_root), session_id)
+                cancel_session(
+                    _workspace(workspace_path, workspace_root), session_id, request_id=request_id
+                )
             )
         except Exception as exc:
             raise HTTPException(
@@ -549,10 +565,15 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             ) from exc
 
     @app.post("/api/coder/sessions/{session_id}/resume")
-    def api_resume_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+    def api_resume_session(
+        session_id: str,
+        request: Request,
+        workspace_root: str | None = None,
+    ) -> dict[str, Any]:
+        request_id = str(getattr(request.state, "request_id", ""))
         workspace = _workspace(workspace_path, workspace_root)
         try:
-            session = resume_session(workspace, session_id)
+            session = resume_session(workspace, session_id, request_id=request_id)
         except ValueError as exc:
             if "not found" in str(exc).lower():
                 raise HTTPException(status_code=404, detail=E_SESSION_NOT_FOUND.to_dict()) from exc
@@ -583,21 +604,37 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.post("/api/coder/sessions/{session_id}/approvals/{request_id}/grant")
     def api_grant_approval(
-        session_id: str, request_id: str, workspace_root: str | None = None
+        session_id: str,
+        request_id: str,
+        req: Request,
+        workspace_root: str | None = None,
     ) -> dict[str, Any]:
+        caller_request_id = str(getattr(req.state, "request_id", ""))
         return _json_model(
             approve_request(
-                _workspace(workspace_path, workspace_root), session_id, request_id, grant=True
+                _workspace(workspace_path, workspace_root),
+                session_id,
+                request_id,
+                grant=True,
+                caller_request_id=caller_request_id,
             )
         )
 
     @app.post("/api/coder/sessions/{session_id}/approvals/{request_id}/deny")
     def api_deny_approval(
-        session_id: str, request_id: str, workspace_root: str | None = None
+        session_id: str,
+        request_id: str,
+        req: Request,
+        workspace_root: str | None = None,
     ) -> dict[str, Any]:
+        caller_request_id = str(getattr(req.state, "request_id", ""))
         return _json_model(
             approve_request(
-                _workspace(workspace_path, workspace_root), session_id, request_id, grant=False
+                _workspace(workspace_path, workspace_root),
+                session_id,
+                request_id,
+                grant=False,
+                caller_request_id=caller_request_id,
             )
         )
 

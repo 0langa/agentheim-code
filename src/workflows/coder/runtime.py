@@ -264,11 +264,15 @@ def _record_activity(
     kind: ActivityKind,
     message: str,
     details: dict[str, str] | None = None,
+    request_id: str = "",
 ) -> CoderSession:
     activity = CoderActivity(
         kind=kind, message=message, created_at=_utcnow(), details=details or {}
     )
     _append_activity(workspace_root, session.session_id, activity)
+    event_details = dict(details or {})
+    if request_id:
+        event_details["request_id"] = request_id
     _append_event(
         workspace_root,
         session.session_id,
@@ -277,7 +281,7 @@ def _record_activity(
             kind=kind.value,
             message=message,
             created_at=activity.created_at,
-            details=details or {},
+            details=event_details,
         ),
     )
     activities = [*session.activities, activity]
@@ -1040,6 +1044,7 @@ def create_session(
     profile: str | None = None,
     provider: str | None = None,
     model: str | None = None,
+    request_id: str = "",
 ) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     trust = TrustMode(trust_mode)
@@ -1055,33 +1060,33 @@ def create_session(
         updated_at=_utcnow(),
         git_available=git_available,
     )
-    ledger.write_json(
-        "run.json",
-        {
-            "run_id": session.session_id,
-            "product": "agentheim-code",
-            "compatible_products": ["agentheim-code"],
-            "workflow_id": WORKFLOW_ID,
-            "preset_id": PRESET_ID,
-            "repo_root": str(workspace),
-            "created_at": session.created_at,
-            "trust_mode": trust.value,
-            "mode": mode,
-            "model_selection": _normalize_model_selection(
-                profile=profile, provider=provider, model=model
-            ).model_dump(mode="json"),
-            "status": session.status.value,
-            "workspace_summary": scan_summary,
-        },
-    )
-    ledger.emit_event(
-        EventType.RUN_INITIATED,
-        payload={
-            "workflow_id": WORKFLOW_ID,
-            "repo_root": str(workspace),
-            "metadata": {"trust_mode": trust.value},
-        },
-    )
+    run_json_payload: dict[str, Any] = {
+        "run_id": session.session_id,
+        "product": "agentheim-code",
+        "compatible_products": ["agentheim-code"],
+        "workflow_id": WORKFLOW_ID,
+        "preset_id": PRESET_ID,
+        "repo_root": str(workspace),
+        "created_at": session.created_at,
+        "trust_mode": trust.value,
+        "mode": mode,
+        "model_selection": _normalize_model_selection(
+            profile=profile, provider=provider, model=model
+        ).model_dump(mode="json"),
+        "status": session.status.value,
+        "workspace_summary": scan_summary,
+    }
+    if request_id:
+        run_json_payload["request_id"] = request_id
+    ledger.write_json("run.json", run_json_payload)
+    init_payload: dict[str, Any] = {
+        "workflow_id": WORKFLOW_ID,
+        "repo_root": str(workspace),
+        "metadata": {"trust_mode": trust.value},
+    }
+    if request_id:
+        init_payload["request_id"] = request_id
+    ledger.emit_event(EventType.RUN_INITIATED, payload=init_payload)
     _save_session(workspace, session)
     return session
 
@@ -1168,12 +1173,21 @@ def list_file_tree(workspace_root: str | Path, *, limit: int = 500) -> list[dict
     return items
 
 
-def cancel_session(workspace_root: str | Path, session_id: str) -> CoderSession:
+def cancel_session(
+    workspace_root: str | Path, session_id: str, *, request_id: str = ""
+) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     session = _load_session(workspace, session_id)
     session = session.model_copy(update={"pending_approval": None})
+    cancel_details: dict[str, str] = {"status": "cancelled"}
+    if session.planned_actions and session.next_action_index < len(session.planned_actions):
+        current_action = session.planned_actions[session.next_action_index]
+        cancel_details["interrupted_action"] = current_action.kind
+        cancel_details["action_index"] = str(session.next_action_index)
+    if request_id:
+        cancel_details["request_id"] = request_id
     session = _record_activity(
-        workspace, session, ActivityKind.BLOCKED, "Session cancelled.", {"status": "cancelled"}
+        workspace, session, ActivityKind.BLOCKED, "Session cancelled.", cancel_details, request_id=request_id
     )
     _append_event(
         workspace,
@@ -1183,6 +1197,7 @@ def cancel_session(workspace_root: str | Path, session_id: str) -> CoderSession:
             kind="cancelled",
             message="Session cancelled.",
             created_at=_utcnow(),
+            details=cancel_details,
         ),
     )
     # Release any stale lock so the session can be resumed or re-used.
@@ -1192,7 +1207,9 @@ def cancel_session(workspace_root: str | Path, session_id: str) -> CoderSession:
     return _save_session(workspace, _set_status(session, SessionStatus.CANCELLED))
 
 
-def resume_session(workspace_root: str | Path, session_id: str) -> CoderSession:
+def resume_session(
+    workspace_root: str | Path, session_id: str, *, request_id: str = ""
+) -> CoderSession:
     """Resume a session after interruption, failure, or approval-pending state.
 
     Sanity checks:
@@ -1212,12 +1229,16 @@ def resume_session(workspace_root: str | Path, session_id: str) -> CoderSession:
         return session
 
     if session.status in {SessionStatus.BLOCKED, SessionStatus.FAILED, SessionStatus.CANCELLED}:
+        resume_details = {"previous_status": session.status.value}
+        if request_id:
+            resume_details["request_id"] = request_id
         session = _record_activity(
             workspace,
             session,
             ActivityKind.THINKING,
             "Session resumed.",
-            {"previous_status": session.status.value},
+            resume_details,
+            request_id=request_id,
         )
         session = _set_status(session, SessionStatus.IDLE)
         return _save_session(workspace, session)
@@ -1314,7 +1335,9 @@ def list_model_options() -> dict[str, Any]:
     return {"configured": True, "default_profile": document.default_profile, "profiles": profiles}
 
 
-def post_message(workspace_root: str | Path, session_id: str, prompt: str) -> CoderSession:
+def post_message(
+    workspace_root: str | Path, session_id: str, prompt: str, *, request_id: str = ""
+) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     with _SessionLock(workspace, session_id):
         session = _load_session(workspace, session_id)
@@ -1322,28 +1345,35 @@ def post_message(workspace_root: str | Path, session_id: str, prompt: str) -> Co
         _append_message(workspace, session.session_id, user_message)
         session = session.model_copy(update={"transcript": [*session.transcript, user_message]})
         session = _set_status(session, SessionStatus.RUNNING)
-        session = _record_activity(workspace, session, ActivityKind.THINKING, "Planning next turn.")
         session = _record_activity(
-            workspace, session, ActivityKind.SCANNING, "Scanning workspace state."
+            workspace, session, ActivityKind.THINKING, "Planning next turn.", request_id=request_id
+        )
+        session = _record_activity(
+            workspace, session, ActivityKind.SCANNING, "Scanning workspace state.", request_id=request_id
         )
 
         ledger = _open_ledger(workspace, session_id)
         try:
             plan = _plan_turn(workspace, session, prompt, ledger=ledger)
         except Exception as exc:
+            from agentheim_code.structured_errors import from_exception
+
+            structured = from_exception(exc, event_id=request_id)
             ledger.emit_event(
                 EventType.RUN_FAILED,
                 payload={
                     "workflow_id": WORKFLOW_ID,
                     "reason": str(exc),
                     "error_type": type(exc).__name__,
+                    "structured_error": structured.to_dict(),
+                    "request_id": request_id,
                 },
             )
             session = session.model_copy(
                 update={
                     "current_summary": "Coder turn failed",
-                    "current_assistant_message": str(exc),
-                    "last_failure_reason": str(exc),
+                    "current_assistant_message": structured.message,
+                    "last_failure_reason": structured.message,
                 }
             )
             session = _set_status(session, SessionStatus.FAILED)
@@ -1356,7 +1386,7 @@ def post_message(workspace_root: str | Path, session_id: str, prompt: str) -> Co
 
 
 def approve_request(
-    workspace_root: str | Path, session_id: str, request_id: str, *, grant: bool
+    workspace_root: str | Path, session_id: str, request_id: str, *, grant: bool, caller_request_id: str = ""
 ) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     session = _load_session(workspace, session_id)

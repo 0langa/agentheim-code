@@ -41,6 +41,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    public requestId: string = "",
   ) {
     super(message);
     this.name = "ApiError";
@@ -49,13 +50,23 @@ export class ApiError extends Error {
 
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
   const isSafe = !init.method || init.method === "GET" || init.method === "HEAD";
-  const retries = isSafe ? 2 : 0;
+  // Also retry idempotent mutations (PATCH config, POST cancel) on transient failures
+  const isIdempotent = isSafe || init.method === "POST" && url.endsWith("/cancel");
+  const retries = isSafe ? 2 : isIdempotent ? 1 : 0;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const response = await fetch(url, init);
-    if (response.ok || !isSafe || attempt === retries) {
+    if (response.ok) {
       return response;
     }
-    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    const isRetryable =
+      response.status === 429 ||
+      response.status === 503 ||
+      response.status >= 500;
+    if (!isRetryable || attempt === retries) {
+      return response;
+    }
+    const delay = Math.min(300 * 2 ** attempt, 2000);
+    await new Promise((r) => setTimeout(r, delay));
   }
   // Unreachable, but satisfies TypeScript
   return fetch(url, init);
@@ -73,7 +84,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text);
+    throw new ApiError(response.status, text, requestId);
   }
   return response.json() as Promise<T>;
 }

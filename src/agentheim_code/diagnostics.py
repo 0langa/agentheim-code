@@ -61,13 +61,56 @@ def _log_paths() -> dict[str, str]:
     return paths
 
 
-def generate_diagnostics_bundle() -> dict[str, Any]:
-    return {
+def _recent_sessions(workspace_root: Path | None = None) -> list[dict[str, Any]]:
+    from workflows.coder.runtime import list_sessions
+
+    try:
+        root = workspace_root or Path(".")
+        sessions = list_sessions(root)
+    except Exception:
+        return []
+    recent: list[dict[str, Any]] = []
+    for session in sessions[:5]:
+        recent.append(
+            {
+                "session_id": session.session_id,
+                "status": session.status.value
+                if hasattr(session.status, "value")
+                else str(session.status),
+                "mode": session.mode.value if hasattr(session.mode, "value") else str(session.mode),
+                "trust_mode": session.trust_mode.value
+                if hasattr(session.trust_mode, "value")
+                else str(session.trust_mode),
+                "updated_at": session.updated_at,
+                "last_failure_reason": session.last_failure_reason,
+                "repair_attempts": session.repair_attempts,
+            }
+        )
+    return recent
+
+
+def generate_diagnostics_bundle(workspace_root: Path | None = None) -> dict[str, Any]:
+    from config.config import load_profiles_document
+
+    bundle: dict[str, Any] = {
         "system": _system_info(),
         "config": _redacted_config(),
         "provider_health": {k: v.to_dict() for k, v in load_health().items()},
         "log_paths": _log_paths(),
+        "recent_sessions": _recent_sessions(workspace_root),
     }
+    try:
+        doc = load_profiles_document()
+        bundle["provider_summary"] = {
+            "configured": True,
+            "default_profile": doc.default_profile,
+            "profile_count": len(doc.profiles),
+        }
+    except Exception as exc:
+        bundle["provider_summary"] = {"configured": False, "error": str(exc)}
+    if workspace_root:
+        bundle["workspace"] = str(workspace_root)
+    return bundle
 
 
 def write_diagnostics_bundle(out_path: Path) -> None:
