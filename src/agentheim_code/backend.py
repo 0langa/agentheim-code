@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.request
 from collections.abc import AsyncIterator
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
@@ -14,6 +15,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agentheim_code import config as ui_config
 from agentheim_code.provider_wizard import (
     create_profile,
     delete_profile,
@@ -51,6 +53,7 @@ class CoderSessionCreateRequest(BaseModel):
 
 class CoderSessionMessageRequest(BaseModel):
     prompt: str = Field(min_length=1)
+    context_files: list[str] = Field(default_factory=list)
 
 
 class CoderQueueRequest(BaseModel):
@@ -65,6 +68,17 @@ class CoderSessionModelRequest(BaseModel):
 
 class CoderSessionModeRequest(BaseModel):
     mode: str = "code"
+
+
+class UiConfigPatch(BaseModel):
+    onboarding_complete: bool | None = None
+    onboarding_dismissed: bool | None = None
+    default_workspace: str | None = None
+    theme: str | None = None
+
+
+class OnboardingCompleteRequest(BaseModel):
+    default_workspace: str | None = None
 
 
 def _version() -> str:
@@ -121,6 +135,67 @@ def _chunk_text(text: str, size: int = 24) -> list[str]:
     return [text[index : index + size] for index in range(0, len(text), size)]
 
 
+def _read_ui_config() -> dict[str, Any]:
+    config = ui_config.load_config()
+    core = config.get("core", {})
+    ui = config.get("ui", {})
+    onboarding = config.get("onboarding", {})
+    return {
+        "onboarding_complete": bool(onboarding.get("complete", False)),
+        "onboarding_dismissed": bool(onboarding.get("dismissed", False)),
+        "default_workspace": str(core.get("default_workspace", ".")),
+        "theme": str(ui.get("theme", "dark")),
+    }
+
+
+def _write_ui_config(patch: UiConfigPatch) -> dict[str, Any]:
+    current = ui_config.load_config()
+    core = dict(current.get("core", {}))
+    ui = dict(current.get("ui", {}))
+    onboarding = dict(current.get("onboarding", {}))
+
+    if patch.theme is not None:
+        if patch.theme not in {"dark", "light", "high_contrast"}:
+            raise HTTPException(
+                status_code=400, detail="Theme must be dark, light, or high_contrast"
+            )
+        ui["theme"] = patch.theme
+    if patch.default_workspace is not None:
+        workspace = Path(patch.default_workspace).expanduser()
+        if not workspace.exists() or not workspace.is_dir():
+            raise HTTPException(status_code=400, detail=f"Workspace does not exist: {workspace}")
+        core["default_workspace"] = str(workspace)
+    if patch.onboarding_complete is not None:
+        onboarding["complete"] = patch.onboarding_complete
+    if patch.onboarding_dismissed is not None:
+        onboarding["dismissed"] = patch.onboarding_dismissed
+
+    updated = {**current, "core": core, "ui": ui, "onboarding": onboarding}
+    ui_config.save_config(updated)
+    return _read_ui_config()
+
+
+def _detect_ollama() -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "kind": "ollama",
+        "display_name": "Ollama Local",
+        "detected": False,
+        "endpoint": "http://localhost:11434/v1",
+        "models": [],
+    }
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=1.0) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return result
+
+    models = payload.get("models", []) if isinstance(payload, dict) else []
+    names = [
+        str(item.get("name")) for item in models if isinstance(item, dict) and item.get("name")
+    ]
+    return {**result, "detected": True, "models": names}
+
+
 def create_app(workspace: str | Path = ".") -> FastAPI:
     """Create the local-only standalone Agentheim Code backend app."""
     workspace_path = Path(workspace).resolve()
@@ -144,6 +219,28 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "version": _version(), "workspace": str(workspace_path)}
+
+    @app.get("/api/config")
+    def api_get_config() -> dict[str, Any]:
+        return _read_ui_config()
+
+    @app.patch("/api/config")
+    def api_patch_config(body: UiConfigPatch) -> dict[str, Any]:
+        return _write_ui_config(body)
+
+    @app.post("/api/onboarding/complete")
+    def api_complete_onboarding(body: OnboardingCompleteRequest) -> dict[str, Any]:
+        return _write_ui_config(
+            UiConfigPatch(
+                onboarding_complete=True,
+                onboarding_dismissed=False,
+                default_workspace=body.default_workspace,
+            )
+        )
+
+    @app.get("/api/onboarding/local-providers")
+    def api_local_providers() -> list[dict[str, Any]]:
+        return [_detect_ollama()]
 
     @app.get("/api/coder/sessions")
     def api_list_sessions(workspace_root: str | None = None) -> list[dict[str, Any]]:

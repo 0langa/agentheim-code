@@ -12,6 +12,13 @@ origin check is hygiene, not a replacement for API auth.
 ### Health & Workspace
 
 - `GET /api/health`: backend version and workspace.
+- `GET /api/config`: UI config for onboarding, default workspace, and theme.
+- `PATCH /api/config`: partial config update. Valid themes are `dark`, `light`,
+  and `high_contrast`.
+- `GET /api/onboarding/local-providers`: local provider detection. Currently
+  reports Ollama at `http://localhost:11434/v1`.
+- `POST /api/onboarding/complete`: mark onboarding complete and optionally store
+  `default_workspace`.
 
 ### Coder Sessions
 

@@ -355,6 +355,62 @@ textarea {
   overflow: auto;
 }
 
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+  padding: 24px;
+}
+
+.onboarding-panel {
+  display: grid;
+  gap: 18px;
+  width: min(640px, calc(100vw - 32px));
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 28px;
+}
+
+.onboarding-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-copy p {
+  margin: 0;
+  color: var(--ai);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.onboarding-copy h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.onboarding-copy span,
+.onboarding-provider p {
+  color: var(--muted);
+}
+
+.onboarding-provider {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

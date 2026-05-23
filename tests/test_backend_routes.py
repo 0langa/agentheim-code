@@ -33,6 +33,79 @@ def test_health_endpoint(client: TestClient, workspace_dir: str) -> None:
     assert workspace_dir in data["workspace"]
 
 
+def test_config_endpoint_reads_and_updates_ui_config(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "config.toml"
+    monkeypatch.setattr("agentheim_code.config._config_file", lambda: config_path)
+
+    resp = client.get("/api/config")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["onboarding_complete"] is False
+    assert data["onboarding_dismissed"] is False
+    assert data["theme"] == "dark"
+
+    resp = client.patch(
+        "/api/config",
+        json={
+            "onboarding_dismissed": True,
+            "theme": "light",
+            "default_workspace": str(tmp_path),
+        },
+    )
+    assert resp.status_code == 200
+    updated = resp.json()
+    assert updated["onboarding_dismissed"] is True
+    assert updated["theme"] == "light"
+    assert updated["default_workspace"] == str(tmp_path)
+
+    resp = client.patch("/api/config", json={"theme": "sepia"})
+    assert resp.status_code == 400
+
+
+def test_onboarding_complete_marks_config_complete(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "config.toml"
+    monkeypatch.setattr("agentheim_code.config._config_file", lambda: config_path)
+
+    resp = client.post("/api/onboarding/complete", json={"default_workspace": str(tmp_path)})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["onboarding_complete"] is True
+    assert data["onboarding_dismissed"] is False
+    assert data["default_workspace"] == str(tmp_path)
+
+
+def test_local_provider_detection_reports_ollama_models(client: TestClient) -> None:
+    class _Response:
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b'{"models":[{"name":"llama3.2"},{"name":"codellama"}]}'
+
+    with patch("agentheim_code.backend.urllib.request.urlopen", return_value=_Response()):
+        resp = client.get("/api/onboarding/local-providers")
+
+    assert resp.status_code == 200
+    providers = resp.json()
+    assert providers == [
+        {
+            "kind": "ollama",
+            "display_name": "Ollama Local",
+            "detected": True,
+            "endpoint": "http://localhost:11434/v1",
+            "models": ["llama3.2", "codellama"],
+        }
+    ]
+
+
 def test_list_sessions_empty(client: TestClient) -> None:
     resp = client.get("/api/coder/sessions")
     assert resp.status_code == 200

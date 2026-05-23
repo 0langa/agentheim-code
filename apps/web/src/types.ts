@@ -28,6 +28,21 @@ export type ModelOptions = {
   error?: string;
 };
 
+export type UiConfig = {
+  onboarding_complete: boolean;
+  onboarding_dismissed: boolean;
+  default_workspace: string;
+  theme: "dark" | "light" | "high_contrast";
+};
+
+export type LocalProvider = {
+  kind: string;
+  display_name: string;
+  detected: boolean;
+  endpoint: string;
+  models: string[];
+};
+
 export type TranscriptEntry = {
   role: string;
   content: string;

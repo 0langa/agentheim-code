@@ -24,6 +24,12 @@ describe("App API integration", () => {
 
   it("creates session without workspace_root and then fetches /view", async () => {
     mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      }) // /config
       .mockResolvedValueOnce([]) // /coder/commands
       .mockResolvedValueOnce([]) // /coder/sessions
       .mockResolvedValueOnce({ configured: false, profiles: [] }) // /coder/models
@@ -47,7 +53,7 @@ describe("App API integration", () => {
     render(<App />);
 
     // Wait for initial data load to finish
-    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
 
     const newButton = screen.getAllByText("New")[0];
     fireEvent.click(newButton);
@@ -70,6 +76,12 @@ describe("App API integration", () => {
 
   it("selecting a session fetches /view", async () => {
     mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { session_id: "sess-2", status: "idle", mode: "code", workspace_root: "." },
@@ -88,7 +100,7 @@ describe("App API integration", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
     fireEvent.click(screen.getByTitle("Runs"));
 
     const sessionButton = await screen.findByText("sess-2");
@@ -101,6 +113,12 @@ describe("App API integration", () => {
 
   it("streams prompt updates before refetching full session view", async () => {
     mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { session_id: "sess-3", status: "idle", mode: "code", workspace_root: "." },
@@ -145,10 +163,10 @@ describe("App API integration", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
     fireEvent.click(screen.getByTitle("Runs"));
     fireEvent.click(await screen.findByText("sess-3"));
-    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(5));
 
     fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
       target: { value: "build it" },
@@ -172,6 +190,12 @@ describe("App API integration", () => {
 
   it("sends selected trust mode when creating a session", async () => {
     mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce({ configured: false, profiles: [] })
@@ -193,7 +217,7 @@ describe("App API integration", () => {
       });
 
     render(<App />);
-    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
     fireEvent.change(screen.getByLabelText("Trust mode"), {
       target: { value: "workspace" },
     });
@@ -207,6 +231,60 @@ describe("App API integration", () => {
         trust_mode: "workspace",
         mode: "code",
       });
+    });
+  });
+
+  it("opens onboarding for fresh config and no providers", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: false,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce([]);
+
+    render(<App />);
+
+    expect(await screen.findByText("Welcome to Agentheim Code")).toBeInTheDocument();
+    expect(mockApi).toHaveBeenCalledWith("/onboarding/local-providers", undefined);
+  });
+
+  it("skips onboarding by persisting dismissed state", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: false,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({
+        onboarding_complete: false,
+        onboarding_dismissed: true,
+        default_workspace: ".",
+        theme: "dark",
+      });
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByText("Skip for now"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/config",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ onboarding_dismissed: true }),
+        }),
+      );
+      expect(screen.queryByText("Welcome to Agentheim Code")).not.toBeInTheDocument();
     });
   });
 });

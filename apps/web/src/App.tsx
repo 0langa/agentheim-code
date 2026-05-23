@@ -5,17 +5,19 @@ import { Chat } from "./components/Chat";
 import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Onboarding } from "./components/Onboarding";
 import { Inspector } from "./components/Inspector";
 import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
-import type { CoderCommand, ModelOptions, Session, SessionView } from "./types";
+import type { CoderCommand, ModelOptions, Session, SessionView, UiConfig } from "./types";
 
 export function App() {
   const [commands, setCommands] = useState<CoderCommand[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<SessionView | null>(null);
   const [modelOptions, setModelOptions] = useState<ModelOptions | null>(null);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [prompt, setPrompt] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -30,6 +32,9 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    api<UiConfig>("/config")
+      .then(setUiConfig)
+      .catch((err) => setError(err.message));
     api<CoderCommand[]>("/coder/commands")
       .then(setCommands)
       .catch((err) => setError(err.message));
@@ -85,6 +90,33 @@ export function App() {
       setIsLoading(false);
     }
   };
+
+  const skipOnboarding = async () => {
+    const config = await api<UiConfig>("/config", {
+      method: "PATCH",
+      body: JSON.stringify({ onboarding_dismissed: true }),
+    });
+    setUiConfig(config);
+  };
+
+  const completeOnboarding = async (workspace: string) => {
+    try {
+      const config = await api<UiConfig>("/onboarding/complete", {
+        method: "POST",
+        body: JSON.stringify({ default_workspace: workspace }),
+      });
+      setUiConfig(config);
+      await createSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const showOnboarding =
+    uiConfig &&
+    !uiConfig.onboarding_complete &&
+    !uiConfig.onboarding_dismissed &&
+    !modelOptions?.configured;
 
   const sendPrompt = async (overridePrompt?: string) => {
     const promptText = overridePrompt ?? prompt;
@@ -309,6 +341,15 @@ export function App() {
             commands={commands}
             onClose={() => setPaletteOpen(false)}
             onExecute={executeCommand}
+          />
+        )}
+
+        {showOnboarding && (
+          <Onboarding
+            config={uiConfig}
+            onSkip={() => void skipOnboarding()}
+            onOpenProviderWizard={() => setWizardOpen(true)}
+            onComplete={(workspace) => void completeOnboarding(workspace)}
           />
         )}
       </main>

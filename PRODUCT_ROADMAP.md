@@ -149,6 +149,8 @@ Release target: v0.2.0.
 
 ## Phase 2: First-Run Onboarding
 
+Status: complete on 2026-05-23.
+
 Deliverable: a new user can reach a working chat session without reading docs.
 
 Flow:
@@ -177,6 +179,14 @@ Gate:
 
 - Fresh config opens to onboarding, configured users go directly to app, and at
   least one provider path can be completed end to end.
+
+Completed:
+
+- Added local UI config APIs for onboarding status, default workspace, and theme.
+- Added Ollama local-provider detection through `GET /api/onboarding/local-providers`.
+- Added first-run onboarding overlay with workspace, provider, skip, and start
+  actions.
+- Kept provider setup routed through the existing provider wizard.
 
 Release target: v0.3.0.
 
