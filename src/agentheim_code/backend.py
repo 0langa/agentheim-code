@@ -16,8 +16,9 @@ from agentheim_code.provider_wizard import (
     create_profile,
     delete_profile,
     get_templates,
-    test_provider_connection,
+    verify_provider_connection,
 )
+from agentheim_code.usage_api import aggregate_session_usage
 from config.config import list_provider_templates, load_profiles_document
 from core.run_view import list_run_views
 from workflows.coder.runtime import (
@@ -304,10 +305,15 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.post("/api/providers/test")
     def api_test_provider(body: dict[str, Any]) -> dict[str, Any]:
-        return test_provider_connection(
+        return verify_provider_connection(
             provider_kind=body["provider_kind"],
             fields=body.get("fields", {}),
+            model_id=body.get("model_id", ""),
         )
+
+    @app.get("/api/coder/sessions/{session_id}/usage")
+    def api_session_usage(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+        return aggregate_session_usage(_workspace(workspace_path, workspace_root), session_id)
 
     @app.websocket("/api/coder/sessions/{session_id}/events")
     async def api_events(websocket: WebSocket, session_id: str) -> None:

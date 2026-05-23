@@ -126,19 +126,28 @@ class TestImportSideEffects:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Regression: importing cli.py must not mutate the filesystem."""
+        import importlib
+        import sys
+
+        # Save original module to restore after test
+        original_cli = sys.modules.get("agentheim_code.cli")
+
         config_path = tmp_path / "config.toml"
         monkeypatch.setattr(
             "agentheim_code.config._config_file",
             lambda: config_path,
         )
         # Force re-import by clearing cache.
-        import importlib
-        import sys
-
         sys.modules.pop("agentheim_code.cli", None)
         importlib.import_module("agentheim_code.cli")
 
         assert not config_path.exists(), "Importing cli.py created config file"
+
+        # Restore original module to maintain test isolation
+        if original_cli is not None:
+            sys.modules["agentheim_code.cli"] = original_cli
+        else:
+            sys.modules.pop("agentheim_code.cli", None)
 
     def test_importing_cli_does_not_configure_root_logging(
         self, monkeypatch: pytest.MonkeyPatch
@@ -147,6 +156,7 @@ class TestImportSideEffects:
         import logging
         import sys
 
+        original_cli = sys.modules.get("agentheim_code.cli")
         root = logging.getLogger()
         original_handlers = list(root.handlers)
         try:
@@ -156,6 +166,10 @@ class TestImportSideEffects:
             assert root.handlers == []
         finally:
             root.handlers[:] = original_handlers
+            if original_cli is not None:
+                sys.modules["agentheim_code.cli"] = original_cli
+            else:
+                sys.modules.pop("agentheim_code.cli", None)
 
 
 class TestBackendHealth:

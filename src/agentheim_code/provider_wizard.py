@@ -237,11 +237,17 @@ def delete_profile(name: str) -> None:
     logger.info("Deleted provider profile '%s'", name)
 
 
-def test_provider_connection(provider_kind: str, fields: dict[str, str]) -> dict[str, Any]:
-    """Test if a provider configuration can connect successfully."""
-    from agentheim_core.providers import build_provider
+def verify_provider_connection(
+    provider_kind: str,
+    fields: dict[str, str],
+    model_id: str = "",
+) -> dict[str, Any]:
+    """Test if a provider configuration can connect and perform inference."""
+    import time
 
-    from config.config import ProviderConfig
+    from config.config import AgentModelConfig, ModelRole
+    from core.model_registry import DEFAULT_PROVIDER_MAP, ModelRegistry
+    from providers.base import ModelRequest
 
     templates = list_provider_templates(include_experimental=True)
     template_map = {t["kind"]: t for t in templates}
@@ -254,29 +260,73 @@ def test_provider_connection(provider_kind: str, fields: dict[str, str]) -> dict
         endpoint = template.get("endpoint", "-")
 
     api_key = fields.get("api_key", "")
-    headers = {}
+    headers: dict[str, str] = {}
     if provider_kind == "aws_bedrock":
         region = fields.get("region", "us-east-1")
         headers = {"aws-region": region}
 
-    config = ProviderConfig(
-        id="test",
+    # Use a tiny model identifier if none provided
+    test_model = model_id or "gpt-4o-mini"
+
+    config = AgentModelConfig(
+        role=ModelRole.PLANNER,
+        provider="test",
         provider_type=template.get("provider_type", provider_kind),
         endpoint=endpoint,
+        api_key=api_key or "-",
         auth_mode=template.get("auth_mode", "api_key"),
-        secret_ref=None,
+        model=test_model,
         timeout_seconds=30,
         headers=headers,
-        metadata={"template": provider_kind},
-        api_key=api_key,
+        metadata={"template": provider_kind, "capabilities": ["text"]},
     )
 
+    registry = ModelRegistry(providers=DEFAULT_PROVIDER_MAP, models={})
     try:
-        provider = build_provider(config)
-        # Try a simple models list or health check if available
-        if hasattr(provider, "list_models"):
-            models = provider.list_models()
-            return {"ok": True, "models_found": len(models)}
-        return {"ok": True, "message": "Provider initialized successfully"}
+        provider = registry.create_provider(config)
     except Exception as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": f"Failed to initialize provider: {exc}"}
+
+    request = ModelRequest(
+        role=ModelRole.PLANNER,
+        system_prompt="You are a test assistant.",
+        user_prompt="Respond with exactly the word 'ok' and nothing else.",
+        temperature=0.0,
+        max_output_tokens=10,
+    )
+
+    start = time.time()
+    try:
+        response = provider.invoke(request)
+    except Exception as exc:
+        return {"ok": False, "error": f"Inference failed: {exc}"}
+    latency_ms = int((time.time() - start) * 1000)
+
+    result: dict[str, Any] = {
+        "ok": True,
+        "latency_ms": latency_ms,
+        "model": response.model,
+        "provider": response.provider,
+    }
+
+    if response.usage is not None:
+        result["usage"] = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "total_tokens": response.usage.total_tokens,
+        }
+        if response.usage.total_cost_usd is not None:
+            result["usage"]["estimated_cost_usd"] = response.usage.total_cost_usd
+    else:
+        result["usage_warning"] = (
+            "Provider did not return token usage metadata. Cost tracking will be unavailable."
+        )
+
+    # Sanity check the response
+    content = (response.content or "").strip().lower()
+    if not content:
+        result["warning"] = "Provider returned an empty response."
+    elif "ok" not in content and len(content) < 1:
+        result["warning"] = f"Unexpected response: '{response.content[:50]}'"
+
+    return result

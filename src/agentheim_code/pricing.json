@@ -1,0 +1,149 @@
+{
+  "models": {
+    "openai_v1/gpt-4o": {
+      "input_per_1m": 2.50,
+      "output_per_1m": 10.00,
+      "currency": "USD"
+    },
+    "openai_v1/gpt-4o-mini": {
+      "input_per_1m": 0.15,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "openai_v1/o3-mini": {
+      "input_per_1m": 1.10,
+      "output_per_1m": 4.40,
+      "currency": "USD"
+    },
+    "openai_v1/o1": {
+      "input_per_1m": 15.00,
+      "output_per_1m": 60.00,
+      "currency": "USD"
+    },
+    "openai_v1/o1-mini": {
+      "input_per_1m": 1.10,
+      "output_per_1m": 4.40,
+      "currency": "USD"
+    },
+    "openai_compatible/gpt-4o": {
+      "input_per_1m": 2.50,
+      "output_per_1m": 10.00,
+      "currency": "USD"
+    },
+    "azure_foundry/gpt-4o": {
+      "input_per_1m": 2.50,
+      "output_per_1m": 10.00,
+      "currency": "USD"
+    },
+    "azure_foundry/gpt-4o-mini": {
+      "input_per_1m": 0.15,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "anthropic/claude-sonnet-4": {
+      "input_per_1m": 3.00,
+      "output_per_1m": 15.00,
+      "currency": "USD"
+    },
+    "anthropic/claude-opus-4": {
+      "input_per_1m": 15.00,
+      "output_per_1m": 75.00,
+      "currency": "USD"
+    },
+    "anthropic/claude-haiku-4": {
+      "input_per_1m": 0.80,
+      "output_per_1m": 4.00,
+      "currency": "USD"
+    },
+    "gemini/gemini-2.5-flash": {
+      "input_per_1m": 0.15,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "gemini/gemini-2.5-pro": {
+      "input_per_1m": 1.25,
+      "output_per_1m": 10.00,
+      "currency": "USD"
+    },
+    "gemini/gemini-2.0-flash": {
+      "input_per_1m": 0.10,
+      "output_per_1m": 0.40,
+      "currency": "USD"
+    },
+    "vertex_ai/gemini-2.5-flash": {
+      "input_per_1m": 0.15,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "vertex_ai/gemini-2.5-pro": {
+      "input_per_1m": 1.25,
+      "output_per_1m": 10.00,
+      "currency": "USD"
+    },
+    "aws_bedrock/anthropic.claude-sonnet-4": {
+      "input_per_1m": 3.00,
+      "output_per_1m": 15.00,
+      "currency": "USD"
+    },
+    "aws_bedrock/anthropic.claude-opus-4": {
+      "input_per_1m": 15.00,
+      "output_per_1m": 75.00,
+      "currency": "USD"
+    },
+    "aws_bedrock/amazon.nova-pro-v1:0": {
+      "input_per_1m": 0.80,
+      "output_per_1m": 3.20,
+      "currency": "USD"
+    },
+    "aws_bedrock/meta.llama-4-maverick": {
+      "input_per_1m": 0.20,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "cohere/command-r": {
+      "input_per_1m": 0.50,
+      "output_per_1m": 1.50,
+      "currency": "USD"
+    },
+    "cohere/command-r-plus": {
+      "input_per_1m": 3.00,
+      "output_per_1m": 15.00,
+      "currency": "USD"
+    },
+    "perplexity/sonar": {
+      "input_per_1m": 1.00,
+      "output_per_1m": 1.00,
+      "currency": "USD"
+    },
+    "perplexity/sonar-pro": {
+      "input_per_1m": 3.00,
+      "output_per_1m": 15.00,
+      "currency": "USD"
+    },
+    "openai_compatible/deepseek-chat": {
+      "input_per_1m": 0.27,
+      "output_per_1m": 1.10,
+      "currency": "USD"
+    },
+    "openai_compatible/deepseek-reasoner": {
+      "input_per_1m": 0.55,
+      "output_per_1m": 2.19,
+      "currency": "USD"
+    },
+    "openai_compatible/mistral-large-latest": {
+      "input_per_1m": 2.00,
+      "output_per_1m": 6.00,
+      "currency": "USD"
+    },
+    "openai_compatible/llama-4-maverick": {
+      "input_per_1m": 0.20,
+      "output_per_1m": 0.60,
+      "currency": "USD"
+    },
+    "openai_compatible/grok-3": {
+      "input_per_1m": 3.00,
+      "output_per_1m": 15.00,
+      "currency": "USD"
+    }
+  }
+}

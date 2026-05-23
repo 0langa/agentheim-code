@@ -55,6 +55,7 @@ agentheim_code = ["web/**/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = ["integration: marks tests that hit real external APIs (slow, requires secrets)"]
 
 [tool.ruff]
 target-version = "py312"
@@ -85,5 +86,5 @@ source = ["src/agentheim_code"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 80
 skip_covered = false

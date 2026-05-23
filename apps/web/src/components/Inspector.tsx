@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import { api } from "../api";
 import type { CoderCommand, Session, SessionView, ProviderProfile } from "../types";
+import { SessionUsage } from "./SessionUsage";
 
 interface InspectorProps {
   inspector: string;
@@ -105,6 +106,12 @@ export function Inspector({
               {result.stderr && <pre>{result.stderr}</pre>}
             </article>
           ))}
+        </div>
+      )}
+
+      {inspector === "usage" && (
+        <div className="panel-list">
+          <SessionUsage sessionId={active?.session.session_id ?? null} />
         </div>
       )}
 

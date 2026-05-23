@@ -14,6 +14,7 @@ from agentheim_code.bakeoff import render_bakeoff_json, render_bakeoff_table, ru
 from agentheim_code.coder_cli import coder_app
 from agentheim_code.config import ensure_default_config, load_config
 from agentheim_code.desktop import DesktopLaunchError, launch_desktop
+from agentheim_code.provider_wizard import verify_provider_connection
 from agentheim_coder_core.runtime import list_model_options
 from agentheim_core.readiness import build_readiness_state
 from core.run_view import list_run_views
@@ -192,6 +193,46 @@ def bake_off(
         render_bakeoff_table(results)
 
     if not all(r.passed for r in results):
+        raise typer.Exit(1)
+
+
+@app.command("provider-test")
+def provider_test(
+    provider_kind: str = typer.Argument(
+        ..., help="Provider template kind (e.g. openai_v1, anthropic)."
+    ),
+    endpoint: str = typer.Option("", "--endpoint", help="Override endpoint URL."),
+    api_key: str = typer.Option("", "--api-key", help="API key for the provider."),
+    model: str = typer.Option("", "--model", help="Model ID to test with."),
+    region: str = typer.Option("", "--region", help="AWS region (for Bedrock only)."),
+) -> None:
+    """Test a provider connection with a live inference call."""
+    fields: dict[str, str] = {}
+    if endpoint:
+        fields["endpoint"] = endpoint
+    if api_key:
+        fields["api_key"] = api_key
+    if region:
+        fields["region"] = region
+
+    result = verify_provider_connection(provider_kind=provider_kind, fields=fields, model_id=model)
+    if result.get("ok"):
+        console.print("[green]✓ Connection successful[/green]")
+        if "latency_ms" in result:
+            console.print(f"Latency: {result['latency_ms']}ms")
+        if "usage" in result:
+            usage = result["usage"]
+            console.print(
+                f"Tokens: {usage['input_tokens']} input / {usage['output_tokens']} output"
+            )
+            if "estimated_cost_usd" in usage:
+                console.print(f"Estimated cost: ${usage['estimated_cost_usd']:.6f}")
+        if result.get("usage_warning"):
+            console.print(f"[yellow]⚠ {result['usage_warning']}[/yellow]")
+        if result.get("warning"):
+            console.print(f"[yellow]⚠ {result['warning']}[/yellow]")
+    else:
+        console.print(f"[red]✗ Connection failed:[/red] {result.get('error', 'Unknown error')}")
         raise typer.Exit(1)
 
 

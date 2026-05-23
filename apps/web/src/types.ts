@@ -73,6 +73,25 @@ export type SessionDiff = {
   status?: string;
 };
 
+export type UsageData = {
+  session_id: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number | null;
+  calls: number;
+  breakdown: {
+    sequence: number;
+    timestamp: string;
+    model: string | null;
+    provider: string | null;
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    estimated_cost_usd: number | null;
+  }[];
+};
+
 export type SessionView = {
   session: Session;
   queued_prompts: string[];

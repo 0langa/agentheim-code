@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, Bot, Command, GitPullRequest, Settings, Terminal } from "lucide-react";
+import { Activity, BarChart3, Bot, Command, GitPullRequest, Settings, Terminal } from "lucide-react";
 
 interface RailProps {
   onNewSession: () => void;
@@ -24,6 +24,9 @@ export function Rail({ onNewSession, onSetInspector, onOpenPalette }: RailProps)
       </button>
       <button title="Command palette" onClick={onOpenPalette}>
         <Command size={20} />
+      </button>
+      <button title="Usage" onClick={() => onSetInspector("usage")}>
+        <BarChart3 size={20} />
       </button>
       <button title="Settings" onClick={() => onSetInspector("settings")}>
         <Settings size={20} />
