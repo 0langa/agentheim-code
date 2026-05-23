@@ -26,7 +26,7 @@ First-session success is the priority:
 ### Product Shape
 
 - Python package: `agentheim-code`
-- Version: `0.2.0`
+- Version: `0.3.0`
 - Python requirement: `>=3.12`
 - CLI entrypoint: `agentheim-code`
 - Backend: FastAPI in `src/agentheim_code/backend.py`
