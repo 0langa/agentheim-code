@@ -73,3 +73,16 @@ class TestEnsureDefaultConfig:
         monkeypatch.setattr("agentheim_code.config._config_file", lambda: config_path)
         ensure_default_config()
         assert "default_port = 1111" in config_path.read_text()
+
+    def test_default_config_structure_matches_documentation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config_path = tmp_path / "config.toml"
+        monkeypatch.setattr("agentheim_code.config._config_file", lambda: config_path)
+        ensure_default_config()
+        cfg = load_config()
+        assert "core" in cfg
+        assert "ui" in cfg
+        assert cfg["core"].get("default_workspace") == "."
+        assert cfg["core"].get("default_port") == 8765
+        assert cfg["ui"].get("theme") == "dark"

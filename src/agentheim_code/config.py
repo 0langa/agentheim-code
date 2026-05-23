@@ -1,3 +1,10 @@
+"""UI-focused configuration stored in platform-specific TOML.
+
+This module manages user preferences and onboarding state only.
+Provider profiles and secrets are handled by src/config/config.py.
+See docs/adr/0001-config-surface-and-storage.md for the boundary.
+"""
+
 from __future__ import annotations
 
 import logging

@@ -1,38 +1,120 @@
 # Architecture
 
-Agentheim Code is a focused product shell around the shared Agentheim Coder
-runtime.
+Agentheim Code is a local product shell around a shared coder runtime that is
+vendored into this repository.
 
 ```text
-Agentheim Code CLI / Desktop App
+CLI / Browser / Tauri shell
   -> local FastAPI backend
-  -> agentheim_coder_core runtime
-  -> agentheim_core config, providers, tools, policy, runs
+  -> coder runtime and session storage
+  -> provider/profile/config/tool layers
 ```
 
-Agentheim Full remains the superset platform. Agentheim Code carries the shared
-package boundaries inside this repo for now, so it installs and runs without a
-sibling Agentheim Full checkout.
+## Repository Map
 
-## Boundaries
+### Product-facing layers
 
-- `agentheim_code`: focused product CLI, app launcher, and local backend wrapper.
-- `agentheim_coder_core`: coder sessions, commands, models, runtime, and event
-  contracts.
-- `agentheim_core`: provider profiles, policy, tools, readiness, and run views.
-- `apps/web`: React frontend.
-- `apps/desktop`: Tauri shell.
+- `src/agentheim_code`
+  Product CLI, app launcher, FastAPI backend, onboarding/config APIs,
+  diagnostics, provider wizard, context bundle adapter, packaged web assets.
+- `apps/web`
+  React/Vite workbench UI.
+- `apps/desktop`
+  Tauri shell that reads the backend URL from the launcher environment.
 
-## Repository Scope
+### Shared runtime layers used directly by this product
 
-This checkout may contain broader Agentheim packages from a sibling editable
-install, but they are not owned by this repository. The tracked Agentheim Code
-surface is `src/agentheim_code`, `src/memory`, `src/tools/shell`, `apps/web`,
-and `apps/desktop`. Ignored local packages such as `src/core`, `src/config`,
-`src/providers`, and `src/workflows` are runtime dependencies for development,
-not product-owned files to modify as part of Agentheim Code changes.
+- `src/agentheim_coder_core`
+  Coder command and runtime contracts.
+- `src/agentheim_core`
+  Readiness, run views, and shared model selection helpers.
+- `src/core`
+  Policies, runs, approvals, tools, schemas, and runtime infrastructure.
+- `src/config`
+  Shared provider/profile storage and template registry.
+- `src/providers`
+  Provider adapters and usage extraction.
+- `src/workflows`
+  Session runtime, persistence, and command execution.
 
-## Persistence
+Most product work starts in `src/agentheim_code`, `apps/web`, and
+`apps/desktop`, but real behavior changes often require coordinated edits in
+the shared runtime modules above.
 
-Coder sessions stay under `.ai-team/runs/<session-id>/` for compatibility with
-Agentheim Full.
+## Launch Modes
+
+### Browser fallback
+
+`agentheim-code app --web`
+
+- starts the FastAPI backend locally
+- serves the built frontend
+- opens the browser workbench at `/coder`
+
+### Packaged desktop shell
+
+`agentheim-code app`
+
+- requires a built or installed Tauri binary
+- starts the backend in a subprocess
+- passes `AGENTHEIM_CODE_BACKEND_URL` into the shell
+
+### Source-tree dev shell
+
+`agentheim-code app --dev`
+
+- expects a full checkout with Node, Rust, and Tauri dependencies
+- runs the Tauri development workflow against the source web app
+
+## Data And Config Locations
+
+### Session data
+
+- `.ai-team/runs/<session-id>/`
+
+### UI config
+
+Stored by `src/agentheim_code/config.py` in a platform-specific `config.toml`.
+
+- Windows: `%APPDATA%\\Agentheim Code\\config.toml`
+- macOS: `~/Library/Application Support/Agentheim Code/config.toml`
+- Linux: `~/.config/agentheim-code/config.toml`
+
+This file stores **UI preferences and onboarding state only**:
+
+- `core.default_workspace`
+- `core.default_port`
+- `ui.theme`
+- `onboarding.complete`
+- `onboarding.dismissed`
+
+Provider profiles and secrets are intentionally kept out of this file.
+See `docs/adr/0001-config-surface-and-storage.md` for the boundary rationale.
+
+### Provider profiles
+
+Stored by `src/config/config.py` in the shared Agentheim config area.
+
+- file name: `providers.json`
+- default location: `platformdirs.user_config_dir("agentheim")`
+- secrets are stored in the OS keyring or an encrypted vault, never in the JSON document
+
+### Provider health
+
+Stored in the shared Agentheim data area as `provider-health.json`.
+
+## Frontend/Backend Contract
+
+The web app talks only to the local backend under `/api`.
+
+Main surfaces:
+
+- onboarding and UI config
+- session creation and session views
+- streaming messages through SSE
+- file search and preview
+- provider templates, profiles, tests, and health
+- approvals, diffs, terminal results, usage, and runs
+
+The Tauri shell does not implement business logic. It only hosts the web app
+and exposes the backend URL through a small command in `apps/desktop/src-tauri/src/main.rs`.

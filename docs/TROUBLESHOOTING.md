@@ -2,17 +2,35 @@
 
 ## Onboarding Did Not Appear
 
-Check config state:
+Onboarding currently shows only when both are true:
+
+- `onboarding_complete` is false
+- `onboarding_dismissed` is false
+- no configured provider profiles are available in the model options response
+
+If you already skipped it, use Settings to add a provider.
+
+## `agentheim-code app` Fails Immediately
+
+`agentheim-code app` expects a packaged or locally built Tauri binary.
+
+If you only installed the Python package, use browser mode instead:
 
 ```powershell
-agentheim-code doctor
+agentheim-code app --workspace . --web
 ```
 
-If you previously skipped onboarding, open Settings and add a provider there.
+If you do want the desktop shell, build it locally:
+
+```powershell
+npm --prefix apps/web install
+npm --prefix apps/desktop install
+npm --prefix apps/desktop run build
+```
 
 ## Ollama Was Not Detected
 
-Verify Ollama is running locally:
+Verify Ollama directly:
 
 ```powershell
 curl http://localhost:11434/api/tags
@@ -21,7 +39,7 @@ curl http://localhost:11434/api/tags
 If that fails:
 
 - start Ollama
-- verify port `11434` is not blocked
+- confirm port `11434` is available
 - add a provider manually with the wizard
 
 ## Provider Test Failed
@@ -30,37 +48,77 @@ Common causes:
 
 - invalid API key
 - wrong base URL
-- wrong model ID
-- firewall or proxy blocking outbound calls
+- wrong model id
+- provider-specific auth mismatch
+- network, proxy, or firewall issues
 
-CLI retry:
+Retry from the CLI:
 
 ```powershell
 agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
 ```
 
-## Desktop Shell Opens But Cannot Reach Backend
+## Browser UI Loads But Looks Empty Or Broken
 
-Use the managed launcher:
+Rebuild the frontend bundle:
+
+```powershell
+npm --prefix apps/web run build
+```
+
+Then relaunch `agentheim-code app --web`.
+
+## Prompt Send Does Nothing
+
+Check:
+
+- a session is active
+- the prompt is not empty
+- a provider profile is configured
+- an earlier turn is not still running
+
+If a turn looks stuck, use `Stop`, then refresh the session view by selecting
+the session again.
+
+## File Context Was Rejected
+
+Current context validation rejects:
+
+- missing files
+- directories
+- files in `.git`
+- files in `.ai-team`
+- binary files
+- oversized files
+- paths outside the workspace
+
+Use the context preview area to see which file failed and why.
+
+## File Preview Fails
+
+The preview endpoint only serves files inside the current workspace.
+
+Failures usually mean:
+
+- the file does not exist anymore
+- the path was outside the workspace
+- the file could not be read as text
+
+## Desktop Shell Cannot Reach The Backend
+
+Use the managed launcher rather than opening the Tauri binary manually:
 
 ```powershell
 agentheim-code app --workspace .
 ```
 
-This starts the local backend subprocess and passes its URL to the desktop shell.
+This starts the backend subprocess and passes the backend URL through
+`AGENTHEIM_CODE_BACKEND_URL`.
 
-Browser fallback remains available:
+Browser fallback is always the simplest recovery path:
 
 ```powershell
 agentheim-code app --workspace . --web
-```
-
-## Web Assets Missing
-
-Rebuild packaged frontend assets:
-
-```powershell
-npm --prefix apps/web run build
 ```
 
 ## Windows Desktop Build Fails
@@ -72,32 +130,40 @@ workload, then retry:
 npm --prefix apps/desktop run build
 ```
 
-## Installer Artifact Not Found After CI Build
+## CI Installer Artifact Is Missing
 
-The Windows workflow uploads:
+Current CI uploads:
 
 - `agentheim-code-windows-installer`
+- `agentheim-code-wheel`
 
-Artifact source path:
+The installer is expected under:
 
 - `apps/desktop/src-tauri/target/release/bundle/nsis/*.exe`
-
-## Prompt Send Does Nothing
-
-Check:
-
-- active session exists
-- prompt is not empty
-- provider is configured
-- approvals are not blocking required work
-
-If a turn is stuck, stop it and retry from the composer.
 
 ## Usage Or Cost Is Blank
 
 Likely causes:
 
-- provider did not return token usage metadata
-- model is missing from pricing registry
+- the provider did not return token usage metadata
+- the model is not priced in the local pricing registry
 
 The session can still run without cost data.
+
+## Need A Support Bundle
+
+Generate a redacted diagnostics bundle:
+
+```powershell
+agentheim-code diagnostics --out agentheim-diagnostics.json
+```
+
+## Config Path Confusion
+
+UI preferences and provider profiles use different files:
+
+- UI config (theme, workspace, onboarding): `config.toml` managed by
+  `src/agentheim_code/config.py`
+- Provider profiles: `providers.json` managed by `src/config/config.py`
+
+See `docs/adr/0001-config-surface-and-storage.md` for the full boundary.
