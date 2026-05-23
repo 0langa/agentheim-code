@@ -1,112 +1,181 @@
 # User Guide
 
-## Start App
+## Choose A Launch Mode
 
-Desktop shell:
+### Browser workbench
 
-```powershell
-agentheim-code app --workspace .
-```
-
-Browser fallback:
+Works from a normal Python install:
 
 ```powershell
 agentheim-code app --workspace . --web
 ```
 
+### Packaged desktop shell
+
+Use this only when you have a built or installed Tauri binary:
+
+```powershell
+agentheim-code app --workspace .
+```
+
+### Source-tree dev shell
+
+```powershell
+agentheim-code app --workspace . --dev
+```
+
 ## First Run
 
-Fresh configs open onboarding automatically.
+Fresh UI config opens onboarding automatically.
 
-1. Pick workspace.
-2. Accept detected Ollama, or open provider wizard.
-3. Save provider if needed.
-4. Start first session.
+1. Choose the workspace.
+2. If Ollama is running, review the detected local endpoint.
+3. Or open the provider wizard and add a profile manually.
+4. Start the first session.
 
-Skipping onboarding is allowed. The setup path remains available in Settings.
+Skipping onboarding only dismisses the dialog. Settings still exposes provider
+setup later.
 
 ## Main Layout
 
-- Left rail: new session, inspector shortcuts, command palette.
-- Center: top bar, chat transcript, composer.
-- Right inspector: timeline, runs, terminal, approvals, usage, settings.
+- Left rail: new session plus shortcuts for timeline, runs, files, terminal, approvals, command palette, usage, and settings
+- Center: top bar, chat transcript, composer
+- Right inspector: the currently selected panel
 
 ## Sessions
 
-Create a session with:
+Create a session from:
 
-- rail `New session`
-- top bar `New`
-- command palette
-- `Ctrl+Shift+N`
+- the rail `New session` button
+- the top bar `New` button
+- `Ctrl/Cmd+Shift+N`
 
-Sessions keep transcript, approvals, terminal output, diffs, and usage together.
+The active session view keeps:
+
+- transcript
+- timeline events
+- approvals
+- terminal results
+- diffs
+- usage
 
 ## Composer
 
-Use the composer to control each turn:
+The composer controls each turn.
 
-- Mode: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
-- Trust: `read_only`, `ask`, `workspace`
-- Provider/model: choose explicit profile/model or keep auto
-- Prompt send: `Ctrl+Enter`
+- Modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
+- Trust modes: `ask`, `read_only`, `workspace`
+- Profile and model selectors: choose explicit values or keep `Auto`
+- Send: `Ctrl/Cmd+Enter`
+- Stop: available while streaming
+- Retry: available after a completed turn
 
 ## File Context
 
-Type `@` in the composer to search files from the current workspace.
+Type `@` in the prompt to search workspace files.
 
-- pick one or more files
-- review chips before send
-- remove chips if scope is wrong
+Current flow:
 
-Context is sent as explicit bounded file-content blocks in the prompt payload.
-Files are validated before use. Missing files, ignored files, binary files,
-oversized files, and paths outside the workspace are rejected before the model
-call. Accepted files show a preview and rough token estimate.
+1. Type `@partial-name`
+2. Pick one or more files from the inline match list
+3. Review context previews and token estimates
+4. Remove any file that should not be included
 
-## Files, Diffs, And Terminal
+Files are validated before provider execution. The current validation rejects:
 
-Use the right inspector as the workbench surface:
+- missing paths
+- directories
+- files under `.git` or `.ai-team`
+- binary files
+- files larger than the current bundle limit
+- paths outside the workspace
 
-- Files: search workspace files, preview content, copy paths, and attach files
-  to context.
-- Runs: filter sessions by id, status, or mode and resume prior work.
-- Terminal: expand command output, copy commands, stdout, or stderr.
-- Diffs: review changed files from the run inspector and copy patches.
+Accepted files are embedded into the runtime prompt as bounded file-content
+blocks.
 
-## Approvals
+## Inspector Panels
 
-When a risky action pauses:
+### Timeline
 
-- open the Approvals inspector automatically
-- read action kind, risk, reason, and target
-- grant or deny in place
+Shows session events as they arrive.
 
-Trust guidance:
+### Runs
 
-- `read_only`: safest, no edits
-- `ask`: recommended default
-- `workspace`: faster when you trust the session
+Lists sessions and supports a simple text filter over:
 
-## Providers
+- session id
+- status
+- mode
 
-The provider wizard supports local and cloud setups.
+### Files
 
-- Ollama auto-detection checks `http://localhost:11434/v1`
-- cloud/API providers use the wizard form
-- test connection before save
+Shows the current workspace tree with:
+
+- simple substring search
+- changed-file badges
+- preview
+- copy path
+- attach to context
+
+For large workspaces the file list is capped at 500 visible entries to keep
+rendering responsive.
+
+### Terminal
+
+Shows command results with:
+
+- exit status badge
+- collapse/expand
+- copy command
+- copy stdout
+- copy stderr
+- ANSI escape codes are stripped for clean rendering
+
+### Approvals
+
+Risky actions automatically push the inspector to Approvals when pending items
+exist.
+
+Each approval shows:
+
+- tool id
+- action kind
+- risk level
+- status
+- target
+- reason
+
+Shell approvals also show the command. File approvals show pending content when
+available.
+
+### Usage
+
+Shows aggregated token and cost data when the provider returns usage metadata.
+
+### Settings
+
+The current Settings panel includes:
+
+- theme selector
+- active session mode/trust/model summary
+- configured provider profiles
+- command list
 
 ## Keyboard Shortcuts
 
-- `Ctrl+K` or `Ctrl+P`: command palette
-- `Ctrl+,`: open Settings
-- `Ctrl+Shift+N`: new session
-- `Ctrl+Enter`: send prompt
-- `Escape`: close palette or modal
+- `Ctrl/Cmd+K` or `Ctrl/Cmd+P`: open command palette
+- `Ctrl/Cmd+,`: open Settings
+- `Ctrl/Cmd+Shift+N`: new session
+- `Ctrl/Cmd+Enter`: send prompt
+- `Escape`: close the command palette or modal
+
+The command palette only shows actions that the workbench can execute directly.
+Unsupported CLI-only commands are hidden rather than displayed as non-functional
+items.
 
 ## CLI Flow
 
-Terminal-first use remains available:
+Terminal-first work is still supported:
 
 ```powershell
 agentheim-code doctor
@@ -117,17 +186,17 @@ agentheim-code coder --workspace . --prompt "Review src/auth.py"
 
 ## Recovery And Diagnostics
 
-If a run fails, the app shows a structured error with a code and recovery
-action. Open Timeline, Terminal, Approvals, and Diffs to inspect what happened.
+When a run fails, the app may surface a structured error with:
 
-Generate a redacted support bundle:
+- error code
+- message
+- technical detail
+- recovery action
+
+For deeper inspection, open Timeline, Terminal, Approvals, and Diffs.
+
+Generate a redacted support bundle with:
 
 ```powershell
 agentheim-code diagnostics --out agentheim-diagnostics.json
-```
-
-Update manually:
-
-```powershell
-pip install --upgrade agentheim-code
 ```

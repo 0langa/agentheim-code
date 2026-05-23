@@ -21,9 +21,9 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
       .catch(() => setFiles([]));
   }, [workspaceRoot]);
 
-  const filtered = files.filter((f) =>
-    f.path.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = files
+    .filter((f) => f.path.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 500);
 
   const isChanged = (path: string) => changedFiles.includes(path);
 

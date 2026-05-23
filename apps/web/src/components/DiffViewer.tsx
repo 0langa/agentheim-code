@@ -5,13 +5,26 @@ import type { SessionDiff } from "../types";
 function computeDiffLines(before: string, after: string) {
   const a = before.split("\n");
   const b = after.split("\n");
+  const dp: number[][] = Array(a.length + 1)
+    .fill(null)
+    .map(() => Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      if (a[i] === b[j]) {
+        dp[i][j] = 1 + dp[i + 1][j + 1];
+      } else {
+        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
   const lines: Array<{ type: "same" | "add" | "rem"; a?: string; b?: string }> = [];
   let i = 0, j = 0;
   while (i < a.length || j < b.length) {
     if (i < a.length && j < b.length && a[i] === b[j]) {
       lines.push({ type: "same", a: a[i], b: b[j] });
-      i++; j++;
-    } else if (i < a.length && (j >= b.length || a[i] !== b[j])) {
+      i++;
+      j++;
+    } else if (j >= b.length || (i < a.length && dp[i + 1][j] >= dp[i][j + 1])) {
       lines.push({ type: "rem", a: a[i] });
       i++;
     } else {

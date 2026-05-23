@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { stripAnsi } from "../utils/ansi";
 import type { CommandResult } from "../types";
 
 function CopyButton({ text }: { text: string }) {
@@ -69,7 +70,7 @@ function TerminalItem({ result }: { result: CommandResult }) {
                 <span style={{ fontSize: "11px", color: "var(--muted)" }}>stdout</span>
                 <CopyButton text={result.stdout} />
               </div>
-              <pre style={{ maxHeight: 240, overflow: "auto" }}>{result.stdout}</pre>
+              <pre style={{ maxHeight: 240, overflow: "auto" }}>{stripAnsi(result.stdout)}</pre>
             </div>
           )}
           {result.stderr && (
@@ -78,7 +79,7 @@ function TerminalItem({ result }: { result: CommandResult }) {
                 <span style={{ fontSize: "11px", color: "var(--muted)" }}>stderr</span>
                 <CopyButton text={result.stderr} />
               </div>
-              <pre style={{ maxHeight: 240, overflow: "auto", color: "var(--error)" }}>{result.stderr}</pre>
+              <pre style={{ maxHeight: 240, overflow: "auto", color: "var(--error)" }}>{stripAnsi(result.stderr)}</pre>
             </div>
           )}
         </div>

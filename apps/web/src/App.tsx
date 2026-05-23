@@ -10,6 +10,7 @@ import { Inspector } from "./components/Inspector";
 import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
+import type { WorkbenchSelection } from "./state/sessionState";
 import type {
   ContextPreviewItem,
   CoderCommand,
@@ -329,6 +330,15 @@ export function App() {
     }
   };
 
+  const supportedCommandIds = new Set([
+    "new",
+    "settings",
+    "approvals",
+    "terminal",
+    "files",
+    "retry",
+    "stop",
+  ]);
   const allCommands: CoderCommand[] = React.useMemo(() => {
     const builtins: CoderCommand[] = [
       { id: "settings", label: "Open Settings", cli: "/settings", surface: "global" },
@@ -338,7 +348,8 @@ export function App() {
       { id: "retry", label: "Retry Last Prompt", cli: "/retry", surface: "global" },
       { id: "stop", label: "Stop Current Run", cli: "/stop", surface: "global" },
     ];
-    return [...commands, ...builtins];
+    const combined = [...commands, ...builtins];
+    return combined.filter((cmd) => supportedCommandIds.has(cmd.id));
   }, [commands]);
 
   const executeCommand = (command: CoderCommand) => {

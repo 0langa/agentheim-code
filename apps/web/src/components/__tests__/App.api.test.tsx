@@ -307,4 +307,29 @@ describe("App API integration", () => {
       expect(document.documentElement.dataset.theme).toBe("high_contrast");
     });
   });
+
+  it("does not show unsupported backend commands in the palette", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([
+        { id: "unsupported", label: "Unsupported", cli: "/unsupported", surface: "cli" },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.keyDown(window, { ctrlKey: true, key: "k" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Open Settings")).toBeInTheDocument();
+      expect(screen.queryByText("Unsupported")).not.toBeInTheDocument();
+    });
+  });
 });

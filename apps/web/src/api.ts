@@ -2,6 +2,7 @@ import type { ContextPreviewItem, Session } from "./types";
 
 const DEFAULT_API_BASE = "/api";
 let resolvedApiBase: Promise<string> | null = null;
+let lastRequestId = "";
 
 function normalizeApiBase(base: string): string {
   return `${base.replace(/\/+$/, "")}/api`;
@@ -43,14 +44,34 @@ export class ApiError extends Error {
   }
 }
 
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const isSafe = !init.method || init.method === "GET" || init.method === "HEAD";
+  const retries = isSafe ? 2 : 0;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, init);
+    if (response.ok || !isSafe || attempt === retries) {
+      return response;
+    }
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  // Unreachable, but satisfies TypeScript
+  return fetch(url, init);
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${await getApiBase()}${path}`;
-  const response = await fetch(url, {
-    headers: { "content-type": "application/json" },
+  const requestId = lastRequestId || crypto.randomUUID?.() || `${Date.now()}`;
+  lastRequestId = requestId;
+  const response = await fetchWithRetry(url, {
+    headers: {
+      "content-type": "application/json",
+      "x-request-id": requestId,
+    },
     ...init,
   });
   if (!response.ok) {
-    throw new ApiError(response.status, await response.text());
+    const text = await response.text();
+    throw new ApiError(response.status, text);
   }
   return response.json() as Promise<T>;
 }
@@ -97,7 +118,10 @@ export async function streamSessionMessage(
     `${apiBase}/coder/sessions/${sessionId}/messages/stream`,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-request-id": lastRequestId || crypto.randomUUID?.() || `${Date.now()}`,
+      },
       body: JSON.stringify({ prompt, context_files: contextFiles, use_context_bundle: true }),
       signal,
     },
