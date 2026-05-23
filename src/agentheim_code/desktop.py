@@ -170,6 +170,20 @@ def launch_desktop(
         return
 
     workspace_path = Path(workspace).resolve()
+    if not workspace_path.exists():
+        raise DesktopLaunchError(f"Workspace does not exist: {workspace_path}")
+    if not workspace_path.is_dir():
+        raise DesktopLaunchError(f"Workspace is not a directory: {workspace_path}")
+
+    # Verify Python backend can start before launching the shell
+    try:
+        import fastapi  # noqa: F401
+        import uvicorn  # noqa: F401
+    except ImportError as exc:
+        raise DesktopLaunchError(
+            "Python backend dependencies are missing. Install with: pip install agentheim-code"
+        ) from exc
+
     resolved_port = _find_free_port(port)
     if resolved_port != port:
         logger.warning(

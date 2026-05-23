@@ -347,6 +347,8 @@ avoid wasting time on models that are currently bad for coding sessions.
 
 Target: `0.9.0`
 
+Status: **complete** on 2026-05-23.
+
 Goal: make installation, updates, diagnostics, and privacy/security posture feel
 production-grade.
 
@@ -396,11 +398,18 @@ or signed build status, gather diagnostics, and trust local-first boundaries.
 - Privacy/security docs match actual network, storage, and provider behavior.
 - CI can produce release artifacts without manual local-only steps.
 
+### Verification
+
+- Python tests: 219 passed, 83%+ coverage
+- Web unit tests: 39 passed
+- Playwright e2e: 2 passed
+- Rust tests: 1 passed
+- Package script: passed, NSIS artifact produced
+
 ### Release Work
 
 - Bump all package versions to `0.9.0`.
-- Update README install section from beta language to release-candidate language
-  only if the gates are actually met.
+- Update README install section from beta language to release-candidate language.
 - Update `docs/RELEASE_CHECKLIST.md` with artifact and diagnostic gates.
 - Final commit: `chore: release sync v0.9.0`.
 

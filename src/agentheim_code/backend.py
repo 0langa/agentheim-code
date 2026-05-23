@@ -101,7 +101,7 @@ def _version() -> str:
     try:
         return package_version("agentheim-code")
     except PackageNotFoundError:
-        return "0.8.0"
+        return "0.9.0"
 
 
 def _json_model(model: Any) -> dict[str, Any]:

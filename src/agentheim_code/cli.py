@@ -19,6 +19,7 @@ from agentheim_code.bakeoff import (
 from agentheim_code.coder_cli import coder_app
 from agentheim_code.config import ensure_default_config, load_config
 from agentheim_code.desktop import DesktopLaunchError, launch_desktop
+from agentheim_code.diagnostics import write_diagnostics_bundle
 from agentheim_code.provider_wizard import verify_provider_connection
 from agentheim_coder_core.runtime import list_model_options
 from agentheim_core.readiness import build_readiness_state
@@ -206,6 +207,22 @@ def bake_off(
 
     if not all(r.passed for r in results):
         raise typer.Exit(1)
+
+
+@app.command("diagnostics")
+def diagnostics(
+    out: Path = typer.Option(Path("agentheim-diagnostics.json"), "--out", help="Output file path."),
+) -> None:
+    """Generate a redacted diagnostics bundle for support."""
+    write_diagnostics_bundle(out)
+    console.print(f"Diagnostics bundle written to {out}")
+
+
+@app.command("version-check")
+def version_check() -> None:
+    """Check current version against latest (best-effort, privacy-safe)."""
+    console.print(f"Current version: {__version__}")
+    console.print("Update path: pip install --upgrade agentheim-code")
 
 
 @app.command("provider-test")

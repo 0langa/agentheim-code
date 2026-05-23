@@ -11,34 +11,36 @@ web UI, and Tauri desktop shell. It is built for one fast path:
 
 ## Install
 
-### Windows beta path
+### Windows (recommended)
 
-Current beta packaging is Windows-first and produces:
+Download the Windows installer from the latest release, or install from source:
 
-- a Python wheel for the local backend and CLI
-- an NSIS desktop-shell installer artifact from Tauri
+```powershell
+pip install agentheim-code
+```
 
-Build both locally:
+Then launch the desktop app:
+
+```powershell
+agentheim-code app --workspace .
+```
+
+### macOS / Linux
+
+Install via pip:
+
+```bash
+pip install agentheim-code
+agentheim-code app --workspace . --web
+```
+
+### Developer build
 
 ```powershell
 pip install -e ".[dev]"
 npm --prefix apps/web install
 npm --prefix apps/desktop install
 powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
-```
-
-Quick beta launch from this checkout:
-
-```powershell
-agentheim-code app --workspace .
-```
-
-### Web fallback
-
-If you want browser-only UI instead of the desktop shell:
-
-```powershell
-agentheim-code app --workspace . --web
 ```
 
 ## First Run
@@ -51,7 +53,7 @@ On a fresh config, Agentheim Code opens onboarding first.
 4. Start first session.
 
 If you skip onboarding, the app stays usable and keeps provider setup available
- from Settings.
+from Settings.
 
 ## Provider Setup
 
@@ -92,6 +94,14 @@ Trust modes:
 - `ask`: pause for risky actions
 - `workspace`: allow workspace edits under policy
 
+## Diagnostics
+
+Generate a redacted support bundle:
+
+```powershell
+agentheim-code diagnostics
+```
+
 ## Docs
 
 - [User guide](docs/USER_GUIDE.md)
@@ -100,6 +110,7 @@ Trust modes:
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Product roadmap](PRODUCT_ROADMAP.md)
+- [Privacy and security](docs/PRIVACY_SECURITY.md)
 
 ## Development
 
