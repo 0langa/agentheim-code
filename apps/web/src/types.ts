@@ -87,6 +87,7 @@ export type Session = {
   transcript?: TranscriptEntry[];
   current_user_prompt?: string;
   current_assistant_message?: string;
+  changed_files?: string[];
 };
 
 export type SessionEvent = {

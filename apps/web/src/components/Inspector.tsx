@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 
 import { api } from "../api";
 import type { CoderCommand, Session, SessionView, ProviderProfile } from "../types";
+import { DiffViewer } from "./DiffViewer";
 import { SessionUsage } from "./SessionUsage";
+import { TerminalPanel } from "./TerminalPanel";
+import { WorkspaceExplorer } from "./WorkspaceExplorer";
 
 interface InspectorProps {
   inspector: string;
@@ -15,6 +18,9 @@ interface InspectorProps {
   onDenyApproval: (requestId: string) => void;
   theme: "dark" | "light" | "high_contrast";
   onThemeChange: (theme: "dark" | "light" | "high_contrast") => void;
+  onAttachFile?: (path: string) => void;
+  sessionFilter?: string;
+  onSessionFilterChange?: (value: string) => void;
 }
 
 function EmptyPanel({ message }: { message: string }) {
@@ -38,6 +44,9 @@ export function Inspector({
   onDenyApproval,
   theme,
   onThemeChange,
+  onAttachFile,
+  sessionFilter = "",
+  onSessionFilterChange,
 }: InspectorProps) {
   const title = inspector[0].toUpperCase() + inspector.slice(1);
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -79,49 +88,53 @@ export function Inspector({
 
       {inspector === "runs" && (
         <div className="panel-list">
+          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
+            <input
+              type="text"
+              placeholder="Filter sessions..."
+              value={sessionFilter}
+              onChange={(e) => onSessionFilterChange?.(e.target.value)}
+              style={{ width: "100%", fontSize: "13px" }}
+            />
+          </div>
           {sessions.length === 0 && <EmptyPanel message="No sessions yet." />}
-          {sessions.map((session) => (
-            <button
-              key={session.session_id}
-              type="button"
-              onClick={() => onSelectSession(session.session_id)}
-            >
-              <strong>{session.session_id}</strong>
-              <span>
-                {session.status} · {session.mode}
-              </span>
-              <span>{session.workspace_root}</span>
-            </button>
-          ))}
+          {sessions
+            .filter(
+              (s) =>
+                !sessionFilter ||
+                s.session_id.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+                s.status.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+                s.mode.toLowerCase().includes(sessionFilter.toLowerCase())
+            )
+            .map((session) => (
+              <button
+                key={session.session_id}
+                type="button"
+                onClick={() => onSelectSession(session.session_id)}
+              >
+                <strong>{session.session_id}</strong>
+                <span>
+                  {session.status} · {session.mode}
+                </span>
+                <span>{session.workspace_root}</span>
+              </button>
+            ))}
           {active?.diffs?.map((diff, index) => (
-            <article key={`${diff.path}-${index}`} className="panel-item">
-              <strong>{diff.path ?? "changed file"}</strong>
-              <span>{diff.status ?? "changed"}</span>
-            </article>
+            <DiffViewer key={`${diff.path}-${index}`} diff={diff} />
           ))}
         </div>
       )}
 
       {inspector === "terminal" && (
-        <div className="panel-list">
-          {!active && <EmptyPanel message="No active session." />}
-          {active?.command_results?.length === 0 && (
-            <EmptyPanel message="No command output yet." />
-          )}
-          {active?.command_results?.map((result, index) => (
-            <article key={index} className="panel-item terminal-item">
-              <strong>{result.command?.join(" ") || "command"}</strong>
-              <span>
-                {result.status ?? "finished"} · exit{" "}
-                {result.exit_code === null || result.exit_code === undefined
-                  ? "-"
-                  : result.exit_code}
-              </span>
-              {result.stdout && <pre>{result.stdout}</pre>}
-              {result.stderr && <pre>{result.stderr}</pre>}
-            </article>
-          ))}
-        </div>
+        <TerminalPanel results={active?.command_results ?? []} />
+      )}
+
+      {inspector === "files" && (
+        <WorkspaceExplorer
+          workspaceRoot={active?.session.workspace_root}
+          changedFiles={active?.session.changed_files}
+          onAttach={onAttachFile}
+        />
       )}
 
       {inspector === "usage" && (

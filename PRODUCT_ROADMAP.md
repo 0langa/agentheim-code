@@ -198,6 +198,8 @@ stopped, and failures produce useful next actions instead of mystery states.
 
 Target: `0.7.0`
 
+Status: **complete** on 2026-05-23.
+
 Goal: turn the shell into a daily-use coding workbench instead of a chat page
 with side panels.
 
@@ -250,6 +252,14 @@ without losing their place in the conversation.
 - Long terminal output does not break layout or freeze the UI.
 - Command palette never silently ignores a visible command.
 - Visual pass confirms desktop and narrow viewport layouts are coherent.
+
+### Verification
+
+- Python tests: 219 passed, 83%+ coverage
+- Web unit tests: 39 passed
+- Playwright e2e: 2 passed
+- Rust tests: 1 passed
+- Package script: passed, NSIS artifact produced
 
 ### Release Work
 

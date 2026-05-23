@@ -100,7 +100,7 @@ def _version() -> str:
     try:
         return package_version("agentheim-code")
     except PackageNotFoundError:
-        return "0.6.0"
+        return "0.7.0"
 
 
 def _json_model(model: Any) -> dict[str, Any]:
@@ -596,6 +596,25 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     ) -> list[dict[str, Any]]:
         bounded_limit = max(1, min(limit, 200))
         return _search_file_tree(_workspace(workspace_path, workspace_root), q, bounded_limit)
+
+    @app.get("/api/coder/files/preview")
+    def api_file_preview(path: str = "", workspace_root: str | None = None) -> str:
+        workspace = _workspace(workspace_path, workspace_root)
+        if not path:
+            raise HTTPException(status_code=400, detail="Path is required.")
+        if ".." in path:
+            raise HTTPException(status_code=400, detail="Invalid path.")
+        target = workspace / path
+        try:
+            target.resolve().relative_to(workspace.resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Path is outside workspace.") from None
+        if not target.exists() or not target.is_file():
+            raise HTTPException(status_code=404, detail="File not found.")
+        try:
+            return target.read_text(encoding="utf-8", errors="replace")
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Could not read file: {exc}") from exc
 
     @app.get("/api/coder/runs")
     def api_runs(workspace_root: str | None = None) -> list[dict[str, Any]]:

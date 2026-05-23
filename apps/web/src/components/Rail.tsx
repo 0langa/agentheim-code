@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, BarChart3, Bot, Command, GitPullRequest, ShieldCheck, Settings, Terminal } from "lucide-react";
+import { Activity, BarChart3, Bot, Command, FileText, GitPullRequest, ShieldCheck, Settings, Terminal } from "lucide-react";
 
 interface RailProps {
   onNewSession: () => void;
@@ -19,6 +19,9 @@ export function Rail({ onNewSession, onSetInspector, onOpenPalette, hasApprovals
       </button>
       <button aria-label="Runs" title="Runs" type="button" onClick={() => onSetInspector("runs")}>
         <GitPullRequest size={20} />
+      </button>
+      <button aria-label="Files" title="Files" type="button" onClick={() => onSetInspector("files")}>
+        <FileText size={20} />
       </button>
       <button aria-label="Terminal" title="Terminal" type="button" onClick={() => onSetInspector("terminal")}>
         <Terminal size={20} />

@@ -43,6 +43,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [structuredError, setStructuredError] = useState<StructuredError | null>(null);
   const [contextPreviews, setContextPreviews] = useState<ContextPreviewItem[]>([]);
+  const [sessionFilter, setSessionFilter] = useState("");
   const errorRef = React.useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -328,9 +329,33 @@ export function App() {
     }
   };
 
+  const allCommands: CoderCommand[] = React.useMemo(() => {
+    const builtins: CoderCommand[] = [
+      { id: "settings", label: "Open Settings", cli: "/settings", surface: "global" },
+      { id: "approvals", label: "Open Approvals", cli: "/approvals", surface: "global" },
+      { id: "terminal", label: "Open Terminal", cli: "/terminal", surface: "global" },
+      { id: "files", label: "Open Files", cli: "/files", surface: "global" },
+      { id: "retry", label: "Retry Last Prompt", cli: "/retry", surface: "global" },
+      { id: "stop", label: "Stop Current Run", cli: "/stop", surface: "global" },
+    ];
+    return [...commands, ...builtins];
+  }, [commands]);
+
   const executeCommand = (command: CoderCommand) => {
     if (command.id === "new") {
       createSession();
+    } else if (command.id === "settings") {
+      setInspector("settings");
+    } else if (command.id === "approvals") {
+      setInspector("approvals");
+    } else if (command.id === "terminal") {
+      setInspector("terminal");
+    } else if (command.id === "files") {
+      setInspector("files");
+    } else if (command.id === "retry") {
+      retryPrompt();
+    } else if (command.id === "stop") {
+      stopPrompt();
     } else {
       console.log("Execute command:", command.cli);
     }
@@ -472,13 +497,16 @@ export function App() {
           inspector={inspector}
           sessions={sessions}
           active={active}
-          commands={commands}
+          commands={allCommands}
           onSelectSession={selectSession}
           onOpenProviderWizard={() => setWizardOpen(true)}
           onGrantApproval={(requestId) => void handleApproval(requestId, true)}
           onDenyApproval={(requestId) => void handleApproval(requestId, false)}
           theme={uiConfig?.theme ?? "dark"}
           onThemeChange={(theme) => void changeTheme(theme)}
+          onAttachFile={addContextFile}
+          sessionFilter={sessionFilter}
+          onSessionFilterChange={setSessionFilter}
         />
 
         {wizardOpen && (
@@ -494,7 +522,7 @@ export function App() {
 
         {paletteOpen && (
           <CommandPalette
-            commands={commands}
+            commands={allCommands}
             onClose={() => setPaletteOpen(false)}
             onExecute={executeCommand}
           />
