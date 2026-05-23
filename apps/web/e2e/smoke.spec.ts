@@ -242,6 +242,7 @@ test.describe("Agentheim Code Web", () => {
     await page.goto("/");
 
     await expect(page.locator("main.shell")).toBeVisible();
+    await expect(page).toHaveScreenshot("workbench-empty.png", { maxDiffPixels: 100 });
 
     await page.keyboard.press("Control+K");
     await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();

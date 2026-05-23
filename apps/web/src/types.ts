@@ -1,3 +1,12 @@
+/**
+ * Canonical hand-written types for the Agentheim Code frontend.
+ *
+ * API types can be regenerated from the backend OpenAPI schema:
+ *   npm --prefix apps/web run types:api
+ *
+ * See docs/adr/0002-api-type-generation.md for the generation workflow.
+ */
+
 export type CoderCommand = {
   id: string;
   label: string;

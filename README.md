@@ -1,132 +1,121 @@
 # Agentheim Code
 
-Agentheim Code is a local-first coding workbench with a FastAPI backend, React
-web UI, and Tauri desktop shell. It is built for one fast path:
+Agentheim Code is a local-first coding workbench built from:
 
-1. Open app.
-2. Choose workspace.
-3. Connect provider.
-4. Send prompt.
-5. Review streamed output and approvals.
+- a FastAPI backend in `src/agentheim_code`
+- a React/Vite frontend in `apps/web`
+- an optional Tauri desktop shell in `apps/desktop`
 
-## Install
+The product flow is simple:
 
-### Windows (recommended)
+1. Choose a workspace.
+2. Connect a provider.
+3. Start a session.
+4. Send prompts and optional file context.
+5. Review output, approvals, diffs, terminal results, and usage.
 
-Download the Windows installer from the latest release, or install from source:
+## Quick Start
+
+### Browser workbench from the Python package
+
+This is the most direct path from source or wheel install:
 
 ```powershell
-pip install agentheim-code
-```
-
-Then launch the desktop app:
-
-```powershell
-agentheim-code app --workspace .
-```
-
-### macOS / Linux
-
-Install via pip:
-
-```bash
 pip install agentheim-code
 agentheim-code app --workspace . --web
 ```
 
-### Developer build
+Open `http://127.0.0.1:8765/coder` if a browser does not open automatically.
+
+### Packaged desktop shell
+
+`agentheim-code app --workspace .` expects a packaged or locally built Tauri
+binary. Use this mode when you have either:
+
+- a Windows NSIS installer build
+- a local desktop build from `apps/desktop`
+
+### Developer checkout
 
 ```powershell
 pip install -e ".[dev]"
 npm --prefix apps/web install
 npm --prefix apps/desktop install
+agentheim-code app --workspace . --web
+```
+
+Build release-ready local artifacts with:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 ```
 
+## Current Product Baseline
+
+- First-run onboarding with workspace selection and Ollama auto-detection
+- Provider wizard with test, create, and delete flows
+- Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
+- Trust modes: `read_only`, `ask`, `workspace`
+- Streaming chat with markdown and code rendering
+- `@` file context search, validation, preview, and token estimate
+- Approval inspector for shell, file, and tool actions
+- Runs, timeline, terminal output, diff review, usage, and settings panels
+- Dark, light, and high-contrast themes
+- Diagnostics bundle generation and provider health reporting
+
 ## First Run
 
-On a fresh config, Agentheim Code opens onboarding first.
+Fresh UI config opens onboarding automatically.
 
-1. Choose workspace.
-2. Let it auto-detect local Ollama if available.
-3. Or open the provider wizard and add an API provider.
-4. Start first session.
+1. Pick a workspace.
+2. If Ollama is running locally, the app shows the detected endpoint.
+3. Or open the provider wizard and add a provider profile.
+4. Start the first session.
 
-If you skip onboarding, the app stays usable and keeps provider setup available
-from Settings.
+Skipping onboarding only dismisses the first-run dialog. Provider setup remains
+available from Settings.
 
 ## Provider Setup
 
 - Local auto-detection currently targets Ollama at `http://localhost:11434/v1`.
-- Cloud/API providers use the existing provider wizard.
+- Other local or cloud providers are configured through the provider wizard.
 - You can test a provider before saving it.
 
-CLI check:
+Useful checks:
 
 ```powershell
 agentheim-code doctor
 agentheim-code models
-```
-
-## First Prompt
-
-In the composer:
-
-- choose mode: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
-- choose trust: `read_only`, `ask`, or `workspace`
-- optionally attach file context with `@`
-- send with `Ctrl+Enter`
-
-Responses stream live. Code blocks render with syntax highlighting and copy
-actions. Selected context files are validated, previewed, size-bounded, and sent
-as explicit context blocks.
-
-## Workbench
-
-- Files: browse the workspace, preview files, copy paths, and attach context.
-- Runs: filter sessions and resume prior work.
-- Terminal: inspect command status, stdout, stderr, and copy output.
-- Diffs: review changed files from the run inspector.
-
-## Approvals
-
-Risky actions stay visible in the Approvals inspector.
-
-- Shell approvals show exact command and working directory.
-- File approvals show target path and pending content preview.
-- Grant or deny without leaving the main UI.
-
-Trust modes:
-
-- `read_only`: inspect only
-- `ask`: pause for risky actions
-- `workspace`: allow workspace edits under policy
-
-## Diagnostics
-
-Generate a redacted support bundle:
-
-```powershell
-agentheim-code diagnostics
-```
-
-Manual updates use the same install path as initial setup:
-
-```powershell
-pip install --upgrade agentheim-code
+agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
 ```
 
 ## Docs
 
+Start here:
+
+- [Docs index](docs/README.md)
 - [User guide](docs/USER_GUIDE.md)
 - [Provider setup](docs/PROVIDERS.md)
+- [CLI commands](docs/CLI_COMMANDS.md)
 - [API reference](docs/API_REFERENCE.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Release checklist](docs/RELEASE_CHECKLIST.md)
-- [Product roadmap](PRODUCT_ROADMAP.md)
 - [Privacy and security](docs/PRIVACY_SECURITY.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Product roadmap](PRODUCT_ROADMAP.md)
+
+## Type Generation
+
+The frontend can regenerate TypeScript types from the FastAPI OpenAPI schema:
+
+```powershell
+npm --prefix apps/web run types:api
+```
+
+See `docs/adr/0002-api-type-generation.md` for details.
 
 ## Development
+
+Canonical verification commands:
 
 ```powershell
 ruff check src/agentheim_code src/memory src/tools/shell tests/

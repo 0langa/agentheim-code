@@ -40,6 +40,22 @@ All responses include the header `x-request-id`. Clients may supply their own
 value in the request header; otherwise the backend generates a UUID4 hex value.
 Request IDs are also attached to structured error detail payloads when available.
 
+## OpenAPI Schema
+
+The backend serves its own OpenAPI document at:
+
+```
+GET /openapi.json
+```
+
+This can be used to regenerate TypeScript API types for the frontend:
+
+```powershell
+npm --prefix apps/web run types:api
+```
+
+See `docs/adr/0002-api-type-generation.md` for the generation decision.
+
 ## Health And UI Config
 
 ### `GET /api/health`
