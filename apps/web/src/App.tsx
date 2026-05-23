@@ -59,6 +59,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (active?.approvals?.length) setInspector("approvals");
+  }, [active?.approvals?.length]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         (event.ctrlKey || event.metaKey) &&
@@ -221,6 +225,25 @@ export function App() {
     setSelectedContextFiles((current) => current.filter((item) => item !== path));
   };
 
+  const handleApproval = async (requestId: string, grant: boolean) => {
+    if (!active) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const action = grant ? "grant" : "deny";
+      const session = await api<Session>(
+        `/coder/sessions/${active.session.session_id}/approvals/${requestId}/${action}`,
+        { method: "POST" },
+      );
+      const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
+      setActive(view);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const selectSession = async (sessionId: string) => {
     setIsLoading(true);
     setError(null);
@@ -288,6 +311,7 @@ export function App() {
           onNewSession={createSession}
           onSetInspector={setInspector}
           onOpenPalette={() => setPaletteOpen(true)}
+          hasApprovals={Boolean(active?.approvals?.length)}
         />
 
         <section className="work">
@@ -361,6 +385,8 @@ export function App() {
           commands={commands}
           onSelectSession={selectSession}
           onOpenProviderWizard={() => setWizardOpen(true)}
+          onGrantApproval={(requestId) => void handleApproval(requestId, true)}
+          onDenyApproval={(requestId) => void handleApproval(requestId, false)}
         />
 
         {wizardOpen && (

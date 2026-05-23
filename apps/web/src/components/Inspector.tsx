@@ -11,11 +11,19 @@ interface InspectorProps {
   commands: CoderCommand[];
   onSelectSession: (sessionId: string) => void;
   onOpenProviderWizard: () => void;
+  onGrantApproval: (requestId: string) => void;
+  onDenyApproval: (requestId: string) => void;
 }
 
 function EmptyPanel({ message }: { message: string }) {
   return <p className="panel-empty">{message}</p>;
 }
+
+const TRUST_DESCRIPTIONS: Record<string, string> = {
+  read_only: "Inspect files and state without writes.",
+  ask: "Pause for risky tools before acting.",
+  workspace: "Allow workspace edits under policy.",
+};
 
 export function Inspector({
   inspector,
@@ -24,6 +32,8 @@ export function Inspector({
   commands,
   onSelectSession,
   onOpenProviderWizard,
+  onGrantApproval,
+  onDenyApproval,
 }: InspectorProps) {
   const title = inspector[0].toUpperCase() + inspector.slice(1);
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -115,12 +125,45 @@ export function Inspector({
         </div>
       )}
 
+      {inspector === "approvals" && (
+        <div className="panel-list">
+          {!active?.approvals?.length && <EmptyPanel message="No pending approvals." />}
+          {active?.approvals?.map((approval) => (
+            <article key={approval.request_id} className="panel-item approval-item">
+              <strong>{approval.tool_id}</strong>
+              <span>
+                {approval.action_kind ?? "tool"} · {approval.risk_level} · {approval.status}
+              </span>
+              <span>{approval.target ?? approval.request_id}</span>
+              <p>{approval.reason}</p>
+              {approval.action_kind === "shell" && Array.isArray(approval.params?.command) && (
+                <pre>{approval.params.command.map(String).join(" ")}</pre>
+              )}
+              {approval.action_kind === "file" && (
+                <pre>{String(approval.params?.content ?? approval.target ?? "")}</pre>
+              )}
+              <div className="approval-actions">
+                <button className="primary small" onClick={() => onGrantApproval(approval.request_id)}>
+                  Grant
+                </button>
+                <button className="secondary small" onClick={() => onDenyApproval(approval.request_id)}>
+                  Deny
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
       {inspector === "settings" && (
         <div className="panel-list">
           <article className="panel-item">
             <strong>Session</strong>
             <span>mode: {active?.session.mode ?? "code"}</span>
             <span>trust: {active?.session.trust_mode ?? "ask"}</span>
+            <span>
+              {TRUST_DESCRIPTIONS[active?.session.trust_mode ?? "ask"]}
+            </span>
             <span>
               model:{" "}
               {active?.session.model_selection?.model ??

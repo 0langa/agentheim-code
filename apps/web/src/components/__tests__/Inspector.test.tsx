@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { Inspector } from "../Inspector";
 import type { CoderCommand, Session, SessionView } from "../../types";
@@ -38,6 +38,8 @@ describe("Inspector", () => {
         commands={commands}
         onSelectSession={() => undefined}
         onOpenProviderWizard={() => undefined}
+        onGrantApproval={() => undefined}
+        onDenyApproval={() => undefined}
       />,
     );
     expect(screen.getByText("listed files")).toBeInTheDocument();
@@ -52,6 +54,8 @@ describe("Inspector", () => {
         commands={commands}
         onSelectSession={() => undefined}
         onOpenProviderWizard={() => undefined}
+        onGrantApproval={() => undefined}
+        onDenyApproval={() => undefined}
       />,
     );
     expect(screen.getByText("pytest")).toBeInTheDocument();
@@ -67,6 +71,8 @@ describe("Inspector", () => {
         commands={commands}
         onSelectSession={() => undefined}
         onOpenProviderWizard={() => undefined}
+        onGrantApproval={() => undefined}
+        onDenyApproval={() => undefined}
       />,
     );
     expect(screen.getByText("trust: ask")).toBeInTheDocument();
@@ -74,5 +80,43 @@ describe("Inspector", () => {
     expect(
       await screen.findByText("No providers configured. Add one to get started."),
     ).toBeInTheDocument();
+  });
+
+  it("renders approval action details and controls", () => {
+    const grant = vi.fn();
+    const deny = vi.fn();
+    render(
+      <Inspector
+        inspector="approvals"
+        sessions={sessions}
+        active={{
+          ...active,
+          approvals: [
+            {
+              request_id: "req-1",
+              tool_id: "shell.execute",
+              risk_level: "medium",
+              reason: "Run tests",
+              status: "pending",
+              action_kind: "shell",
+              target: "pytest -q",
+              params: { command: ["pytest", "-q"], cwd: "." },
+            },
+          ],
+        }}
+        commands={commands}
+        onSelectSession={() => undefined}
+        onOpenProviderWizard={() => undefined}
+        onGrantApproval={grant}
+        onDenyApproval={deny}
+      />,
+    );
+
+    expect(screen.getByText("shell.execute")).toBeInTheDocument();
+    expect(screen.getAllByText("pytest -q").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Grant"));
+    fireEvent.click(screen.getByText("Deny"));
+    expect(grant).toHaveBeenCalledWith("req-1");
+    expect(deny).toHaveBeenCalledWith("req-1");
   });
 });

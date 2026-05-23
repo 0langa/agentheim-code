@@ -72,6 +72,11 @@ select:focus-visible {
   place-items: center;
 }
 
+.rail button.needs-attention {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
 .work {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -342,6 +347,23 @@ textarea {
   border: 1px solid var(--code-border);
   border-radius: 8px;
   white-space: pre-wrap;
+}
+
+.approval-item pre {
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  color: var(--text);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .palette {

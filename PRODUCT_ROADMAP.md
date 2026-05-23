@@ -230,6 +230,8 @@ Release target: v0.3.0.
 
 ## Phase 4: Approval UX And Trust
 
+Status: complete on 2026-05-23.
+
 Deliverable: safety model becomes visible and understandable.
 
 UI:
@@ -250,6 +252,13 @@ Trust modes:
 Gate:
 
 - Pending approvals are hard to miss and can be handled entirely from the GUI.
+
+Completed:
+
+- Extended session approval view data with params, target, and action kind.
+- Added dedicated approvals inspector view with grant/deny actions.
+- Highlighted pending approvals in the rail and auto-opened the approval view.
+- Added command/file detail previews and trust-mode descriptions.
 
 Release target: v0.4.0.
 

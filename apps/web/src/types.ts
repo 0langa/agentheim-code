@@ -91,6 +91,19 @@ export type CommandResult = {
 export type SessionDiff = {
   path?: string;
   status?: string;
+  before?: string;
+  after?: string;
+};
+
+export type CoderApproval = {
+  request_id: string;
+  tool_id: string;
+  risk_level: string;
+  reason: string;
+  status: string;
+  params?: Record<string, unknown>;
+  target?: string;
+  action_kind?: string;
 };
 
 export type UsageData = {
@@ -117,7 +130,7 @@ export type SessionView = {
   queued_prompts: string[];
   available_commands: string[];
   events?: SessionEvent[];
-  approvals?: unknown[];
+  approvals?: CoderApproval[];
   diffs?: SessionDiff[];
   command_results?: CommandResult[];
   artifacts?: string[];

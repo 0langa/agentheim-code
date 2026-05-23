@@ -279,6 +279,42 @@ def test_update_session_mode(client: TestClient) -> None:
     assert data["mode"] == "review"
 
 
+def test_session_view_enriches_pending_approval_details(
+    client: TestClient, workspace_dir: str
+) -> None:
+    resp = client.post(
+        "/api/coder/sessions",
+        json={"trust_mode": "ask", "mode": "code"},
+    )
+    session_id = resp.json()["session_id"]
+
+    from workflows.coder.models import PendingApproval
+    from workflows.coder.runtime import _save_session, get_session
+
+    workspace = Path(workspace_dir)
+    session = get_session(workspace, session_id).model_copy(
+        update={
+            "pending_approval": PendingApproval(
+                request_id="req-1",
+                tool_id="shell.execute",
+                params={"command": ["pytest", "-q"], "cwd": "."},
+                risk_level="medium",
+                reason="Run tests",
+                action_index=0,
+            )
+        }
+    )
+    _save_session(workspace, session)
+
+    resp = client.get(f"/api/coder/sessions/{session_id}/view")
+
+    assert resp.status_code == 200
+    approval = resp.json()["approvals"][0]
+    assert approval["params"] == {"command": ["pytest", "-q"], "cwd": "."}
+    assert approval["target"] == "pytest -q"
+    assert approval["action_kind"] == "shell"
+
+
 def test_stream_message_endpoint_emits_sse_tokens(client: TestClient, workspace_dir: str) -> None:
     resp = client.post(
         "/api/coder/sessions",

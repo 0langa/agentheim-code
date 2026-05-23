@@ -38,6 +38,8 @@ origin check is hygiene, not a replacement for API auth.
 - `PATCH /api/coder/sessions/{id}/mode`: update session mode.
 - `POST /api/coder/sessions/{id}/approvals/{request_id}/grant`: approve a tool request.
 - `POST /api/coder/sessions/{id}/approvals/{request_id}/deny`: deny a tool request.
+  Session views include pending approval display fields: `params`, `target`,
+  and `action_kind`.
 - `GET /api/coder/sessions/{id}/diff`: changed-file summaries.
 - `GET /api/coder/files/search?q=...&limit=50`: fuzzy file context search.
 

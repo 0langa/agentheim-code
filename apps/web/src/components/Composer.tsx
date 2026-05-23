@@ -28,6 +28,11 @@ interface ComposerProps {
 
 const MODES = ["ask", "plan", "code", "review", "fix", "docs", "test"];
 const TRUST_MODES = ["ask", "read_only", "workspace"];
+const TRUST_LABELS: Record<string, string> = {
+  read_only: "read_only - inspect only",
+  ask: "ask - approve risky actions",
+  workspace: "workspace - allow workspace edits",
+};
 
 export function Composer({
   prompt,
@@ -87,7 +92,7 @@ export function Composer({
         >
           {TRUST_MODES.map((mode) => (
             <option key={mode} value={mode}>
-              {mode}
+              {TRUST_LABELS[mode]}
             </option>
           ))}
         </select>

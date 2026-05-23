@@ -158,6 +158,40 @@ def _search_file_tree(workspace: Path, query: str, limit: int) -> list[dict[str,
     return cast(list[dict[str, Any]], results)
 
 
+def _approval_display_fields(approval: dict[str, Any], session: dict[str, Any]) -> dict[str, Any]:
+    pending = session.get("pending_approval") if isinstance(session, dict) else None
+    params = pending.get("params", {}) if isinstance(pending, dict) else {}
+    command = params.get("command") if isinstance(params, dict) else None
+    path = params.get("path") if isinstance(params, dict) else None
+    if isinstance(command, list):
+        target = " ".join(str(part) for part in command)
+        action_kind = "shell"
+    elif path:
+        target = str(path)
+        action_kind = "file"
+    else:
+        target = (
+            str(params.get("url", approval.get("tool_id", ""))) if isinstance(params, dict) else ""
+        )
+        action_kind = "tool"
+    return {
+        **approval,
+        "params": params,
+        "target": target,
+        "action_kind": action_kind,
+    }
+
+
+def _session_view_response(view: Any) -> dict[str, Any]:
+    payload = _json_model(view)
+    session = cast(dict[str, Any], payload.get("session", {}))
+    payload["approvals"] = [
+        _approval_display_fields(cast(dict[str, Any], approval), session)
+        for approval in payload.get("approvals", [])
+    ]
+    return payload
+
+
 def _read_ui_config() -> dict[str, Any]:
     config = ui_config.load_config()
     core = config.get("core", {})
@@ -290,7 +324,9 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.get("/api/coder/sessions/{session_id}/view")
     def api_get_session_view(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
-        return _json_model(get_session_view(_workspace(workspace_path, workspace_root), session_id))
+        return _session_view_response(
+            get_session_view(_workspace(workspace_path, workspace_root), session_id)
+        )
 
     @app.post("/api/coder/sessions/{session_id}/messages")
     def api_post_message(
