@@ -93,16 +93,16 @@ See `docs/adr/0001-config-surface-and-storage.md` for the boundary rationale.
 
 ### Provider profiles
 
-Stored by `src/config/config.py` in a compatibility profile store that still
-uses the shared Agentheim config root.
+Stored by `src/config/config.py` in `providers.json`.
 
-- file name: `providers.json`
 - default location: `platformdirs.user_config_dir("agentheim")`
+- this path uses the historical "agentheim" app name for backward compatibility
+  with existing profiles; new installs use the same path so profiles are preserved
 - secrets are stored in the OS keyring or an encrypted vault, never in the JSON document
 
 ### Provider health
 
-Stored in the shared Agentheim compatibility data area as `provider-health.json`.
+Stored as `provider-health.json` in the same config directory as provider profiles.
 
 ## Frontend/Backend Contract
 

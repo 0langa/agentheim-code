@@ -62,7 +62,7 @@ def _serve_coder_ui(workspace: Path, port: int, open_browser: bool) -> None:
             daemon=True,
         )
         thread.start()
-    console.print(f"Agentheim Coder UI: {url}")
+    console.print(f"Agentheim Code UI: {url}")
     app = create_web_app(workspace)
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 

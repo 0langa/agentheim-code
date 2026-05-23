@@ -1063,7 +1063,6 @@ def create_session(
     run_json_payload: dict[str, Any] = {
         "run_id": session.session_id,
         "product": "agentheim-code",
-        "compatible_products": ["agentheim-code"],
         "workflow_id": WORKFLOW_ID,
         "preset_id": PRESET_ID,
         "repo_root": str(workspace),
