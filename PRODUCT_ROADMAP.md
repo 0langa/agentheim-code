@@ -26,7 +26,7 @@ First-session success is the priority:
 ### Product Shape
 
 - Python package: `agentheim-code`
-- Version: `0.1.0`
+- Version: `0.2.0`
 - Python requirement: `>=3.12`
 - CLI entrypoint: `agentheim-code`
 - Backend: FastAPI in `src/agentheim_code/backend.py`
@@ -81,8 +81,8 @@ development/runtime dependencies unless a task explicitly targets them.
 
 Last verified on 2026-05-23:
 
-- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 190 passed, 3 deselected, 83.12% coverage
-- `npm --prefix apps/web test -- --run --reporter=dot`: 21 passed
+- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 191 passed, 3 deselected, 83.11% coverage
+- `npm --prefix apps/web test -- --run --reporter=dot`: 25 passed
 - `npm --prefix apps/web run build`: passed
 
 Known test noise:
