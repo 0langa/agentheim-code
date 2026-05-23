@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from agentheim_code.coder_cli import (
+    _interactive_loop,
     _open_coder_browser_when_ready,
     _render_models,
     _render_session,
@@ -70,6 +71,20 @@ class TestServeCoderUI:
             assert call_args.kwargs["host"] == "127.0.0.1"
             assert call_args.kwargs["port"] == 8765
             assert call_args.kwargs["log_level"] == "warning"
+
+    def test_starts_browser_thread_when_requested(self) -> None:
+        workspace = Path("/tmp/workspace")
+        thread = MagicMock()
+
+        with (
+            patch("agentheim_code.coder_cli.create_web_app"),
+            patch("uvicorn.run"),
+            patch("agentheim_code.coder_cli.threading.Thread", return_value=thread) as mock_thread,
+        ):
+            _serve_coder_ui(workspace, 8765, open_browser=True)
+
+        mock_thread.assert_called_once()
+        thread.start.assert_called_once()
 
 
 class TestRenderSession:
@@ -415,3 +430,118 @@ class TestCoderResumeCommand:
             coder_app, ["resume", "sess-123", "--workspace", "/tmp/ws"], input="exit\n"
         )
         assert result.exit_code == 0
+
+    @patch("agentheim_code.coder_cli.approve_request")
+    @patch("agentheim_code.coder_cli.get_session_view")
+    def test_deny_request_as_json(self, mock_view, mock_approve) -> None:
+        session = MagicMock()
+        session.session_id = "sess-123"
+        mock_approve.return_value = session
+        view = MagicMock()
+        view.model_dump = MagicMock(return_value={"session_id": "sess-123", "status": "idle"})
+        mock_view.return_value = view
+
+        result = runner.invoke(
+            coder_app,
+            ["resume", "sess-123", "--workspace", "/tmp/ws", "--deny", "req-9", "--json"],
+        )
+
+        assert result.exit_code == 0
+        assert "sess-123" in result.output
+
+
+class TestInteractiveLoop:
+    def _session(self, session_id: str = "sess-123") -> MagicMock:
+        session = MagicMock()
+        session.session_id = session_id
+        session.workspace_root = "/tmp/ws"
+        session.trust_mode = MagicMock()
+        session.trust_mode.value = "ask"
+        session.status = "idle"
+        session.current_assistant_message = None
+        session.pending_approval = None
+        session.model_selection = MagicMock()
+        session.model_selection.provider = "openai"
+        session.model_selection.model = "gpt-4.1"
+        session.model_selection.profile = "default"
+        return session
+
+    def _view(self, session: MagicMock) -> MagicMock:
+        view = MagicMock()
+        view.session = session
+        view.diffs = []
+        view.command_results = []
+        return view
+
+    def test_slash_commands_cover_session_actions(self) -> None:
+        current = self._session()
+        resumed = self._session("sess-456")
+        new_session = self._session("sess-789")
+        updated = self._session("sess-123")
+        diff = MagicMock(path="file.py", before="a", after="ab")
+        diff_view = self._view(current)
+        diff_view.diffs = [diff]
+        file_items = [{"type": "file", "path": "src/app.py"}]
+
+        prompts = iter(
+            [
+                "/status",
+                "/sessions",
+                "/resume sess-456",
+                "/new",
+                "/diff",
+                "/files",
+                "/approve req-1",
+                "/deny req-2",
+                "/cancel",
+                "/open",
+                "/models",
+                "/model provider-x model-y",
+                "/provider provider-z",
+                "/profile local",
+                "/bogus",
+                "exit",
+            ]
+        )
+
+        with (
+            patch("agentheim_code.coder_cli.typer.prompt", side_effect=lambda *args, **kwargs: next(prompts)),
+            patch("agentheim_code.coder_cli.get_session_view", side_effect=[self._view(current), self._view(resumed), diff_view, self._view(updated), self._view(updated), self._view(updated)]),
+            patch("agentheim_code.coder_cli.list_session_views", return_value=[self._view(current)]),
+            patch("agentheim_code.coder_cli.get_session", return_value=resumed),
+            patch("agentheim_code.coder_cli.create_session", return_value=new_session),
+            patch("agentheim_code.coder_cli.list_file_tree", return_value=file_items),
+            patch("agentheim_code.coder_cli.approve_request", return_value=updated) as mock_approve,
+            patch("agentheim_code.coder_cli.cancel_session", return_value=updated),
+            patch("agentheim_code.coder_cli.list_model_options", return_value={"configured": False, "error": "No providers"}),
+            patch("agentheim_code.coder_cli.update_session_model", return_value=updated) as mock_update,
+            patch("agentheim_code.coder_cli.webbrowser.open") as mock_open,
+        ):
+            _interactive_loop(Path("/tmp/ws"), current)
+
+        assert mock_approve.call_count == 2
+        assert mock_update.call_count == 3
+        mock_open.assert_called_once_with("http://127.0.0.1:8765/coder")
+
+    def test_message_prompt_handles_pending_approval_denial(self) -> None:
+        current = self._session()
+        pending = self._session()
+        pending.pending_approval = MagicMock()
+        pending.pending_approval.request_id = "req-approve"
+        denied = self._session()
+        prompts = iter(["Ship it", "exit"])
+
+        with (
+            patch("agentheim_code.coder_cli.typer.prompt", side_effect=lambda *args, **kwargs: next(prompts)),
+            patch("agentheim_code.coder_cli.post_message", return_value=pending),
+            patch("agentheim_code.coder_cli.typer.confirm", return_value=False),
+            patch("agentheim_code.coder_cli.approve_request", return_value=denied) as mock_approve,
+        ):
+            _interactive_loop(Path("/tmp/ws"), current)
+
+        mock_approve.assert_called_once_with(
+            Path("/tmp/ws").resolve(),
+            pending.session_id,
+            "req-approve",
+            grant=False,
+        )

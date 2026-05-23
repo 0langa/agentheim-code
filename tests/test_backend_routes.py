@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentheim_code.backend import create_app
+from agentheim_code.provider_health import ProviderHealth
 
 
 @pytest.fixture
@@ -145,6 +146,58 @@ def test_models_endpoint(client: TestClient) -> None:
     assert "models" in data or "profiles" in data or "default_profile" in data
 
 
+def test_models_endpoint_enriches_health_metadata(client: TestClient) -> None:
+    options = {
+        "configured": True,
+        "profiles": [
+            {
+                "name": "local",
+                "models": [{"provider": "ollama", "model": "llama3.2", "capabilities": ["json"]}],
+            }
+        ],
+    }
+    health = {
+        "local/ollama": ProviderHealth(
+            provider_id="ollama",
+            profile="local",
+            last_tested="2026-05-23T00:00:00+00:00",
+            latency_ms=12.3,
+            available=True,
+            usage_extracted=True,
+        )
+    }
+
+    with (
+        patch("agentheim_code.backend.list_model_options", return_value=options),
+        patch("agentheim_code.backend.load_health", return_value=health),
+    ):
+        resp = client.get("/api/coder/models")
+
+    assert resp.status_code == 200
+    model = resp.json()["profiles"][0]["models"][0]
+    assert model["health"]["provider_id"] == "ollama"
+    assert model["recommendations"]["planner_suitable"] is True
+
+
+def test_provider_health_endpoint_serializes_entries(client: TestClient) -> None:
+    health = {
+        "local/ollama": ProviderHealth(
+            provider_id="ollama",
+            profile="local",
+            last_tested="2026-05-23T00:00:00+00:00",
+            latency_ms=12.3,
+            available=True,
+            usage_extracted=True,
+        )
+    }
+
+    with patch("agentheim_code.backend.load_health", return_value=health):
+        resp = client.get("/api/providers/health")
+
+    assert resp.status_code == 200
+    assert resp.json()["health"]["local/ollama"]["provider_id"] == "ollama"
+
+
 def test_commands_endpoint(client: TestClient) -> None:
     resp = client.get("/api/coder/commands")
     assert resp.status_code == 200
@@ -172,6 +225,16 @@ def test_provider_profiles_unconfigured(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["configured"] is False or isinstance(data.get("profiles"), list)
+
+
+def test_provider_profiles_returns_error_payload_when_load_fails(client: TestClient) -> None:
+    with patch("agentheim_code.backend.load_profiles_document", side_effect=RuntimeError("broken")):
+        resp = client.get("/api/providers/profiles")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["configured"] is False
+    assert payload["error"] == "broken"
 
 
 def test_create_and_delete_provider_profile(client: TestClient, workspace_dir: str) -> None:
@@ -264,6 +327,14 @@ def test_create_session_and_get_session(client: TestClient) -> None:
     assert resp.status_code == 200
 
 
+def test_get_session_returns_generic_structured_error(client: TestClient) -> None:
+    with patch("agentheim_code.backend.get_session", side_effect=RuntimeError("boom")):
+        resp = client.get("/api/coder/sessions/sess-404")
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"]["error_code"] == "E2099"
+
+
 def test_update_session_mode(client: TestClient) -> None:
     resp = client.post(
         "/api/coder/sessions",
@@ -278,6 +349,31 @@ def test_update_session_mode(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["mode"] == "review"
+
+
+def test_update_session_model_endpoint(client: TestClient, workspace_dir: str) -> None:
+    resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
+    session_id = resp.json()["session_id"]
+
+    from workflows.coder.runtime import get_session
+
+    session = get_session(Path(workspace_dir), session_id)
+    updated = session.model_copy(
+        update={
+            "model_selection": session.model_selection.model_copy(
+                update={"provider": "ollama", "model": "llama3.2"}
+            )
+        }
+    )
+
+    with patch("agentheim_code.backend.update_session_model", return_value=updated):
+        resp = client.patch(
+            f"/api/coder/sessions/{session_id}/model",
+            json={"provider": "ollama", "model": "llama3.2"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["model_selection"]["provider"] == "ollama"
 
 
 def test_session_view_enriches_pending_approval_details(
@@ -348,6 +444,28 @@ def test_stream_message_endpoint_emits_sse_tokens(client: TestClient, workspace_
     assert "event: done" in body
 
 
+def test_stream_message_endpoint_emits_structured_error_event(
+    client: TestClient, workspace_dir: str
+) -> None:
+    resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
+    session_id = resp.json()["session_id"]
+
+    with (
+        patch("agentheim_code.backend.get_session_view", side_effect=RuntimeError("view failed")),
+        patch("agentheim_code.backend.post_message", side_effect=RuntimeError("boom")),
+        client.stream(
+            "POST",
+            f"/api/coder/sessions/{session_id}/messages/stream",
+            json={"prompt": "say hello"},
+        ) as response,
+    ):
+        body = response.read().decode("utf-8")
+
+    assert response.status_code == 200
+    assert "event: error" in body
+    assert "E2099" in body
+
+
 def test_stream_message_includes_selected_context_in_prompt(
     client: TestClient, workspace_dir: str
 ) -> None:
@@ -382,3 +500,65 @@ def test_stream_message_includes_selected_context_in_prompt(
     assert "<context_files>" in prompt
     assert 'path="src/app.py"' in prompt
     assert "User prompt:\nexplain this" in prompt
+
+
+def test_post_message_reports_conflict_and_runtime_errors(client: TestClient, workspace_dir: str) -> None:
+    resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
+    session_id = resp.json()["session_id"]
+
+    with patch("agentheim_code.backend.post_message", side_effect=ValueError("already running")):
+        locked = client.post(
+            f"/api/coder/sessions/{session_id}/messages",
+            json={"prompt": "hello"},
+        )
+
+    with patch("agentheim_code.backend.post_message", side_effect=RuntimeError("boom")):
+        failed = client.post(
+            f"/api/coder/sessions/{session_id}/messages",
+            json={"prompt": "hello"},
+        )
+
+    assert locked.status_code == 409
+    assert locked.json()["detail"]["error_code"] == "E2002"
+    assert failed.status_code == 500
+    assert failed.json()["detail"]["error_code"] == "E2099"
+
+
+def test_resume_routes_cover_error_branches(client: TestClient) -> None:
+    with patch("agentheim_code.backend.resume_session", side_effect=ValueError("not found")):
+        not_found = client.post("/api/coder/sessions/sess-1/resume")
+
+    with patch(
+        "agentheim_code.backend.resume_session",
+        side_effect=ValueError("not in a resumable state"),
+    ):
+        blocked = client.post("/api/coder/sessions/sess-1/resume")
+
+    with patch("agentheim_code.backend.resume_session", side_effect=ValueError("bad input")):
+        invalid = client.post("/api/coder/sessions/sess-1/resume")
+
+    with patch("agentheim_code.backend.resume_session", side_effect=RuntimeError("boom")):
+        failed = client.post("/api/coder/sessions/sess-1/resume")
+
+    assert not_found.status_code == 404
+    assert blocked.status_code == 409
+    assert invalid.status_code == 400
+    assert failed.status_code == 500
+
+
+def test_file_preview_guards_and_read_failure(client: TestClient, workspace_dir: str) -> None:
+    workspace = Path(workspace_dir)
+    file_path = workspace / "hello.txt"
+    file_path.write_text("hello", encoding="utf-8")
+
+    assert client.get("/api/coder/files/preview").status_code == 400
+    assert client.get("/api/coder/files/preview", params={"path": "../secret"}).status_code == 400
+    assert client.get("/api/coder/files/preview", params={"path": "missing.txt"}).status_code == 404
+    ok = client.get("/api/coder/files/preview", params={"path": "hello.txt"})
+    assert ok.status_code == 200
+    assert ok.json() == "hello"
+
+    with patch("pathlib.Path.read_text", side_effect=RuntimeError("denied")):
+        failed = client.get("/api/coder/files/preview", params={"path": "hello.txt"})
+
+    assert failed.status_code == 500
