@@ -192,6 +192,8 @@ Release target: v0.3.0.
 
 ## Phase 3: Context Selection
 
+Status: complete on 2026-05-23.
+
 Deliverable: users can explicitly scope prompts to files without typing paths
 manually.
 
@@ -213,6 +215,16 @@ Gate:
 
 - User can type `@`, choose a file, send prompt, and see selected context
   attached to the turn.
+
+Completed:
+
+- Added file search API for composer context selection.
+- Added optional `context_files` payload support to streaming and non-streaming
+  message endpoints.
+- Added `@` composer picker, removable context chips, and context payload
+  delivery.
+- Decorated runtime prompts with explicit selected file references without
+  inlining file contents.
 
 Release target: v0.3.0.
 

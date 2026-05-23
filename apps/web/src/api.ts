@@ -54,13 +54,14 @@ export async function streamSessionMessage(
   prompt: string,
   handlers: StreamHandlers,
   signal?: AbortSignal,
+  contextFiles: string[] = [],
 ): Promise<void> {
   const response = await fetch(
     `${API_BASE}/coder/sessions/${sessionId}/messages/stream`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, context_files: contextFiles }),
       signal,
     },
   );

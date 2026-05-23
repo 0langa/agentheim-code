@@ -9,6 +9,11 @@ const baseProps = {
   modelOptions: null,
   onProfileChange: vi.fn(),
   onModelChange: vi.fn(),
+  selectedContextFiles: [],
+  fileMatches: [],
+  onContextQuery: vi.fn(),
+  onContextAdd: vi.fn(),
+  onContextRemove: vi.fn(),
 };
 
 describe("Composer", () => {
@@ -146,5 +151,46 @@ describe("Composer", () => {
       target: { value: "workspace" },
     });
     expect(onTrustModeChange).toHaveBeenCalledWith("workspace");
+  });
+
+  it("shows @ file matches and adds removable context chips", () => {
+    const onContextAdd = vi.fn();
+    const onContextRemove = vi.fn();
+    const { rerender } = render(
+      <Composer
+        prompt="@ap"
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        fileMatches={[{ path: "src/app.py", type: "file" }]}
+        onContextAdd={onContextAdd}
+        onContextRemove={onContextRemove}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("src/app.py"));
+    expect(onContextAdd).toHaveBeenCalledWith("src/app.py");
+
+    rerender(
+      <Composer
+        prompt=""
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        selectedContextFiles={["src/app.py"]}
+        onContextRemove={onContextRemove}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Remove context src/app.py"));
+    expect(onContextRemove).toHaveBeenCalledWith("src/app.py");
   });
 });

@@ -10,7 +10,14 @@ import { Inspector } from "./components/Inspector";
 import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
-import type { CoderCommand, ModelOptions, Session, SessionView, UiConfig } from "./types";
+import type {
+  CoderCommand,
+  FileEntry,
+  ModelOptions,
+  Session,
+  SessionView,
+  UiConfig,
+} from "./types";
 
 export function App() {
   const [commands, setCommands] = useState<CoderCommand[]>([]);
@@ -29,6 +36,8 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [streamAbort, setStreamAbort] = useState<AbortController | null>(null);
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
+  const [selectedContextFiles, setSelectedContextFiles] = useState<string[]>([]);
+  const [fileMatches, setFileMatches] = useState<FileEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,6 +172,7 @@ export function App() {
           onError: (message) => setError(message),
         },
         controller.signal,
+        selectedContextFiles,
       );
       const view = await api<SessionView>(
         `/coder/sessions/${sessionId}/view`,
@@ -186,6 +196,29 @@ export function App() {
 
   const retryPrompt = () => {
     if (lastPrompt) void sendPrompt(lastPrompt);
+  };
+
+  const searchContextFiles = async (query: string) => {
+    try {
+      const matches = await api<FileEntry[]>(
+        `/coder/files/search?q=${encodeURIComponent(query)}&limit=12`,
+      );
+      setFileMatches(matches);
+    } catch {
+      setFileMatches([]);
+    }
+  };
+
+  const addContextFile = (path: string) => {
+    setSelectedContextFiles((current) =>
+      current.includes(path) ? current : [...current, path],
+    );
+    setFileMatches([]);
+    setPrompt((current) => current.replace(/(?:^|\s)@[^\s@]*$/, "").trimStart());
+  };
+
+  const removeContextFile = (path: string) => {
+    setSelectedContextFiles((current) => current.filter((item) => item !== path));
   };
 
   const selectSession = async (sessionId: string) => {
@@ -313,6 +346,11 @@ export function App() {
             onRetry={retryPrompt}
             canRetry={Boolean(lastPrompt)}
             isSending={Boolean(streamAbort)}
+            selectedContextFiles={selectedContextFiles}
+            fileMatches={fileMatches}
+            onContextQuery={(query) => void searchContextFiles(query)}
+            onContextAdd={addContextFile}
+            onContextRemove={removeContextFile}
           />
         </section>
 

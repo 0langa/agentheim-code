@@ -27,10 +27,11 @@ origin check is hygiene, not a replacement for API auth.
   `mode`, `profile`, `provider`, and `model`.
 - `GET /api/coder/sessions/{id}`: session metadata.
 - `GET /api/coder/sessions/{id}/view`: full UI/API session view.
-- `POST /api/coder/sessions/{id}/messages`: run a user turn.
+- `POST /api/coder/sessions/{id}/messages`: run a user turn. Body supports
+  `prompt` and optional `context_files`.
 - `POST /api/coder/sessions/{id}/messages/stream`: run a user turn and stream
   Server-Sent Events. Emits `start`, `activity`, `token`, `done`, and `error`
-  events.
+  events. Body supports `prompt` and optional `context_files`.
 - `POST /api/coder/sessions/{id}/queue`: queue a prompt.
 - `POST /api/coder/sessions/{id}/cancel`: cancel active work.
 - `PATCH /api/coder/sessions/{id}/model`: update per-session model selection.
@@ -38,6 +39,7 @@ origin check is hygiene, not a replacement for API auth.
 - `POST /api/coder/sessions/{id}/approvals/{request_id}/grant`: approve a tool request.
 - `POST /api/coder/sessions/{id}/approvals/{request_id}/deny`: deny a tool request.
 - `GET /api/coder/sessions/{id}/diff`: changed-file summaries.
+- `GET /api/coder/files/search?q=...&limit=50`: fuzzy file context search.
 
 ### Usage Tracking
 

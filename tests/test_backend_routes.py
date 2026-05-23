@@ -118,6 +118,19 @@ def test_files_endpoint(client: TestClient) -> None:
     assert isinstance(resp.json(), list)
 
 
+def test_files_search_filters_workspace_paths(client: TestClient, workspace_dir: str) -> None:
+    workspace = Path(workspace_dir)
+    (workspace / "src").mkdir()
+    (workspace / "src" / "app.py").write_text("print('hi')", encoding="utf-8")
+    (workspace / ".git").mkdir()
+    (workspace / ".git" / "config").write_text("secret", encoding="utf-8")
+
+    resp = client.get("/api/coder/files/search", params={"q": "app", "limit": 10})
+
+    assert resp.status_code == 200
+    assert resp.json() == [{"path": "src/app.py", "type": "file"}]
+
+
 def test_runs_endpoint_empty(client: TestClient) -> None:
     resp = client.get("/api/coder/runs")
     assert resp.status_code == 200
@@ -296,3 +309,33 @@ def test_stream_message_endpoint_emits_sse_tokens(client: TestClient, workspace_
     assert "Hello" in body
     assert "streaming" in body
     assert "event: done" in body
+
+
+def test_stream_message_includes_selected_context_in_prompt(
+    client: TestClient, workspace_dir: str
+) -> None:
+    resp = client.post(
+        "/api/coder/sessions",
+        json={"trust_mode": "ask", "mode": "code"},
+    )
+    session_id = resp.json()["session_id"]
+
+    from workflows.coder.runtime import get_session
+
+    session = get_session(Path(workspace_dir), session_id).model_copy(
+        update={"current_assistant_message": "ok"}
+    )
+
+    with (
+        patch("agentheim_code.backend.post_message", return_value=session) as post,
+        client.stream(
+            "POST",
+            f"/api/coder/sessions/{session_id}/messages/stream",
+            json={"prompt": "explain this", "context_files": ["src/app.py"]},
+        ) as response,
+    ):
+        response.read()
+
+    assert response.status_code == 200
+    prompt = post.call_args.args[2]
+    assert prompt.startswith("Selected context files:\n- src/app.py\n\nUser prompt:\nexplain this")

@@ -1,6 +1,6 @@
 import React from "react";
 import { Play } from "lucide-react";
-import type { ModelOptions } from "../types";
+import type { FileEntry, ModelOptions } from "../types";
 
 interface ComposerProps {
   prompt: string;
@@ -19,6 +19,11 @@ interface ComposerProps {
   onRetry?: () => void;
   canRetry?: boolean;
   isSending?: boolean;
+  selectedContextFiles?: string[];
+  fileMatches?: FileEntry[];
+  onContextQuery?: (query: string) => void;
+  onContextAdd?: (path: string) => void;
+  onContextRemove?: (path: string) => void;
 }
 
 const MODES = ["ask", "plan", "code", "review", "fix", "docs", "test"];
@@ -41,12 +46,22 @@ export function Composer({
   onRetry,
   canRetry = false,
   isSending = false,
+  selectedContextFiles = [],
+  fileMatches = [],
+  onContextQuery,
+  onContextAdd,
+  onContextRemove,
 }: ComposerProps) {
   const activeProfile = modelOptions?.profiles?.find(
     (profile) => profile.name === selectedProfile,
   );
   const plannerModels =
     activeProfile?.models.filter((model) => model.role === "planner") ?? [];
+  const mention = prompt.match(/(?:^|\s)@([^\s@]*)$/);
+  const showFilePicker = Boolean(mention && fileMatches.length > 0);
+  React.useEffect(() => {
+    if (mention) onContextQuery?.(mention[1]);
+  }, [mention?.[1], onContextQuery]);
 
   return (
     <footer className="composer">
@@ -114,6 +129,38 @@ export function Composer({
         }}
         placeholder="Ask Agentheim Code to build, fix, review, test, or explain..."
       />
+      {(selectedContextFiles.length > 0 || showFilePicker) && (
+        <div className="context-panel">
+          {selectedContextFiles.length > 0 && (
+            <div className="context-chips" aria-label="Selected context files">
+              {selectedContextFiles.map((path) => (
+                <button
+                  key={path}
+                  type="button"
+                  className="context-chip"
+                  aria-label={`Remove context ${path}`}
+                  onClick={() => onContextRemove?.(path)}
+                >
+                  {path} x
+                </button>
+              ))}
+            </div>
+          )}
+          {showFilePicker && (
+            <div className="context-picker" aria-label="File context matches">
+              {fileMatches.map((file) => (
+                <button
+                  key={file.path}
+                  type="button"
+                  onClick={() => onContextAdd?.(file.path)}
+                >
+                  {file.path}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="composer-row">
         <span>Ctrl/Cmd+Enter sends · Shift+Enter adds a line</span>
         <div className="composer-actions">

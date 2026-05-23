@@ -263,6 +263,36 @@ textarea {
   align-items: center;
 }
 
+.context-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.context-chips,
+.context-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.context-chip,
+.context-picker button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.context-chip {
+  border-color: var(--ai);
+}
+
+.context-picker {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--code-bg);
+}
+
 .inspector {
   margin: 18px 18px 18px 0;
   border-radius: 8px;

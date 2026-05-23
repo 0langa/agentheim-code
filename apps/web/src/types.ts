@@ -43,6 +43,11 @@ export type LocalProvider = {
   models: string[];
 };
 
+export type FileEntry = {
+  path: string;
+  type: "file" | "directory";
+};
+
 export type TranscriptEntry = {
   role: string;
   content: string;

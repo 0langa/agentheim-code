@@ -135,6 +135,29 @@ def _chunk_text(text: str, size: int = 24) -> list[str]:
     return [text[index : index + size] for index in range(0, len(text), size)]
 
 
+def _prompt_with_context(prompt: str, context_files: list[str]) -> str:
+    files = [path.strip() for path in context_files if path.strip()]
+    if not files:
+        return prompt
+    listed = "\n".join(f"- {path}" for path in files)
+    return f"Selected context files:\n{listed}\n\nUser prompt:\n{prompt}"
+
+
+def _search_file_tree(workspace: Path, query: str, limit: int) -> list[dict[str, Any]]:
+    lowered = query.lower().strip()
+    results = []
+    for item in list_file_tree(workspace, limit=1000):
+        path = str(item.get("path", ""))
+        if lowered and lowered not in path.lower():
+            continue
+        if item.get("type") != "file":
+            continue
+        results.append(item)
+        if len(results) >= limit:
+            break
+    return cast(list[dict[str, Any]], results)
+
+
 def _read_ui_config() -> dict[str, Any]:
     config = ui_config.load_config()
     core = config.get("core", {})
@@ -274,7 +297,11 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         session_id: str, body: CoderSessionMessageRequest, workspace_root: str | None = None
     ) -> dict[str, Any]:
         return _json_model(
-            post_message(_workspace(workspace_path, workspace_root), session_id, body.prompt)
+            post_message(
+                _workspace(workspace_path, workspace_root),
+                session_id,
+                _prompt_with_context(body.prompt, body.context_files),
+            )
         )
 
     @app.post("/api/coder/sessions/{session_id}/messages/stream")
@@ -286,7 +313,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         async def events() -> AsyncIterator[str]:
             yield _sse("start", {"session_id": session_id})
             task = asyncio.create_task(
-                asyncio.to_thread(post_message, workspace, session_id, body.prompt)
+                asyncio.to_thread(
+                    post_message,
+                    workspace,
+                    session_id,
+                    _prompt_with_context(body.prompt, body.context_files),
+                )
             )
             sent_event_count = 0
             sent_text_length = 0
@@ -409,6 +441,13 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         return cast(
             list[dict[str, Any]], list_file_tree(_workspace(workspace_path, workspace_root))
         )
+
+    @app.get("/api/coder/files/search")
+    def api_file_search(
+        q: str = "", limit: int = 50, workspace_root: str | None = None
+    ) -> list[dict[str, Any]]:
+        bounded_limit = max(1, min(limit, 200))
+        return _search_file_tree(_workspace(workspace_path, workspace_root), q, bounded_limit)
 
     @app.get("/api/coder/runs")
     def api_runs(workspace_root: str | None = None) -> list[dict[str, Any]]:

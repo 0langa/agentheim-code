@@ -179,6 +179,7 @@ describe("App API integration", () => {
         "build it",
         expect.objectContaining({ onToken: expect.any(Function) }),
         expect.any(AbortSignal),
+        [],
       );
       expect(screen.getByText("streamed draft")).toBeInTheDocument();
       expect(mockApi).toHaveBeenLastCalledWith(
