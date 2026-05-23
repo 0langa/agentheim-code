@@ -6,7 +6,7 @@ are preparing.
 
 ## Scope And Intent
 
-- current repo version: `1.5.0`
+- current repo version: `1.0.0` (workstream 1.5.0 completed on branch `codex/agentheim-1.5.0`)
 - primary packaged target: Windows NSIS installer
 - Python wheel remains part of the release surface
 - no tag, push, or hosted release creation unless explicitly requested
@@ -90,24 +90,28 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-Fill this section for the actual release:
+## Release Record
 
-- date:
-- branch:
-- version:
-- `ruff check`:
-- `ruff format --check`:
-- `mypy`:
-- `pytest`:
-- `npm --prefix apps/web run test -- --run`:
-- `npm --prefix apps/web run build`:
-- `npm --prefix apps/web run e2e`:
-- `cargo test`:
-- `python -m build --wheel`:
-- `scripts/package-beta.ps1`:
-- `scripts/release.ps1 -Version <version>`:
-- manual browser smoke:
-- packaged desktop smoke:
+Last verified: 2026-05-23
+
+- branch: `codex/agentheim-1.5.0`
+- version: `1.0.0`
+- `ruff check`: All checks passed
+- `ruff format --check`: 47 files already formatted
+- `mypy`: Success: no issues found in 71 source files
+- `pytest`: 233 passed, 3 deselected, 82.46% coverage
+- `npm --prefix apps/web run test -- --run`: 11 test files, 42 tests passed
+- `npm --prefix apps/web run build`: built in 4.91s
+- `npm --prefix apps/web run e2e`: 2 passed (chromium)
+- `cargo test`: 1 passed
+- `python -m build --wheel`: agentheim_code-1.0.0-py3-none-any.whl
+- `scripts/package-beta.ps1`: not executed (Windows-only, Tauri build prerequisites required)
+- `scripts/release.ps1 -Version <version>`: not executed
+- manual browser smoke: not executed
+- packaged desktop smoke: not executed
+
+### Unverified / Deferred
+- `package-beta.ps1` requires full Windows toolchain + NSIS; validated through individual web build and wheel build only
 
 ## Distribution Notes
 
