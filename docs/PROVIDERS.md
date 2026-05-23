@@ -1,67 +1,86 @@
 # Providers
 
-Agentheim Code includes standalone provider/profile support. It can read the
-same profile format and secret references as Agentheim Full, but does not depend
-on Agentheim Full being installed.
+Agentheim Code is BYOK. You bring the local model or API key.
 
-## Supported Providers
+## Fastest Path
 
-Built-in templates cover the major cloud and local providers:
+### Local Ollama
 
-- **OpenAI** (`openai_v1`) — GPT-4o, GPT-4o-mini, etc.
-- **Anthropic** (`anthropic`) — Claude Sonnet, Opus, etc.
-- **Google Gemini** (`gemini`) — Gemini 2.0 Flash, etc.
-- **AWS Bedrock** (`aws_bedrock`) — Claude via Bedrock
-- **Azure Foundry** (`azure_foundry`) — Azure AI deployments
-- **Cohere** (`cohere`)
-- **Groq** (`groq`)
-- **DeepSeek** (`deepseek`)
-- **Mistral** (`mistral`)
-- **Ollama** (`ollama`) — Local open-source models
-- **OCI GenAI** (`oci_genai`) — Oracle Cloud
-- **LM Studio** (`lm_studio`) — Local OpenAI-compatible server
-- **Llama.cpp** (`llama_cpp`) — Local OpenAI-compatible server
+Onboarding and Settings check:
 
-## Bring Your Own Key (BYOK) & Custom Endpoints
+- `http://localhost:11434/api/tags`
+- exposed app endpoint: `http://localhost:11434/v1`
 
-You can connect to any OpenAI-compatible API endpoint using the **Custom Endpoint**
-wizard template. This is useful for:
+If Ollama is running, Agentheim Code can surface detected model names during
+onboarding.
 
-- Self-hosted models (vLLM, TGI, etc.)
-- Third-party API proxies
-- Internal corporate endpoints
+### API Provider
 
-Required fields: `api_key` and `endpoint` (base URL).
+Open the provider wizard and fill:
 
-## Provider Testing
+- profile name
+- provider ID
+- model ID
+- required auth/endpoint fields
 
-Before saving a provider profile, you can test the connection with a live inference
-call. The test sends a minimal prompt and verifies:
+Test the connection before saving.
 
-- Latency (ms)
-- Model response
-- Token usage metadata (if available)
+## Built-In Templates
 
-### CLI
+- OpenAI
+- Anthropic
+- Google Gemini
+- AWS Bedrock
+- Azure Foundry
+- Cohere
+- Groq
+- DeepSeek
+- Mistral
+- Ollama
+- LM Studio
+- Llama.cpp
+- OCI GenAI
+- Custom OpenAI-compatible endpoint
+
+## Custom Endpoint
+
+Use the custom endpoint template for:
+
+- self-hosted OpenAI-compatible APIs
+- internal gateways
+- proxy endpoints
+
+Required fields usually include:
+
+- `endpoint`
+- `api_key` when auth is enabled
+- `model_id`
+
+## Verification
+
+CLI test:
 
 ```powershell
 agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
 ```
 
-### Web UI
+UI test:
 
-In the Provider Wizard, click **Test Connection** after filling in the fields.
-A yellow warning banner appears if the provider works but does not return token
-usage metadata — cost tracking will be unavailable for that provider.
+- open Provider Wizard
+- fill fields
+- click `Test Connection`
 
-## Session-Local Overrides
+Successful tests may still include a usage warning. That means inference works
+but token/cost metadata is incomplete.
 
-```powershell
-agentheim-code coder --workspace . --profile default --provider openai --model gpt-4.1
-```
+## Profiles And Models
 
-In the app, use the model pill near the composer.
+- profile selector chooses saved config bundle
+- model selector chooses planner model inside that profile
+- keep `Auto` if you want the runtime defaults
 
-Provider secrets should be stored through the configured secret store or
-environment variables. They should not be committed, printed in CLI JSON, or
-written into `.ai-team/runs`.
+## Secrets
+
+- do not commit API keys
+- prefer secret stores or environment variables
+- provider summaries never return raw secrets through the UI APIs

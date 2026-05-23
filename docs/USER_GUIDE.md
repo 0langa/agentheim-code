@@ -1,38 +1,103 @@
 # User Guide
 
-## Daily Flow
+## Start App
+
+Desktop shell:
+
+```powershell
+agentheim-code app --workspace .
+```
+
+Browser fallback:
+
+```powershell
+agentheim-code app --workspace . --web
+```
+
+## First Run
+
+Fresh configs open onboarding automatically.
+
+1. Pick workspace.
+2. Accept detected Ollama, or open provider wizard.
+3. Save provider if needed.
+4. Start first session.
+
+Skipping onboarding is allowed. The setup path remains available in Settings.
+
+## Main Layout
+
+- Left rail: new session, inspector shortcuts, command palette.
+- Center: top bar, chat transcript, composer.
+- Right inspector: timeline, runs, terminal, approvals, usage, settings.
+
+## Sessions
+
+Create a session with:
+
+- rail `New session`
+- top bar `New`
+- command palette
+- `Ctrl+Shift+N`
+
+Sessions keep transcript, approvals, terminal output, diffs, and usage together.
+
+## Composer
+
+Use the composer to control each turn:
+
+- Mode: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
+- Trust: `read_only`, `ask`, `workspace`
+- Provider/model: choose explicit profile/model or keep auto
+- Prompt send: `Ctrl+Enter`
+
+## File Context
+
+Type `@` in the composer to search files from the current workspace.
+
+- pick one or more files
+- review chips before send
+- remove chips if scope is wrong
+
+Context is sent as explicit file references in the prompt payload.
+
+## Approvals
+
+When a risky action pauses:
+
+- open the Approvals inspector automatically
+- read action kind, risk, reason, and target
+- grant or deny in place
+
+Trust guidance:
+
+- `read_only`: safest, no edits
+- `ask`: recommended default
+- `workspace`: faster when you trust the session
+
+## Providers
+
+The provider wizard supports local and cloud setups.
+
+- Ollama auto-detection checks `http://localhost:11434/v1`
+- cloud/API providers use the wizard form
+- test connection before save
+
+## Keyboard Shortcuts
+
+- `Ctrl+K` or `Ctrl+P`: command palette
+- `Ctrl+,`: open Settings
+- `Ctrl+Shift+N`: new session
+- `Ctrl+Enter`: send prompt
+- `Escape`: close palette or modal
+
+## CLI Flow
+
+Terminal-first use remains available:
 
 ```powershell
 agentheim-code doctor
 agentheim-code models
-agentheim-code app --workspace .
-```
-
-Use the app for most work. Use the CLI when scripting or when you want terminal
-mode:
-
-```powershell
 agentheim-code coder --workspace .
-agentheim-code coder --workspace . --prompt "Review the auth module"
-agentheim-code coder resume <session-id> --workspace .
+agentheim-code coder --workspace . --prompt "Review src/auth.py"
 ```
-
-## Modes
-
-Coder supports `ask`, `plan`, `code`, `review`, `fix`, `docs`, and `test`. The
-UI mode chips and CLI mode/slash commands use the same runtime contract.
-
-## Trust
-
-New UI sessions default to `ask`. Use the composer trust selector or CLI
-`--trust-mode` to choose `read_only`, `ask`, or `workspace`.
-
-## Inspectors
-
-The right inspector keeps secondary surfaces out of the main chat:
-
-- `timeline`: session events and activity.
-- `runs`: sessions plus changed-file summaries.
-- `terminal`: command results for the active session.
-- `usage`: token and estimated cost summary for the active session.
-- `settings`: mode, trust, provider/model, and available commands.

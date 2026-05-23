@@ -21,8 +21,10 @@ export function TopBar({ active, onNewSession }: TopBarProps) {
         <h1>{active ? active.session.workspace_root : "Coder Hub"}</h1>
       </div>
       <div className="top-actions">
-        <button className="model-pill">{modelLabel}</button>
-        <button className="primary" onClick={onNewSession}>
+        <span className="model-pill" aria-label={`Current model ${modelLabel}`}>
+          {modelLabel}
+        </span>
+        <button className="primary" onClick={onNewSession} type="button">
           New
         </button>
       </div>

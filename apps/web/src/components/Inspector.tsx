@@ -13,6 +13,8 @@ interface InspectorProps {
   onOpenProviderWizard: () => void;
   onGrantApproval: (requestId: string) => void;
   onDenyApproval: (requestId: string) => void;
+  theme: "dark" | "light" | "high_contrast";
+  onThemeChange: (theme: "dark" | "light" | "high_contrast") => void;
 }
 
 function EmptyPanel({ message }: { message: string }) {
@@ -34,6 +36,8 @@ export function Inspector({
   onOpenProviderWizard,
   onGrantApproval,
   onDenyApproval,
+  theme,
+  onThemeChange,
 }: InspectorProps) {
   const title = inspector[0].toUpperCase() + inspector.slice(1);
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -79,6 +83,7 @@ export function Inspector({
           {sessions.map((session) => (
             <button
               key={session.session_id}
+              type="button"
               onClick={() => onSelectSession(session.session_id)}
             >
               <strong>{session.session_id}</strong>
@@ -143,10 +148,18 @@ export function Inspector({
                 <pre>{String(approval.params?.content ?? approval.target ?? "")}</pre>
               )}
               <div className="approval-actions">
-                <button className="primary small" onClick={() => onGrantApproval(approval.request_id)}>
+                <button
+                  className="primary small"
+                  onClick={() => onGrantApproval(approval.request_id)}
+                  type="button"
+                >
                   Grant
                 </button>
-                <button className="secondary small" onClick={() => onDenyApproval(approval.request_id)}>
+                <button
+                  className="secondary small"
+                  onClick={() => onDenyApproval(approval.request_id)}
+                  type="button"
+                >
                   Deny
                 </button>
               </div>
@@ -159,6 +172,20 @@ export function Inspector({
         <div className="panel-list">
           <article className="panel-item">
             <strong>Session</strong>
+            <label className="settings-field">
+              Theme
+              <select
+                aria-label="Theme"
+                value={theme}
+                onChange={(event) =>
+                  onThemeChange(event.target.value as "dark" | "light" | "high_contrast")
+                }
+              >
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="high_contrast">High contrast</option>
+              </select>
+            </label>
             <span>mode: {active?.session.mode ?? "code"}</span>
             <span>trust: {active?.session.trust_mode ?? "ask"}</span>
             <span>
@@ -196,6 +223,7 @@ export function Inspector({
               onClick={onOpenProviderWizard}
               style={{ marginTop: 8 }}
               className="primary small"
+              type="button"
             >
               + Add Provider
             </button>

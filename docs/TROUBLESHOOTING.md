@@ -1,102 +1,103 @@
 # Troubleshooting
 
-## No provider configured
+## Onboarding Did Not Appear
 
-Run:
+Check config state:
 
 ```powershell
 agentheim-code doctor
-agentheim-code models
 ```
 
-## Provider connection test fails
+If you previously skipped onboarding, open Settings and add a provider there.
 
-Use the built-in provider test to diagnose connectivity before saving a profile:
+## Ollama Was Not Detected
+
+Verify Ollama is running locally:
+
+```powershell
+curl http://localhost:11434/api/tags
+```
+
+If that fails:
+
+- start Ollama
+- verify port `11434` is not blocked
+- add a provider manually with the wizard
+
+## Provider Test Failed
+
+Common causes:
+
+- invalid API key
+- wrong base URL
+- wrong model ID
+- firewall or proxy blocking outbound calls
+
+CLI retry:
 
 ```powershell
 agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
 ```
 
-Common causes:
+## Desktop Shell Opens But Cannot Reach Backend
 
-- **Invalid API key** — verify the key has not expired and has sufficient quota.
-- **Wrong endpoint** — ensure the base URL ends with `/v1` for OpenAI-compatible endpoints.
-- **Model not found** — the model ID must match what the provider expects (e.g. `gpt-4o-mini`, not `gpt-4o`).
-- **Network / firewall** — the backend must be able to reach the endpoint directly.
-
-If the test returns `ok: true` but shows a **usage warning**, the provider works
-but does not return token usage metadata. Cost tracking will be unavailable for
-that provider.
-
-## Custom endpoint not working
-
-When using the **Custom Endpoint** (openai_compatible) template:
-
-1. Verify the endpoint URL is reachable from the machine running Agentheim Code.
-2. Ensure the endpoint implements the OpenAI chat completions API (`/v1/chat/completions`).
-3. Check that the model name matches what the custom server expects.
-
-## Desktop app does not launch
-
-`agentheim-code app` expects a packaged Tauri binary. Build it or use the web
-fallback:
+Use the managed launcher:
 
 ```powershell
-npm --prefix apps/desktop run build
-agentheim-code app --workspace . --web
-```
-
-For source development, use:
-
-```powershell
-agentheim-code app --workspace . --dev
-```
-
-You can also point production launch at a known binary:
-
-```powershell
-$env:AGENTHEIM_CODE_DESKTOP_BINARY="C:\path\to\agentheim-code.exe"
 agentheim-code app --workspace .
 ```
 
-## Web assets missing
+This starts the local backend subprocess and passes its URL to the desktop shell.
 
-The backend first looks for packaged assets under `src/agentheim_code/web`. From
-a checkout, run:
+Browser fallback remains available:
+
+```powershell
+agentheim-code app --workspace . --web
+```
+
+## Web Assets Missing
+
+Rebuild packaged frontend assets:
 
 ```powershell
 npm --prefix apps/web run build
 ```
 
-## Tauri build fails with `link.exe not found`
+## Windows Desktop Build Fails
 
-Install Visual Studio Build Tools with the **Desktop development with C++**
-workload, then rerun:
+Install Visual Studio Build Tools with the `Desktop development with C++`
+workload, then retry:
 
 ```powershell
 npm --prefix apps/desktop run build
 ```
 
-## Session is already running
+## Installer Artifact Not Found After CI Build
 
-Another turn owns the session lock. Wait for it to finish, cancel from the UI,
-or resume a different session.
+The Windows workflow uploads:
 
-## Provider failure
+- `agentheim-code-windows-installer`
 
-Run `agentheim-code models --json` to inspect configured profiles without
-printing secrets. Then retry with an explicit profile/provider/model:
+Artifact source path:
 
-```powershell
-agentheim-code coder --workspace . --profile default --provider <provider-id> --model <model-id>
-```
+- `apps/desktop/src-tauri/target/release/bundle/nsis/*.exe`
 
-## Usage/cost shows "—" instead of a dollar amount
+## Prompt Send Does Nothing
 
-This means the provider did not return token usage metadata, or the model is not
-in the pricing registry. Cost tracking requires:
+Check:
 
-1. The provider to return `usage` in its response (OpenAI, Anthropic, Gemini, etc.)
-2. The model to have a known rate in `src/agentheim_code/pricing.json`
+- active session exists
+- prompt is not empty
+- provider is configured
+- approvals are not blocking required work
 
-You can still see raw token counts even when cost estimation is unavailable.
+If a turn is stuck, stop it and retry from the composer.
+
+## Usage Or Cost Is Blank
+
+Likely causes:
+
+- provider did not return token usage metadata
+- model is missing from pricing registry
+
+The session can still run without cost data.

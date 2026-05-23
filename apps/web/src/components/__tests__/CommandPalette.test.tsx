@@ -60,4 +60,20 @@ describe("CommandPalette", () => {
     });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("traps focus inside the palette", () => {
+    render(
+      <CommandPalette commands={COMMANDS} onClose={vi.fn()} onExecute={vi.fn()} />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Command palette" });
+    const input = screen.getByPlaceholderText("Search commands");
+    const buttons = screen.getAllByRole("button");
+    const lastButton = buttons[buttons.length - 1];
+
+    lastButton.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+
+    expect(input).toHaveFocus();
+  });
 });

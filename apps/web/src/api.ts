@@ -1,4 +1,35 @@
-const API_BASE = "/api";
+const DEFAULT_API_BASE = "/api";
+let resolvedApiBase: Promise<string> | null = null;
+
+function normalizeApiBase(base: string): string {
+  return `${base.replace(/\/+$/, "")}/api`;
+}
+
+async function getApiBase(): Promise<string> {
+  if (resolvedApiBase) return resolvedApiBase;
+
+  resolvedApiBase = (async () => {
+    if (
+      window.location.protocol !== "tauri:" &&
+      window.location.hostname !== "tauri.localhost"
+    ) {
+      return DEFAULT_API_BASE;
+    }
+
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const backendUrl = await invoke<string | null>("backend_url");
+      if (backendUrl) return normalizeApiBase(backendUrl);
+    } catch {
+      // Fall through to the local default so beta builds can still connect
+      // when a backend is already running on the standard port.
+    }
+
+    return "http://127.0.0.1:8765/api";
+  })();
+
+  return resolvedApiBase;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -11,7 +42,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  const url = `${await getApiBase()}${path}`;
   const response = await fetch(url, {
     headers: { "content-type": "application/json" },
     ...init,
@@ -56,8 +87,9 @@ export async function streamSessionMessage(
   signal?: AbortSignal,
   contextFiles: string[] = [],
 ): Promise<void> {
+  const apiBase = await getApiBase();
   const response = await fetch(
-    `${API_BASE}/coder/sessions/${sessionId}/messages/stream`,
+    `${apiBase}/coder/sessions/${sessionId}/messages/stream`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },

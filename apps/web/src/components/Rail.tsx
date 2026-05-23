@@ -11,32 +11,34 @@ interface RailProps {
 export function Rail({ onNewSession, onSetInspector, onOpenPalette, hasApprovals = false }: RailProps) {
   return (
     <nav className="rail" aria-label="Main">
-      <button title="New session" onClick={onNewSession}>
+      <button aria-label="New session" title="New session" type="button" onClick={onNewSession}>
         <Bot size={20} />
       </button>
-      <button title="Timeline" onClick={() => onSetInspector("timeline")}>
+      <button aria-label="Timeline" title="Timeline" type="button" onClick={() => onSetInspector("timeline")}>
         <Activity size={20} />
       </button>
-      <button title="Runs" onClick={() => onSetInspector("runs")}>
+      <button aria-label="Runs" title="Runs" type="button" onClick={() => onSetInspector("runs")}>
         <GitPullRequest size={20} />
       </button>
-      <button title="Terminal" onClick={() => onSetInspector("terminal")}>
+      <button aria-label="Terminal" title="Terminal" type="button" onClick={() => onSetInspector("terminal")}>
         <Terminal size={20} />
       </button>
       <button
+        aria-label="Approvals"
         title="Approvals"
         className={hasApprovals ? "needs-attention" : undefined}
+        type="button"
         onClick={() => onSetInspector("approvals")}
       >
         <ShieldCheck size={20} />
       </button>
-      <button title="Command palette" onClick={onOpenPalette}>
+      <button aria-label="Command palette" title="Command palette" type="button" onClick={onOpenPalette}>
         <Command size={20} />
       </button>
-      <button title="Usage" onClick={() => onSetInspector("usage")}>
+      <button aria-label="Usage" title="Usage" type="button" onClick={() => onSetInspector("usage")}>
         <BarChart3 size={20} />
       </button>
-      <button title="Settings" onClick={() => onSetInspector("settings")}>
+      <button aria-label="Settings" title="Settings" type="button" onClick={() => onSetInspector("settings")}>
         <Settings size={20} />
       </button>
     </nav>

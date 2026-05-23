@@ -75,6 +75,7 @@ export function Composer({
           <button
             key={mode}
             aria-pressed={mode === selectedMode}
+            type="button"
             style={
               mode === selectedMode
                 ? { background: "var(--accent)", borderColor: "var(--accent-hover)" }
@@ -124,6 +125,7 @@ export function Composer({
         </select>
       </div>
       <textarea
+        aria-label="Prompt"
         value={prompt}
         onChange={(event) => onPromptChange(event.target.value)}
         onKeyDown={(event) => {

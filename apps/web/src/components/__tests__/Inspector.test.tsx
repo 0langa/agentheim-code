@@ -40,6 +40,8 @@ describe("Inspector", () => {
         onOpenProviderWizard={() => undefined}
         onGrantApproval={() => undefined}
         onDenyApproval={() => undefined}
+        theme="dark"
+        onThemeChange={() => undefined}
       />,
     );
     expect(screen.getByText("listed files")).toBeInTheDocument();
@@ -56,6 +58,8 @@ describe("Inspector", () => {
         onOpenProviderWizard={() => undefined}
         onGrantApproval={() => undefined}
         onDenyApproval={() => undefined}
+        theme="dark"
+        onThemeChange={() => undefined}
       />,
     );
     expect(screen.getByText("pytest")).toBeInTheDocument();
@@ -73,6 +77,8 @@ describe("Inspector", () => {
         onOpenProviderWizard={() => undefined}
         onGrantApproval={() => undefined}
         onDenyApproval={() => undefined}
+        theme="dark"
+        onThemeChange={() => undefined}
       />,
     );
     expect(screen.getByText("trust: ask")).toBeInTheDocument();
@@ -80,6 +86,29 @@ describe("Inspector", () => {
     expect(
       await screen.findByText("No providers configured. Add one to get started."),
     ).toBeInTheDocument();
+  });
+
+  it("changes theme from settings", async () => {
+    const onThemeChange = vi.fn();
+    render(
+      <Inspector
+        inspector="settings"
+        sessions={sessions}
+        active={active}
+        commands={commands}
+        onSelectSession={() => undefined}
+        onOpenProviderWizard={() => undefined}
+        onGrantApproval={() => undefined}
+        onDenyApproval={() => undefined}
+        theme="dark"
+        onThemeChange={onThemeChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Theme"), {
+      target: { value: "high_contrast" },
+    });
+    expect(onThemeChange).toHaveBeenCalledWith("high_contrast");
   });
 
   it("renders approval action details and controls", () => {
@@ -109,6 +138,8 @@ describe("Inspector", () => {
         onOpenProviderWizard={() => undefined}
         onGrantApproval={grant}
         onDenyApproval={deny}
+        theme="dark"
+        onThemeChange={() => undefined}
       />,
     );
 

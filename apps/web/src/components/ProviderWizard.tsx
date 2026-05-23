@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { api } from "../api";
+import { useModalA11y } from "../hooks/useModalA11y";
 import type { ProviderTemplate } from "../types";
 
 interface ProviderWizardProps {
@@ -32,6 +33,13 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
   } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+
+  useModalA11y({
+    containerRef: dialogRef,
+    onEscape: onClose,
+  });
 
   useEffect(() => {
     api<ProviderTemplate[]>("/providers/wizard-templates")
@@ -125,14 +133,19 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Add AI Provider"
     >
-      <div className="modal-content" style={{ maxWidth: 560 }}>
+      <div
+        ref={dialogRef}
+        className="modal-content"
+        style={{ maxWidth: 560 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <header className="modal-header">
-          <h2>Add AI Provider</h2>
-          <button onClick={onClose} aria-label="Close">
+          <h2 id={titleId}>Add AI Provider</h2>
+          <button onClick={onClose} aria-label="Close" type="button">
             ✕
           </button>
         </header>
@@ -159,6 +172,7 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
                 <button
                   key={template.kind}
                   className="provider-card"
+                  type="button"
                   onClick={() => selectTemplate(template)}
                   title={template.display_name}
                 >
@@ -173,6 +187,7 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
               ))}
               <button
                 className="provider-card"
+                type="button"
                 onClick={() =>
                   selectTemplate({
                     kind: "openai_compatible",
@@ -203,7 +218,7 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
         {step === "configure" && selectedTemplate && (
           <div className="wizard-step">
             <div style={{ marginBottom: 16 }}>
-              <button className="link-button" onClick={() => setStep("select")}>
+              <button className="link-button" onClick={() => setStep("select")} type="button">
                 ← Back to providers
               </button>
             </div>
@@ -269,10 +284,11 @@ export function ProviderWizard({ onClose, onSaved }: ProviderWizardProps) {
                 onClick={runTest}
                 disabled={testing || !canSave}
                 className="secondary"
+                type="button"
               >
                 {testing ? "Testing…" : "Test Connection"}
               </button>
-              <button onClick={save} disabled={saving || !canSave} className="primary">
+              <button onClick={save} disabled={saving || !canSave} className="primary" type="button">
                 {saving ? "Saving…" : "Save Provider"}
               </button>
             </div>

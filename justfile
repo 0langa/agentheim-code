@@ -56,6 +56,10 @@ build-web:
 build-desktop:
     npm --prefix apps/desktop run build
 
+# Build release-ready beta artifacts and smoke-test the wheel in a clean venv
+package-beta:
+    powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
+
 # Run the local backend server
 serve:
     agentheim-code app --web

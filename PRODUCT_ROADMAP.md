@@ -26,7 +26,7 @@ First-session success is the priority:
 ### Product Shape
 
 - Python package: `agentheim-code`
-- Version: `0.3.0`
+- Version: `0.5.0`
 - Python requirement: `>=3.12`
 - CLI entrypoint: `agentheim-code`
 - Backend: FastAPI in `src/agentheim_code/backend.py`
@@ -64,26 +64,38 @@ development/runtime dependencies unless a task explicitly targets them.
 - File tree API
 - Usage aggregation endpoint and panel
 - Shell sandbox and policy-gated tools
-- CI for Python, web build/tests, and Windows Tauri build
+- CI for Python, web unit/e2e, and Windows Tauri build
+- First-run onboarding with Ollama detection
+- `@` file context selection in the composer
+- Dedicated approval inspector with trust-mode descriptions
+- Dark, light, and high-contrast themes
+- Keyboard/modal accessibility improvements
+- Windows beta packager script and NSIS artifact upload
+- User-first README and end-user docs refresh
 
 ### Main Gaps
 
-- Token streaming
-- Markdown/code rendering
-- First-run onboarding
-- `@` file context
-- Richer visual approvals
-- Light/high-contrast themes
-- Consumer installer flow
-- End-user docs
+No remaining gaps inside the scoped `0.5.0` release band.
+
+Follow-up work after `0.5.0`:
+
+- Standalone backend co-bundling beyond the current local launcher contract
+- macOS/Linux installer paths
+- Polished onboarding screenshots for docs
 
 ### Current Verification
 
 Last verified on 2026-05-23:
 
-- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 191 passed, 3 deselected, 83.11% coverage
-- `npm --prefix apps/web test -- --run --reporter=dot`: 25 passed
+- `ruff check src/agentheim_code src/memory src/tools/shell tests/`: passed
+- `ruff format --check src/agentheim_code src/memory src/tools/shell tests/`: passed
+- `mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip`: passed
+- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 197 passed, 3 deselected, 83.66% coverage
+- `npm --prefix apps/web run test -- --run`: 36 passed
 - `npm --prefix apps/web run build`: passed
+- `npm --prefix apps/web run e2e`: 2 passed
+- `cd apps/desktop/src-tauri && cargo test`: 1 passed
+- `powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1`: passed, including NSIS build and clean wheel smoke
 
 Known test noise:
 
@@ -264,16 +276,20 @@ Release target: v0.4.0.
 
 ## Phase 5: Themes And Accessibility
 
+Status: complete on 2026-05-23.
+
 Deliverable: app is usable across light/dark/high-contrast preferences and
 stronger keyboard/screen-reader paths.
 
-- Add theme tokens for dark, light, and high contrast.
-- Add theme selector in settings.
-- Improve visible focus states.
-- Make chat updates announce correctly with appropriate ARIA behavior.
-- Review modal keyboard behavior.
-- Add automated accessibility checks where practical.
-- Manually verify common keyboard-only flows.
+Completed:
+
+- Added theme tokens for dark, light, and high contrast.
+- Added a persisted theme selector in Settings with local-storage fallback.
+- Improved visible focus states across primary controls.
+- Added modal focus trapping and Escape handling for palette/onboarding/wizard flows.
+- Added chat `aria-live`/`role="log"` semantics and keyboard shortcut coverage.
+- Added focused accessibility component tests plus Playwright keyboard smoke flows.
+- Performed a manual browser screenshot pass against mocked live UI.
 
 Gate:
 
@@ -284,35 +300,40 @@ Release target: v0.4.0.
 
 ## Phase 6: Distribution
 
+Status: complete on 2026-05-23.
+
 Deliverable: repeatable consumer install path.
 
-Installer:
+Completed:
 
-- Decide backend bundling approach.
-- Produce repeatable Windows installer from CI.
-- Add macOS and Linux packaging plans after Windows path is stable.
-- Keep unsigned beta expectations explicit if signing is not ready.
-
-Updates:
-
-- Defer auto-updater until installer is stable.
-- When added, require signed update metadata and documented release flow.
+- Kept Windows NSIS as the required installer target.
+- Added Tauri backend-URL bridge so the packaged shell follows the local launcher contract.
+- Added Windows beta packager script that cleans, builds web assets, builds the NSIS shell,
+  builds the wheel, and runs clean wheel smoke.
+- Updated CI to run Playwright smoke, use non-integration pytest coverage, and upload the
+  Windows NSIS installer artifact.
+- Documented unsigned beta expectations and kept auto-updater deferred.
 
 Gate:
 
-- A user can install and launch without a source checkout on the target
-  platform.
+- A user can launch the packaged shell through `agentheim-code app` without relying on a
+  source checkout, and CI produces the Windows installer artifact needed for beta distribution.
 
 Release target: v0.5.0.
 
 ## Phase 7: End-User Docs
 
+Status: complete on 2026-05-23.
+
 Deliverable: docs match the GUI-first product.
 
-- Rewrite README for users first, developers second.
-- Add first-run screenshots after onboarding stabilizes.
-- Update `docs/PROVIDERS.md` around provider wizard flows.
-- Keep developer commands in `CONTRIBUTING.md` and `docs/RELEASE_CHECKLIST.md`.
+Completed:
+
+- Rewrote `README.md` for install, first run, provider setup, first prompt, and approvals.
+- Refreshed `docs/PROVIDERS.md`, `docs/USER_GUIDE.md`, `docs/TROUBLESHOOTING.md`,
+  `docs/API_REFERENCE.md`, and `docs/RELEASE_CHECKLIST.md`.
+- Kept developer-heavy verification commands in the release checklist instead of the user guide.
+- Deferred polished screenshots until onboarding/theme UI is ready for a stable capture pass.
 
 Gate:
 

@@ -63,6 +63,11 @@ export function App() {
   }, [active?.approvals?.length]);
 
   useEffect(() => {
+    const theme = uiConfig?.theme ?? window.localStorage.getItem("agentheim-theme") ?? "dark";
+    document.documentElement.dataset.theme = theme;
+  }, [uiConfig?.theme]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         (event.ctrlKey || event.metaKey) &&
@@ -70,6 +75,14 @@ export function App() {
       ) {
         event.preventDefault();
         setPaletteOpen(true);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === ",") {
+        event.preventDefault();
+        setInspector("settings");
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        void createSession();
       }
       if (event.key === "Escape") {
         setPaletteOpen(false);
@@ -244,6 +257,20 @@ export function App() {
     }
   };
 
+  const changeTheme = async (theme: UiConfig["theme"]) => {
+    window.localStorage.setItem("agentheim-theme", theme);
+    document.documentElement.dataset.theme = theme;
+    try {
+      const config = await api<UiConfig>("/config", {
+        method: "PATCH",
+        body: JSON.stringify({ theme }),
+      });
+      setUiConfig(config);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const selectSession = async (sessionId: string) => {
     setIsLoading(true);
     setError(null);
@@ -319,6 +346,7 @@ export function App() {
 
           {error && (
             <div
+              role="alert"
               style={{
                 padding: "0.75rem 1rem",
                 background:
@@ -330,8 +358,10 @@ export function App() {
             >
               <strong>Error:</strong> {error}
               <button
+                aria-label="Dismiss error"
                 onClick={() => setError(null)}
                 style={{ marginLeft: "1rem", float: "right" }}
+                type="button"
               >
                 Dismiss
               </button>
@@ -387,6 +417,8 @@ export function App() {
           onOpenProviderWizard={() => setWizardOpen(true)}
           onGrantApproval={(requestId) => void handleApproval(requestId, true)}
           onDenyApproval={(requestId) => void handleApproval(requestId, false)}
+          theme={uiConfig?.theme ?? "dark"}
+          onThemeChange={(theme) => void changeTheme(theme)}
         />
 
         {wizardOpen && (

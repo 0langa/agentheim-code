@@ -288,4 +288,23 @@ describe("App API integration", () => {
       expect(screen.queryByText("Welcome to Agentheim Code")).not.toBeInTheDocument();
     });
   });
+
+  it("applies configured theme to the document", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "high_contrast",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("high_contrast");
+    });
+  });
 });

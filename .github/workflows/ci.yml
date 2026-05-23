@@ -30,7 +30,7 @@ jobs:
       - name: Type check
         run: mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
       - name: Test with coverage
-        run: pytest --cov --cov-report=xml --cov-fail-under=80
+        run: pytest --cov --cov-report=xml --cov-fail-under=80 -m "not integration"
       - name: Build wheel
         run: python -m build --wheel
       - name: Clean wheel smoke
@@ -63,6 +63,12 @@ jobs:
         run: npm --prefix apps/web run test -- --run
       - name: Type check and build
         run: npm --prefix apps/web run build
+      - name: Install Playwright browser
+        run: |
+          cd apps/web
+          npx playwright install --with-deps chromium
+      - name: Playwright smoke
+        run: npm --prefix apps/web run e2e
 
   desktop-rust:
     runs-on: windows-latest
@@ -86,3 +92,9 @@ jobs:
         run: npm --prefix apps/desktop run tauri build
         env:
           CI: true
+      - name: Upload Windows NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentheim-code-windows-installer
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

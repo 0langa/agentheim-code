@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import type { CoderCommand } from "../types";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 interface CommandPaletteProps {
   commands: CoderCommand[];
@@ -12,36 +13,13 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const descriptionId = React.useId();
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  // Focus trap: keep focus inside the palette
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
-      const focusable = container.querySelectorAll<HTMLElement>(
-        "input, button",
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    container.addEventListener("keydown", handleKeyDown);
-    return () => container.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  useModalA11y({
+    containerRef,
+    initialFocusRef: inputRef,
+    onEscape: onClose,
+  });
 
   const filtered = React.useMemo(() => {
     const q = query.toLowerCase();
@@ -66,8 +44,12 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
-      aria-expanded="true"
+      aria-describedby={descriptionId}
+      tabIndex={-1}
     >
+      <p id={descriptionId} className="sr-only">
+        Search commands, press Enter to run the first result, or Escape to close.
+      </p>
       <input
         ref={inputRef}
         value={query}

@@ -35,6 +35,7 @@ describe("Chat", () => {
   it("shows empty state when no session is active", () => {
     render(<Chat active={null} />);
     expect(screen.getByText("Start a focused coding session")).toBeInTheDocument();
+    expect(screen.getByRole("log", { name: "Conversation transcript" })).toBeInTheDocument();
   });
 
   it("renders transcript messages from session.transcript", () => {
@@ -46,6 +47,10 @@ describe("Chat", () => {
   it("renders current_assistant_message from session", () => {
     render(<Chat active={ACTIVE_VIEW} />);
     expect(screen.getByText("Typing...")).toBeInTheDocument();
+    expect(screen.getByRole("log", { name: "Conversation transcript" })).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
   });
 
   it("shows 'No messages yet' when transcript is empty", () => {
@@ -75,5 +80,24 @@ describe("Chat", () => {
     expect(screen.getByText("Use this:")).toBeInTheDocument();
     expect(screen.getByText("const ok = true;")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy code block" })).toBeInTheDocument();
+  });
+
+  it("marks the transcript busy while a response is streaming", () => {
+    render(
+      <Chat
+        active={{
+          ...ACTIVE_VIEW,
+          session: {
+            ...ACTIVE_VIEW.session,
+            status: "running",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("log", { name: "Conversation transcript" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 });

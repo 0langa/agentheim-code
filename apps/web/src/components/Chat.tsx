@@ -102,6 +102,11 @@ function MessageBubble({ entry }: { entry: TranscriptEntry }) {
 
 export function Chat({ active }: ChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const liveMessage = !active
+    ? "No active session."
+    : active.session.status === "running"
+      ? "Assistant is responding."
+      : "Conversation ready.";
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,7 +117,16 @@ export function Chat({ active }: ChatProps) {
 
   if (!active) {
     return (
-      <section className="chat" aria-live="polite">
+      <section
+        className="chat"
+        aria-label="Conversation transcript"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
+        <p className="sr-only" aria-live="polite">
+          {liveMessage}
+        </p>
         <div className="empty">
           <strong>Start a focused coding session</strong>
           <span>Use the composer, command palette, or session rail.</span>
@@ -126,9 +140,16 @@ export function Chat({ active }: ChatProps) {
   return (
     <section
       className="chat"
+      aria-label="Conversation transcript"
+      role="log"
       aria-live="polite"
+      aria-relevant="additions text"
+      aria-busy={active.session.status === "running"}
       style={{ display: "flex", flexDirection: "column", gap: "12px" }}
     >
+      <p className="sr-only" aria-live="polite">
+        {liveMessage}
+      </p>
       {entries.length === 0 && (
         <div className="empty">
           <strong>No messages yet</strong>
