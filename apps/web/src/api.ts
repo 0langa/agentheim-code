@@ -23,8 +23,8 @@ async function getApiBase(): Promise<string> {
       const backendUrl = await invoke<string | null>("backend_url");
       if (backendUrl) return normalizeApiBase(backendUrl);
     } catch {
-      // Fall through to the local default so beta builds can still connect
-      // when a backend is already running on the standard port.
+      // Fall through to the local default when a backend is already running on
+      // the standard port.
     }
 
     return "http://127.0.0.1:8765/api";

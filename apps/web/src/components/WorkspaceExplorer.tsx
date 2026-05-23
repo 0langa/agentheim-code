@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FileText, Folder, Copy, Plus } from "lucide-react";
+import { FileText, Folder, Copy, Eye, Plus } from "lucide-react";
 import { api } from "../api";
 import type { FileEntry } from "../types";
 
@@ -90,7 +90,7 @@ export function WorkspaceExplorer({ workspaceRoot, changedFiles = [], onAttach }
               {file.type === "file" && (
                 <>
                   <button type="button" aria-label={`Preview ${file.path}`} onClick={() => openPreview(file.path)}>
-                    <Plus size={12} />
+                    <Eye size={12} />
                   </button>
                   <button type="button" aria-label={`Copy ${file.path}`} onClick={() => copyPath(file.path)}>
                     <Copy size={12} />

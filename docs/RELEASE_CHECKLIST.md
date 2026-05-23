@@ -44,8 +44,25 @@ It performs:
 - web build
 - desktop build
 - wheel build
+- installer copy into `dist/`
 - checksum generation
 - release notes generation
+
+## Last Verified For 1.0.0
+
+Date: 2026-05-23
+
+- `ruff check src/agentheim_code src/memory src/tools/shell tests/`: passed
+- `ruff format --check src/agentheim_code src/memory src/tools/shell tests/`: passed
+- `mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip`: passed
+- `pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"`: 225 passed, 3 deselected, 82.55% coverage
+- `npm --prefix apps/web run test -- --run`: 39 passed
+- `npm --prefix apps/web run build`: passed
+- `npm --prefix apps/web run e2e`: 2 passed
+- `cd apps/desktop/src-tauri; cargo test`: 1 passed
+- `powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1 -PythonExe python`: passed with clean wheel smoke
+- `powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.0.0`: passed with wheel, Windows installer copy, checksums, and release notes
+- Browser visual smoke: passed for the main workbench surface
 
 ## CI Expectations
 

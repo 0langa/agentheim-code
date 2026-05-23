@@ -1,6 +1,6 @@
 # Agentheim Code
 
-Agentheim Code is a local-first coding assistant with a FastAPI backend, React
+Agentheim Code is a local-first coding workbench with a FastAPI backend, React
 web UI, and Tauri desktop shell. It is built for one fast path:
 
 1. Open app.
@@ -78,7 +78,15 @@ In the composer:
 - send with `Ctrl+Enter`
 
 Responses stream live. Code blocks render with syntax highlighting and copy
-actions.
+actions. Selected context files are validated, previewed, size-bounded, and sent
+as explicit context blocks.
+
+## Workbench
+
+- Files: browse the workspace, preview files, copy paths, and attach context.
+- Runs: filter sessions and resume prior work.
+- Terminal: inspect command status, stdout, stderr, and copy output.
+- Diffs: review changed files from the run inspector.
 
 ## Approvals
 
@@ -100,6 +108,12 @@ Generate a redacted support bundle:
 
 ```powershell
 agentheim-code diagnostics
+```
+
+Manual updates use the same install path as initial setup:
+
+```powershell
+pip install --upgrade agentheim-code
 ```
 
 ## Docs

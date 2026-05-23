@@ -70,6 +70,7 @@ export function CommandPalette({ commands, onClose, onExecute }: CommandPaletteP
         {filtered.map((command) => (
           <button
             key={command.id}
+            type="button"
             onClick={() => {
               onExecute(command);
               onClose();

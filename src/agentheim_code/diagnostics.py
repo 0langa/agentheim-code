@@ -10,7 +10,7 @@ import platform
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from agentheim_code import __version__
 from agentheim_code.provider_health import load_health
@@ -25,17 +25,17 @@ def _redacted_config() -> dict[str, Any]:
     except Exception:
         return {"error": "Could not load config"}
     # Redact any string values that look like secrets
-    return _deep_redact(cfg)
+    return cast(dict[str, Any], _deep_redact(cfg))
 
 
-def _deep_redact(obj: Any) -> Any:
+def _deep_redact(obj: Any) -> object:
     if isinstance(obj, dict):
         return {k: _deep_redact(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_deep_redact(item) for item in obj]
     if isinstance(obj, str):
         return redact_text(obj)
-    return obj
+    return cast(object, obj)
 
 
 def _system_info() -> dict[str, Any]:

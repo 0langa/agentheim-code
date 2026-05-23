@@ -2,9 +2,9 @@
 
 Updated: 2026-05-23
 
-This is the canonical forward roadmap after the `0.5.0` beta release. It is a
-plan, not a claim that every item is already true. Keep it synchronized with
-fresh repo audits as work lands.
+This is the canonical completed roadmap for the `1.0.0` release train. It
+records the implementation intent, acceptance gates, verification results, and
+known limits for the work from `0.5.0` through `1.0.0`.
 
 ## Product Goal
 
@@ -24,32 +24,36 @@ The 1.0.0 bar is not "more features." It is:
 
 ## Current Baseline
 
-- Current release: `0.5.0`
+- Current release: `1.0.0`
 - Backend: FastAPI in `src/agentheim_code/backend.py`
 - Web app: React/TypeScript/Vite in `apps/web`
 - Desktop shell: Tauri v2 in `apps/desktop`
 - CLI: `agentheim-code`
 - Session storage: `.ai-team/runs/<session-id>/`
-- Distribution: Windows-first NSIS beta installer plus Python wheel
-- Release tag: `v0.5.0`
+- Distribution: Windows-first NSIS installer plus Python wheel
+- Release tag: pending explicit release action
 
-## What 0.5.0 Already Has
+## What 1.0.0 Has
 
 - Local backend and GUI shell
 - First-run onboarding with Ollama detection
 - Provider wizard with create/delete/test paths
 - Streaming chat and markdown/code rendering
-- Composer mode, trust, profile, model, and `@` context controls
+- Composer mode, trust, profile, model, and bounded `@` context controls
 - Approval inspector for pending shell/file/tool actions
 - Usage panel, timeline, terminal panel, and run list
 - Dark, light, and high-contrast themes
 - Keyboard and modal accessibility improvements
-- Windows beta packager and CI installer artifact upload
+- Workspace explorer, diff review, session filters, and command palette actions
+- Provider bake-off reporting, health state, and model diagnostics
+- Structured run errors, cancellation, and resume sanity checks
+- Redacted diagnostics bundle and supportability docs
+- Windows packager, release automation, checksums, and release notes
 - User-first docs and release checklist
 
-## V1.0 Gap Audit
+## V1.0 Gap Audit Closed By This Roadmap
 
-These are the main reasons the product is still beta-shaped:
+These were the main reasons the product was still beta-shaped after `0.5.0`:
 
 - **Context is shallow:** selected files are passed as path references, not a
   validated, bounded context bundle with previews, token estimates, and clear
@@ -417,6 +421,8 @@ or signed build status, gather diagnostics, and trust local-first boundaries.
 
 Target: `1.0.0`
 
+Status: **complete** on 2026-05-23.
+
 Goal: remove beta roughness, freeze public contracts, and ship a credible 1.0.
 
 ### User Value
@@ -469,6 +475,18 @@ install through recovery from failed agent runs.
 - All shared gates pass.
 - Packaged install smoke passes from a clean environment.
 - Roadmap and changelog agree on what shipped.
+
+### Verification
+
+- Python gates: ruff, ruff format check, and mypy passed
+- Python tests: 225 passed, 3 deselected, 82.55% coverage
+- Web unit tests: 39 passed
+- Web build: passed with packaged assets generated
+- Playwright e2e: 2 passed
+- Rust tests: 1 passed
+- Local beta package script: passed with clean wheel smoke
+- Release automation: passed with wheel, Windows installer copy, checksums, and release notes
+- Visual pass: workbench rendered through local browser smoke without layout blockers
 
 ### Release Work
 

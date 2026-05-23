@@ -6,26 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [1.0.0] - 2026-05-23
+
 ### Added
-- Desktop launcher with subprocess backend lifecycle and graceful teardown
-- Free-port detection with automatic fallback when the default port is in use
-- Packaged binary discovery with `AGENTHEIM_CODE_DESKTOP_BINARY` override
-- Web UI provider profile and planner model selectors in the Composer
-- Session model sync via PATCH `/api/coder/sessions/{id}/model`
-- Universal coder runtime with verification detection and automatic repair loops
-- Base64 file write support for robust binary content handling
-- Windows shell executable resolution for shims like `npm.cmd`
-- Token-budget tuning and compact fallback for Gemini/OCI providers
-- `src/memory/` package with working-memory tier
-- `src/tools/shell/` package with sandboxed shell execution
-- Vendored `aictx` scanner, verifier, and context pipeline under `src/agentheim_code/vendor/`
-- Pre-commit configuration for automated lint checks
-- `justfile` task runner for common dev workflows
+- Bounded context bundle validation, previews, token estimates, and runtime context blocks
+- Backend cancellation, structured run errors, and session resume sanity checks
+- Workspace explorer, diff review, richer terminal output, session filters, and executable command palette actions
+- Provider bake-off reporting, provider health state, model recommendation metadata, and improved provider failure diagnostics
+- Release automation, diagnostics bundle generation, privacy/security documentation, and manual update guidance
+- 1.0 release readiness polish, diagnostics coverage, and release script hardening
+
+### Fixed
+- Diagnostics bundle typing and redaction test coverage
+- JavaScript package-lock version drift before the 1.0 release sync
+- Release script artifact selection so stale installers are not packaged
 
 ### Changed
-- Expanded Python test suite to 59 tests covering CLI, desktop, backend, coder runtime, shell sandbox, and serve entry point
-- Expanded frontend tests to 21 Vitest component tests
-- Scoped lint/type-check to product-owned code only (`src/agentheim_code`, `src/memory`, `src/tools/shell`)
+- Bumped all Python, web, desktop, and Tauri package versions to `1.0.0`
+- Refreshed README, user guide, API reference, release checklist, and roadmap around the 1.0 workbench experience
+- Expanded Python tests to 225 non-integration tests with 82.55% coverage
+- Expanded frontend tests to 39 Vitest tests plus Playwright smoke coverage
 
 ## [0.1.0] - 2026-05-21
 

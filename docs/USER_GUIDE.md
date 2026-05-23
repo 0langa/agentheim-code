@@ -59,7 +59,20 @@ Type `@` in the composer to search files from the current workspace.
 - review chips before send
 - remove chips if scope is wrong
 
-Context is sent as explicit file references in the prompt payload.
+Context is sent as explicit bounded file-content blocks in the prompt payload.
+Files are validated before use. Missing files, ignored files, binary files,
+oversized files, and paths outside the workspace are rejected before the model
+call. Accepted files show a preview and rough token estimate.
+
+## Files, Diffs, And Terminal
+
+Use the right inspector as the workbench surface:
+
+- Files: search workspace files, preview content, copy paths, and attach files
+  to context.
+- Runs: filter sessions by id, status, or mode and resume prior work.
+- Terminal: expand command output, copy commands, stdout, or stderr.
+- Diffs: review changed files from the run inspector and copy patches.
 
 ## Approvals
 
@@ -100,4 +113,21 @@ agentheim-code doctor
 agentheim-code models
 agentheim-code coder --workspace .
 agentheim-code coder --workspace . --prompt "Review src/auth.py"
+```
+
+## Recovery And Diagnostics
+
+If a run fails, the app shows a structured error with a code and recovery
+action. Open Timeline, Terminal, Approvals, and Diffs to inspect what happened.
+
+Generate a redacted support bundle:
+
+```powershell
+agentheim-code diagnostics --out agentheim-diagnostics.json
+```
+
+Update manually:
+
+```powershell
+pip install --upgrade agentheim-code
 ```

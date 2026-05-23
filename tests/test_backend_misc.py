@@ -24,7 +24,7 @@ class TestVersion:
         with patch("agentheim_code.backend.package_version") as mock_ver:
             mock_ver.side_effect = PackageNotFoundError("not found")
             v = _version()
-            assert v == "0.9.0"
+            assert v == "1.0.0"
 
 
 class TestWorkspace:
