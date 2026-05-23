@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentheim-code"
-version = "1.0.0"
-description = "Focused local-first coding agent client built from Agentheim"
+version = "1.5.0"
+description = "Focused local-first coding agent workbench"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
@@ -60,7 +60,6 @@ markers = ["integration: marks tests that hit real external APIs (slow, requires
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["src/agentheim_code/vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]

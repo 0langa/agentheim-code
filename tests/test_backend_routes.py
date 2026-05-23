@@ -502,7 +502,9 @@ def test_stream_message_includes_selected_context_in_prompt(
     assert "User prompt:\nexplain this" in prompt
 
 
-def test_post_message_reports_conflict_and_runtime_errors(client: TestClient, workspace_dir: str) -> None:
+def test_post_message_reports_conflict_and_runtime_errors(
+    client: TestClient, workspace_dir: str
+) -> None:
     resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
     session_id = resp.json()["session_id"]
 

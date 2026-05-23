@@ -164,6 +164,7 @@ UI preferences and provider profiles use different files:
 
 - UI config (theme, workspace, onboarding): `config.toml` managed by
   `src/agentheim_code/config.py`
-- Provider profiles: `providers.json` managed by `src/config/config.py`
+- Provider profiles: `providers.json` managed by `src/config/config.py` in the
+  shared compatibility config area
 
 See `docs/adr/0001-config-surface-and-storage.md` for the full boundary.

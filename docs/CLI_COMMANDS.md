@@ -1,56 +1,106 @@
 # CLI Commands
 
+The installed entry point is `agentheim-code`.
+
+Typer also provides:
+
+- `agentheim-code --install-completion`
+- `agentheim-code --show-completion`
+
+The project also keeps a manual completion script command:
+
 ```powershell
-agentheim-code app --workspace .        # packaged desktop app
+agentheim-code completions powershell
+```
+
+## Top-Level Commands
+
+### App Launch
+
+```powershell
+agentheim-code app --workspace .        # packaged desktop shell, requires a built/installed binary
 agentheim-code app --workspace . --web  # browser fallback
 agentheim-code app --workspace . --dev  # source-tree Tauri dev mode
-agentheim-code coder --workspace .
-agentheim-code coder models
-agentheim-code models
-agentheim-code doctor
-agentheim-code runs --workspace .
 ```
 
-The `coder` subcommand exposes the shared Agentheim Coder terminal client.
-Available slash commands inside an interactive session:
-
-- `/new` — start a new session
-- `/resume <id>` — resume a different session
-- `/sessions` — list all sessions
-- `/status` — show current session status
-- `/diff` — show changed files
-- `/files` — list workspace files
-- `/approve <id>` — grant a pending approval
-- `/deny <id>` — deny a pending approval
-- `/cancel` — cancel active work
-- `/open` — open the coder UI in a browser
-- `/model <provider> <model>` — set provider and model
-- `/provider <id>` — set provider
-- `/profile <name>` — set profile
-- `/models` — list available models
-- `/help` — show this list
-- `exit` or `quit` — leave the session
-
-Useful noninteractive forms:
+### Readiness And Inventory
 
 ```powershell
-# Non-interactive one-shot
-agentheim-code coder --workspace . --prompt "Write tests for the parser"
-agentheim-code coder --workspace . --prompt "Review this repo" --json
-agentheim-code coder --workspace . --profile default --provider openai --model gpt-4.1
-
-# Resume and manage sessions
-agentheim-code coder resume <session-id> --workspace .
-agentheim-code coder resume <session-id> --workspace . --approve <request-id>
-agentheim-code coder resume <session-id> --workspace . --prompt "Continue"
-
-# Launch the coder UI
-agentheim-code coder ui --workspace . --port 8765
-
-# List sessions or models
-agentheim-code coder list --workspace .
-agentheim-code coder models
+agentheim-code version
+agentheim-code doctor
+agentheim-code models
+agentheim-code runs --workspace .
+agentheim-code version-check
 ```
 
-The UI command palette is backed by the same command registry as the CLI slash
-commands.
+### Support And Provider Checks
+
+```powershell
+agentheim-code diagnostics --out agentheim-diagnostics.json
+agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
+```
+
+### Provider Comparison
+
+```powershell
+agentheim-code bake-off --workspace . --json
+```
+
+## `coder` Subcommand
+
+The `coder` subcommand exposes the shared terminal-first session flow.
+
+```powershell
+agentheim-code coder --workspace .
+agentheim-code coder --workspace . --prompt "Review the auth flow"
+agentheim-code coder --workspace . --json
+agentheim-code coder --workspace . --profile default --provider openai --model gpt-4.1
+```
+
+### `coder` Subcommands
+
+```powershell
+agentheim-code coder ui --workspace . --port 8765
+agentheim-code coder list --workspace .
+agentheim-code coder models
+agentheim-code coder resume <session-id> --workspace .
+```
+
+### `coder resume` examples
+
+```powershell
+agentheim-code coder resume <session-id> --workspace . --prompt "Continue"
+agentheim-code coder resume <session-id> --workspace . --approve <request-id>
+agentheim-code coder resume <session-id> --workspace . --deny <request-id>
+agentheim-code coder resume <session-id> --workspace . --json
+```
+
+## Interactive Slash Commands
+
+Inside an interactive `agentheim-code coder` session:
+
+- `/new` starts a new session
+- `/resume <id>` switches to another session
+- `/sessions` lists sessions
+- `/status` shows the current session view
+- `/diff` shows changed files
+- `/files` lists workspace files
+- `/approve <id>` grants a pending approval
+- `/deny <id>` denies a pending approval
+- `/cancel` cancels active work
+- `/open` opens the browser workbench
+- `/model <provider> <model>` sets provider and model
+- `/provider <id>` sets provider
+- `/profile <name>` sets profile
+- `/models` lists available models
+- `/help` prints slash-command help
+- `exit` or `quit` leaves the session
+
+## Notes
+
+- `agentheim-code app` is not the same as `agentheim-code app --web`.
+- The packaged desktop shell is optional. The browser workbench is the lowest
+  friction path from source or wheel install.
+- The UI command palette overlaps with the coder command registry, but today it
+  directly executes only the built-in navigation and retry/stop actions exposed
+  by the frontend.

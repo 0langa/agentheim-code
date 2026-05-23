@@ -6,7 +6,7 @@ are preparing.
 
 ## Scope And Intent
 
-- current repo version: `1.0.0` (workstream 1.5.0 completed on branch `codex/agentheim-1.5.0`)
+- current repo version: `1.5.0`
 - primary packaged target: Windows NSIS installer
 - Python wheel remains part of the release surface
 - no tag, push, or hosted release creation unless explicitly requested
@@ -47,7 +47,7 @@ This currently performs:
 ### Local release artifact staging
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.0.0
+powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.5.0
 ```
 
 This script is Windows-only and currently stages local artifacts only. It does
@@ -90,28 +90,27 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-## Release Record
-
 Last verified: 2026-05-23
 
 - branch: `codex/agentheim-1.5.0`
-- version: `1.0.0`
+- version: `1.5.0`
 - `ruff check`: All checks passed
-- `ruff format --check`: 47 files already formatted
-- `mypy`: Success: no issues found in 71 source files
-- `pytest`: 233 passed, 3 deselected, 82.46% coverage
-- `npm --prefix apps/web run test -- --run`: 11 test files, 42 tests passed
-- `npm --prefix apps/web run build`: built in 4.91s
+- `ruff format --check`: 49 files already formatted
+- `mypy`: Success: no issues found in 21 source files
+- `pytest`: 269 passed, 3 deselected, 92.28% coverage
+- `npm --prefix apps/web run test -- --run`: 12 test files, 45 tests passed
+- `npm --prefix apps/web run build`: built in 7.93s
 - `npm --prefix apps/web run e2e`: 2 passed (chromium)
 - `cargo test`: 1 passed
-- `python -m build --wheel`: agentheim_code-1.0.0-py3-none-any.whl
-- `scripts/package-beta.ps1`: not executed (Windows-only, Tauri build prerequisites required)
+- `python -m build --wheel`: agentheim_code-1.5.0-py3-none-any.whl
+- `scripts/package-beta.ps1`: passed; built the Windows NSIS installer and completed clean wheel smoke
 - `scripts/release.ps1 -Version <version>`: not executed
-- manual browser smoke: not executed
-- packaged desktop smoke: not executed
+- manual browser smoke: `/coder` loaded with title `Agentheim Code`; top bar rendered `Coder Hub`; Settings and New Session controls were present
+- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` launched against a live local backend and stayed alive for 5 seconds before controlled shutdown
+- wheel contents smoke: confirmed final wheel excludes deleted `vendor/aictx` and `interfaces/desktop_ui` paths
 
 ### Unverified / Deferred
-- `package-beta.ps1` requires full Windows toolchain + NSIS; validated through individual web build and wheel build only
+- `scripts/release.ps1` local staging flow was not run because no local release bundle was requested
 
 ## Distribution Notes
 

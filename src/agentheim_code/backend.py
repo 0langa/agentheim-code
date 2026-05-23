@@ -4,8 +4,6 @@ import asyncio
 import json
 import urllib.request
 from collections.abc import AsyncIterator
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Any, cast
 
@@ -15,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agentheim_code import __version__
 from agentheim_code import config as ui_config
 from agentheim_code.context_bundle import build_context_bundle
 from agentheim_code.http_context import MAX_JSON_BODY_BYTES, REQUEST_ID_HEADER, new_request_id
@@ -101,10 +100,7 @@ class OnboardingCompleteRequest(BaseModel):
 
 
 def _version() -> str:
-    try:
-        return package_version("agentheim-code")
-    except PackageNotFoundError:
-        return "1.0.0"
+    return __version__
 
 
 def _json_model(model: Any) -> dict[str, Any]:

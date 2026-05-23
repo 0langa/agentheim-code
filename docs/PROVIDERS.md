@@ -4,8 +4,9 @@ Agentheim Code is BYOK. You bring the local model server or API credentials.
 
 ## Current Provider Model
 
-The product stores provider setup in shared Agentheim profiles, not in the UI
-config TOML. These are separate storage systems; see
+The product stores provider setup in a compatibility profile store rooted under
+the shared Agentheim config directory, not in the UI config TOML. These are
+separate storage systems; see
 `docs/adr/0001-config-surface-and-storage.md` for the boundary.
 
 A profile contains:
@@ -76,6 +77,9 @@ The current shared template registry includes:
 
 The API currently exposes templates from the shared registry with
 `include_experimental=true`.
+
+`oci_genai` now uses a first-party Agentheim Code adapter rather than the older
+vendored bridge.
 
 ## Custom And Self-Hosted Endpoints
 

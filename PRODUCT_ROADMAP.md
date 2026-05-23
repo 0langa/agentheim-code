@@ -6,9 +6,12 @@ This roadmap describes the current audited baseline and the next useful product
 moves from here. It intentionally avoids stale phase-complete language and old
 verification counts.
 
+For the full forward implementation program, see [PLAN_2.0.0.md](PLAN_2.0.0.md).
+
 ## Current Baseline
 
-The repository version is currently `1.0.0`. Workstream `1.5.0` is complete on branch `codex/agentheim-1.5.0`.
+The repository version is currently `1.5.0`. This is the verified product
+baseline after completing the audited `1.1.0` through `1.5.0` workstreams.
 
 Confirmed product shape:
 
@@ -29,6 +32,8 @@ Confirmed product shape:
 - OpenAPI-to-TypeScript type generation pipeline
 - visual regression scaffolding in Playwright smoke tests
 - CI caching for Rust/cargo and Playwright browsers
+- first-party OCI GenAI provider adapter with the legacy vendored bridge removed
+- Python non-integration coverage gate proven at 90%+
 
 ## What Is Working Well
 
@@ -36,12 +41,13 @@ Confirmed product shape:
 - The backend/API surface is broader and more mature than older docs implied.
 - The product can run entirely from a Python install in browser mode.
 - The Windows packaging path is present and scriptable.
+- The provider layer is less inherited than before; dead vendored OCI code has been removed.
 
 ## Current Constraints
 
 - The packaged desktop shell is not part of the Python wheel. `agentheim-code app`
   requires a built or installed Tauri binary.
-- UI config and provider profile storage are split across different config systems.
+- UI config and provider profile storage are intentionally split across different config systems.
 - The files panel loads the file tree and filters client-side.
 - The diff viewer is intentionally simple and line-based.
 - The command palette only directly executes a built-in subset of actions.
@@ -56,6 +62,7 @@ Confirmed product shape:
 - ✅ graceful startup/shutdown lifespan hooks for FastAPI
 - ✅ improved cancellation cleanup in runtime subprocesses
 - ✅ expanded structured error coverage (`E_PROVIDER_TIMEOUT`, `E_REQUEST_TOO_LARGE`)
+- propagate request ids deeper into shared runtime logs
 
 ### 2. UX Scale And Clarity
 
@@ -68,6 +75,7 @@ Confirmed product shape:
 ### 3. Config And Supportability
 
 - ✅ documented config boundary in ADR-0001 (UI config vs provider profiles)
+- continue reducing inherited compatibility surface that is not part of the shipped product
 - document config paths and overrides more explicitly in-product
 - improve installed-app smoke coverage for packaged desktop builds
 

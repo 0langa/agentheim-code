@@ -1,10 +1,12 @@
 # Agentheim Code
 
-Agentheim Code is a local-first coding workbench built from:
+Agentheim Code is a standalone local-first coding workbench with:
 
 - a FastAPI backend in `src/agentheim_code`
 - a React/Vite frontend in `apps/web`
 - an optional Tauri desktop shell in `apps/desktop`
+
+Current verified baseline: `1.5.0`
 
 The product flow is simple:
 
@@ -52,6 +54,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 
 ## Current Product Baseline
 
+- Release-synced `1.5.0` baseline with verified Python, web, desktop, and packaging checks
 - First-run onboarding with workspace selection and Ollama auto-detection
 - Provider wizard with test, create, and delete flows
 - Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
@@ -62,6 +65,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 - Runs, timeline, terminal output, diff review, usage, and settings panels
 - Dark, light, and high-contrast themes
 - Diagnostics bundle generation and provider health reporting
+- First-party OCI GenAI provider adapter; legacy vendored `aictx` bridge removed
 
 ## First Run
 
@@ -102,6 +106,7 @@ Start here:
 - [Privacy and security](docs/PRIVACY_SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Product roadmap](PRODUCT_ROADMAP.md)
+- [2.0.0 plan](PLAN_2.0.0.md)
 
 ## Type Generation
 
@@ -112,6 +117,12 @@ npm --prefix apps/web run types:api
 ```
 
 See `docs/adr/0002-api-type-generation.md` for details.
+
+## What This Product Is Not
+
+- It does not ship a general “Agentheim Full” feature set.
+- It does not require the Tauri shell; browser mode is a first-class path.
+- It does not expose a public network service; the backend is local-only by design.
 
 ## Development
 

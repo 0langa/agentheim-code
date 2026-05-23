@@ -24,14 +24,7 @@ class TestVersion:
         v = _version()
         assert isinstance(v, str)
         assert v != ""
-
-    def test_version_fallback_when_not_installed(self) -> None:
-        from importlib.metadata import PackageNotFoundError
-
-        with patch("agentheim_code.backend.package_version") as mock_ver:
-            mock_ver.side_effect = PackageNotFoundError("not found")
-            v = _version()
-            assert v == "1.0.0"
+        assert v == "1.5.0"
 
 
 class TestWorkspace:
@@ -94,9 +87,7 @@ class TestHelpers:
         assert "- src/app.py" in prompt
         assert "- README.md" in prompt
 
-    def test_prompt_with_context_returns_bundle_errors_without_block(
-        self, tmp_path: Path
-    ) -> None:
+    def test_prompt_with_context_returns_bundle_errors_without_block(self, tmp_path: Path) -> None:
         bundle = type(
             "Bundle",
             (),

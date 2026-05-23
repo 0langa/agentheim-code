@@ -261,9 +261,16 @@ def verify_provider_connection(
 
     api_key = fields.get("api_key", "")
     headers: dict[str, str] = {}
+    metadata: dict[str, Any] = {"template": provider_kind, "capabilities": ["text"]}
     if provider_kind == "aws_bedrock":
         region = fields.get("region", "us-east-1")
         headers = {"aws-region": region}
+    if provider_kind == "oci_genai":
+        metadata["oci_config_path"] = fields.get("config_path", "~/.oci/config")
+        metadata["oci_profile"] = fields.get("profile", "DEFAULT")
+        compartment_id = fields.get("compartment_id", "").strip()
+        if compartment_id:
+            metadata["compartment_id"] = compartment_id
 
     # Use a tiny model identifier if none provided
     test_model = model_id or "gpt-4o-mini"
@@ -278,7 +285,7 @@ def verify_provider_connection(
         model=test_model,
         timeout_seconds=30,
         headers=headers,
-        metadata={"template": provider_kind, "capabilities": ["text"]},
+        metadata=metadata,
     )
 
     registry = ModelRegistry(providers=DEFAULT_PROVIDER_MAP, models={})

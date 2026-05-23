@@ -6,6 +6,7 @@ recovery action, and optional related session event id.
 
 from __future__ import annotations
 
+import importlib
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -135,7 +136,7 @@ def _materialize_error(
 def from_exception(exc: Exception, *, event_id: str = "") -> StructuredError:
     """Build a structured error from an arbitrary exception."""
     try:
-        import requests
+        requests = importlib.import_module("requests")
     except ImportError:  # pragma: no cover - dependency is present in normal installs
         requests = None
 

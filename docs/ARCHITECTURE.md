@@ -1,7 +1,7 @@
 # Architecture
 
-Agentheim Code is a local product shell around a shared coder runtime that is
-vendored into this repository.
+Agentheim Code is a standalone local product shell around shared runtime
+modules that live in this repository.
 
 ```text
 CLI / Browser / Tauri shell
@@ -93,7 +93,8 @@ See `docs/adr/0001-config-surface-and-storage.md` for the boundary rationale.
 
 ### Provider profiles
 
-Stored by `src/config/config.py` in the shared Agentheim config area.
+Stored by `src/config/config.py` in a compatibility profile store that still
+uses the shared Agentheim config root.
 
 - file name: `providers.json`
 - default location: `platformdirs.user_config_dir("agentheim")`
@@ -101,7 +102,7 @@ Stored by `src/config/config.py` in the shared Agentheim config area.
 
 ### Provider health
 
-Stored in the shared Agentheim data area as `provider-health.json`.
+Stored in the shared Agentheim compatibility data area as `provider-health.json`.
 
 ## Frontend/Backend Contract
 

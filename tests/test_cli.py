@@ -29,7 +29,7 @@ class TestVersion:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert "agentheim-code" in result.output
-        assert "1.0.0" in result.output
+        assert "1.5.0" in result.output
 
 
 class TestModels:
@@ -41,7 +41,10 @@ class TestModels:
 
     @patch("agentheim_code.cli.list_model_options")
     def test_models_prints_error_when_unconfigured(self, mock_models: MagicMock) -> None:
-        mock_models.return_value = {"configured": False, "error": "No provider profiles configured."}
+        mock_models.return_value = {
+            "configured": False,
+            "error": "No provider profiles configured.",
+        }
 
         result = runner.invoke(app, ["models"])
 
@@ -314,6 +317,7 @@ class TestMain:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from agentheim_code import cli
+
         mock_app = MagicMock()
         mock_config = MagicMock()
 
@@ -331,6 +335,7 @@ class TestMain:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from agentheim_code import cli
+
         mock_app = MagicMock()
         mock_config = MagicMock()
 

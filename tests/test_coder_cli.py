@@ -505,16 +505,36 @@ class TestInteractiveLoop:
         )
 
         with (
-            patch("agentheim_code.coder_cli.typer.prompt", side_effect=lambda *args, **kwargs: next(prompts)),
-            patch("agentheim_code.coder_cli.get_session_view", side_effect=[self._view(current), self._view(resumed), diff_view, self._view(updated), self._view(updated), self._view(updated)]),
-            patch("agentheim_code.coder_cli.list_session_views", return_value=[self._view(current)]),
+            patch(
+                "agentheim_code.coder_cli.typer.prompt",
+                side_effect=lambda *args, **kwargs: next(prompts),
+            ),
+            patch(
+                "agentheim_code.coder_cli.get_session_view",
+                side_effect=[
+                    self._view(current),
+                    self._view(resumed),
+                    diff_view,
+                    self._view(updated),
+                    self._view(updated),
+                    self._view(updated),
+                ],
+            ),
+            patch(
+                "agentheim_code.coder_cli.list_session_views", return_value=[self._view(current)]
+            ),
             patch("agentheim_code.coder_cli.get_session", return_value=resumed),
             patch("agentheim_code.coder_cli.create_session", return_value=new_session),
             patch("agentheim_code.coder_cli.list_file_tree", return_value=file_items),
             patch("agentheim_code.coder_cli.approve_request", return_value=updated) as mock_approve,
             patch("agentheim_code.coder_cli.cancel_session", return_value=updated),
-            patch("agentheim_code.coder_cli.list_model_options", return_value={"configured": False, "error": "No providers"}),
-            patch("agentheim_code.coder_cli.update_session_model", return_value=updated) as mock_update,
+            patch(
+                "agentheim_code.coder_cli.list_model_options",
+                return_value={"configured": False, "error": "No providers"},
+            ),
+            patch(
+                "agentheim_code.coder_cli.update_session_model", return_value=updated
+            ) as mock_update,
             patch("agentheim_code.coder_cli.webbrowser.open") as mock_open,
         ):
             _interactive_loop(Path("/tmp/ws"), current)
@@ -532,7 +552,10 @@ class TestInteractiveLoop:
         prompts = iter(["Ship it", "exit"])
 
         with (
-            patch("agentheim_code.coder_cli.typer.prompt", side_effect=lambda *args, **kwargs: next(prompts)),
+            patch(
+                "agentheim_code.coder_cli.typer.prompt",
+                side_effect=lambda *args, **kwargs: next(prompts),
+            ),
             patch("agentheim_code.coder_cli.post_message", return_value=pending),
             patch("agentheim_code.coder_cli.typer.confirm", return_value=False),
             patch("agentheim_code.coder_cli.approve_request", return_value=denied) as mock_approve,

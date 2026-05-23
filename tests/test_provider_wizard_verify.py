@@ -118,3 +118,28 @@ class TestVerifyProviderConnection:
             assert result["ok"] is True
             assert "warning" in result
             assert "empty" in result["warning"].lower()
+
+    def test_oci_verify_passes_config_metadata(self) -> None:
+        captured = {}
+
+        def _create_provider(config):
+            captured["metadata"] = config.metadata
+            return FakeProvider(config=config)
+
+        with patch(
+            "core.model_registry.ModelRegistry.create_provider", side_effect=_create_provider
+        ):
+            result = verify_provider_connection(
+                "oci_genai",
+                {
+                    "config_path": "/custom/oci/config",
+                    "profile": "TEST",
+                    "compartment_id": "ocid1.compartment.oc1..example",
+                },
+                model_id="cohere-command",
+            )
+
+        assert result["ok"] is True
+        assert captured["metadata"]["oci_config_path"] == "/custom/oci/config"
+        assert captured["metadata"]["oci_profile"] == "TEST"
+        assert captured["metadata"]["compartment_id"] == "ocid1.compartment.oc1..example"

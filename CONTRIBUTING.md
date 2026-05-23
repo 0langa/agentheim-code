@@ -1,101 +1,109 @@
 # Contributing to Agentheim Code
 
-Thank you for your interest in contributing. This document covers developer
-setup, checks, and repository boundaries.
+This document covers setup, repository shape, verification, and doc-maintenance
+rules for the current codebase.
 
-## Development Setup
-
-### Prerequisites
+## Prerequisites
 
 - Python 3.12+
 - Node.js 22+
-- Rust latest stable, for Tauri desktop builds
-- Visual Studio Build Tools with C++ workload on Windows, for Tauri
+- Rust stable for Tauri builds
+- Visual Studio Build Tools with the C++ workload on Windows for Tauri packaging
 
-### Repository Structure
-
-Agentheim Code is the focused product repository. The tracked product surface is
-`src/agentheim_code`, `src/memory`, `src/tools/shell`, `apps/web`, and
-`apps/desktop`. Some local checkouts may contain ignored sibling Agentheim
-packages under `src/`; treat those as development/runtime dependencies unless a
-task explicitly targets them.
-
-### Install
+## Install
 
 ```powershell
-cd agentheim-code
 pip install -e .[dev]
 npm --prefix apps/web install
 npm --prefix apps/desktop install
 ```
 
-## Running Checks
+## Repository Shape
 
-### Python
+### Product-first surfaces
+
+- `src/agentheim_code`
+- `apps/web`
+- `apps/desktop`
+
+### Shared runtime surfaces used directly by the product
+
+- `src/core`
+- `src/config`
+- `src/providers`
+- `src/workflows`
+- `src/agentheim_core`
+- `src/agentheim_coder_core`
+
+Do not assume only `src/agentheim_code` matters for behavior changes. Many real
+product fixes require coordinated runtime edits.
+
+## Canonical Verification Commands
 
 ```powershell
-# Non-integration tests with the CI coverage gate
-pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
-
-# Linting and formatting for product-owned code
 ruff check src/agentheim_code src/memory src/tools/shell tests/
 ruff format --check src/agentheim_code src/memory src/tools/shell tests/
-
-# Type checking for product-owned code
 mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
-```
-
-### Frontend
-
-```powershell
+pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
 npm --prefix apps/web run test -- --run
 npm --prefix apps/web run build
+npm --prefix apps/web run e2e
+cd apps/desktop/src-tauri; cargo test
 ```
 
-### Desktop
+Use the release checklist in [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+for packaging and release verification.
+
+## Convenience Task Runner
+
+The `justfile` is for convenience, not the canonical release gate. Use it when
+helpful, but treat the commands above as source of truth.
+
+Examples:
 
 ```powershell
-cd apps/desktop/src-tauri && cargo test
-```
-
-## Task Runner
-
-A `justfile` is provided for common tasks:
-
-```powershell
-just test
-just test-py
-just test-web
-just test-rust
 just lint
-just fix
+just test
 just build-web
 just build-desktop
+just package-beta
 ```
 
-## Code Style
+## Docs Maintenance Rules
 
-- Python: `ruff` for linting/formatting and `mypy` for type checking.
-- TypeScript: follow the existing `tsconfig.json` strict settings.
-- Rust: use standard `cargo fmt` and `cargo clippy`.
+When you change behavior, update the relevant docs in the same branch:
 
-## Pull Request Process
+- [README.md](README.md)
+- [docs/README.md](docs/README.md)
+- [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+- [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
+- [docs/CLI_COMMANDS.md](docs/CLI_COMMANDS.md)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- [docs/PROVIDERS.md](docs/PROVIDERS.md)
+- [docs/PRIVACY_SECURITY.md](docs/PRIVACY_SECURITY.md)
+- [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md)
+
+Keep docs:
+
+- grounded in current code
+- specific about which mode is supported
+- honest about limits
+- free of stale verification counts unless freshly rerun
+
+## Pull Request Guidance
 
 1. Create a feature branch.
-2. Make focused changes with tests when behavior changes.
-3. Run the relevant checks.
-4. Open a pull request against `main`.
+2. Keep changes focused.
+3. Add or update tests when behavior changes.
+4. Run the relevant checks.
+5. Update docs for any user-visible or operator-visible changes.
 
 ## Commit Messages
 
-Use clear, descriptive commit messages. Conventional Commit style is welcome:
+Conventional Commit style is welcome:
 
 ```text
-feat: add user configuration file support
-fix: handle port collisions in serve_web
-docs: update API reference
+feat: add provider health badges
+fix: reject file previews outside workspace
+docs: align install guidance with browser fallback
 ```
-
-## Questions
-
-Open an issue or reach out to the maintainers.

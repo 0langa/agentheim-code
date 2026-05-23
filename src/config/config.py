@@ -8,6 +8,7 @@ See docs/adr/0001-config-surface-and-storage.md for the boundary.
 from __future__ import annotations
 
 import base64
+import contextlib
 import getpass
 import json
 import os
@@ -23,7 +24,6 @@ from platformdirs import user_config_dir, user_data_dir
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.errors import ConfigError
-
 
 SECRET_REF_PREFIX = "secret://"
 APP_NAME = "agentheim"
@@ -244,7 +244,7 @@ class TeamProfile(BaseModel):
     privacy_mode: str = Field(default="standard")
 
     @model_validator(mode="after")
-    def _validate_refs(self) -> "TeamProfile":
+    def _validate_refs(self) -> TeamProfile:
         for model in self.models.values():
             if model.provider not in self.providers:
                 raise ValueError(f"Model '{model.id}' references unknown provider '{model.provider}'.")
@@ -374,7 +374,8 @@ def load_profiles_document(path: Path | None = None) -> ProfilesDocument:
     profile_path = path or get_profiles_path()
     if not profile_path.exists():
         raise ConfigError(
-            "No Agentheim provider profile found. Run `agentheim provider add` or `agentheim provider import-env`."
+            "No Agentheim Code provider profile found. Launch the app and add a provider from Settings, "
+            "or place a providers.json file in the shared config directory."
         )
     try:
         raw = json.loads(profile_path.read_text(encoding="utf-8"))
@@ -484,10 +485,8 @@ class KeyringSecretStore(SecretStore):
         return value
 
     def delete(self, ref: str) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._keyring.delete_password(self.service_name, ref)
-        except Exception:
-            pass
 
 
 class EncryptedFileSecretStore(SecretStore):
