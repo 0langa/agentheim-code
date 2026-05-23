@@ -1,6 +1,7 @@
 # Contributing to Agentheim Code
 
-Thank you for your interest in contributing! This document will help you get started.
+Thank you for your interest in contributing. This document covers developer
+setup, checks, and repository boundaries.
 
 ## Development Setup
 
@@ -8,69 +9,53 @@ Thank you for your interest in contributing! This document will help you get sta
 
 - Python 3.12+
 - Node.js 22+
-- Rust (latest stable, for Tauri desktop builds)
-- Visual Studio Build Tools with C++ workload (Windows, for Tauri)
+- Rust latest stable, for Tauri desktop builds
+- Visual Studio Build Tools with C++ workload on Windows, for Tauri
 
 ### Repository Structure
 
-This project lives in a monorepo-adjacent setup. The main `agentheim` dependency is expected to be checked out adjacent to this repository:
-
-```
-workspace/
-├── agentheim/          # https://github.com/0langa/agentheim
-└── agentheim-code/     # this repository
-```
+Agentheim Code is the focused product repository. The tracked product surface is
+`src/agentheim_code`, `src/memory`, `src/tools/shell`, `apps/web`, and
+`apps/desktop`. Some local checkouts may contain ignored sibling Agentheim
+packages under `src/`; treat those as development/runtime dependencies unless a
+task explicitly targets them.
 
 ### Install
 
 ```powershell
 cd agentheim-code
-
-# Install the shared agentheim dependency
-pip install -e ../agentheim
-
-# Install this package in editable mode with dev tools
 pip install -e .[dev]
-
-# Install frontend dependencies
 npm --prefix apps/web install
 npm --prefix apps/desktop install
 ```
 
-## Running Tests
+## Running Checks
 
 ### Python
 
 ```powershell
-# Run all Python tests with coverage
-pytest --cov
+# Non-integration tests with the CI coverage gate
+pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
 
-# Linting and formatting (product-owned code only)
+# Linting and formatting for product-owned code
 ruff check src/agentheim_code src/memory src/tools/shell tests/
 ruff format --check src/agentheim_code src/memory src/tools/shell tests/
 
-# Type checking (product-owned code only)
+# Type checking for product-owned code
 mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
 ```
 
 ### Frontend
 
 ```powershell
-cd apps/web
-
-# Unit tests
-npm run test
-
-# Type check and build
-npm run build
+npm --prefix apps/web run test -- --run
+npm --prefix apps/web run build
 ```
 
-### Desktop (Rust)
+### Desktop
 
 ```powershell
-cd apps/desktop/src-tauri
-
-cargo test
+cd apps/desktop/src-tauri && cargo test
 ```
 
 ## Task Runner
@@ -78,39 +63,39 @@ cargo test
 A `justfile` is provided for common tasks:
 
 ```powershell
-just test      # Run all tests (Python + web + Rust)
-just test-py   # Python tests only
-just test-web  # Frontend tests only
-just test-rust # Rust tests only
-just lint      # Lint and type-check product code
-just fix       # Auto-fix lint/format issues
+just test
+just test-py
+just test-web
+just test-rust
+just lint
+just fix
 just build-web
 just build-desktop
 ```
 
 ## Code Style
 
-- **Python:** We use `ruff` for linting and formatting, and `mypy` for type checking.
-- **TypeScript:** Follow the existing `tsconfig.json` strict settings.
-- **Rust:** Standard `cargo fmt` and `cargo clippy`.
+- Python: `ruff` for linting/formatting and `mypy` for type checking.
+- TypeScript: follow the existing `tsconfig.json` strict settings.
+- Rust: use standard `cargo fmt` and `cargo clippy`.
 
 ## Pull Request Process
 
-1. Create a feature branch: `git checkout -b feat/your-feature-name`
-2. Make your changes with tests
-3. Ensure all linters and tests pass
-4. Open a PR against `main`
+1. Create a feature branch.
+2. Make focused changes with tests when behavior changes.
+3. Run the relevant checks.
+4. Open a pull request against `main`.
 
 ## Commit Messages
 
-Use clear, descriptive commit messages. We loosely follow [Conventional Commits](https://www.conventionalcommits.org/):
+Use clear, descriptive commit messages. Conventional Commit style is welcome:
 
-```
+```text
 feat: add user configuration file support
-fix: handle port collisions in serve_web()
+fix: handle port collisions in serve_web
 docs: update API reference
 ```
 
-## Questions?
+## Questions
 
 Open an issue or reach out to the maintainers.

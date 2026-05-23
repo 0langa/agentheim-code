@@ -30,7 +30,7 @@ jobs:
       - name: Type check
         run: mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
       - name: Test with coverage
-        run: pytest --cov --cov-report=xml --cov-fail-under=70
+        run: pytest --cov --cov-report=xml --cov-fail-under=80
       - name: Build wheel
         run: python -m build --wheel
       - name: Clean wheel smoke

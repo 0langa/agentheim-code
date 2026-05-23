@@ -1,8 +1,8 @@
 # Providers
 
-Agentheim Code uses standalone provider/profile code copied into this product.
-It can read the same profile format and secret references as Agentheim Full, but
-does not depend on Agentheim Full being installed.
+Agentheim Code includes standalone provider/profile support. It can read the
+same profile format and secret references as Agentheim Full, but does not depend
+on Agentheim Full being installed.
 
 ## Supported Providers
 

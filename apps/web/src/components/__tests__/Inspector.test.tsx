@@ -58,7 +58,7 @@ describe("Inspector", () => {
     expect(screen.getByText("passed")).toBeInTheDocument();
   });
 
-  it("renders settings summary and commands", () => {
+  it("renders settings summary and commands", async () => {
     render(
       <Inspector
         inspector="settings"
@@ -71,5 +71,8 @@ describe("Inspector", () => {
     );
     expect(screen.getByText("trust: ask")).toBeInTheDocument();
     expect(screen.getByText("New Session · /new")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No providers configured. Add one to get started."),
+    ).toBeInTheDocument();
   });
 });

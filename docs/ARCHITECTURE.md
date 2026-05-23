@@ -20,8 +20,17 @@ sibling Agentheim Full checkout.
 - `agentheim_coder_core`: coder sessions, commands, models, runtime, and event
   contracts.
 - `agentheim_core`: provider profiles, policy, tools, readiness, and run views.
-- `apps/web`: premium React frontend.
+- `apps/web`: React frontend.
 - `apps/desktop`: Tauri shell.
+
+## Repository Scope
+
+This checkout may contain broader Agentheim packages from a sibling editable
+install, but they are not owned by this repository. The tracked Agentheim Code
+surface is `src/agentheim_code`, `src/memory`, `src/tools/shell`, `apps/web`,
+and `apps/desktop`. Ignored local packages such as `src/core`, `src/config`,
+`src/providers`, and `src/workflows` are runtime dependencies for development,
+not product-owned files to modify as part of Agentheim Code changes.
 
 ## Persistence
 

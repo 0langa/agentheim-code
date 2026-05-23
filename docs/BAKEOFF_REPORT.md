@@ -6,6 +6,9 @@ Date: 2026-05-22
 
 Ran real empty-workspace coding tests against the configured profiles and hardened runtime/UI behavior found during the test pass. The test prompt allowed any language, framework, architecture, or file layout. The only universal requirements were: create a local-first personal sprint planner, persist data, include meaningful domain logic, include tests or smoke checks, document usage, and run a real local verification command.
 
+This is a historical test report. The canonical forward plan now lives in
+`PRODUCT_ROADMAP.md`.
+
 Artifacts are under:
 
 `C:\Users\juliu\AppData\Local\Temp\agentheim-code-universal-bakeoff-20260522-231704`
@@ -45,7 +48,7 @@ Artifacts are under:
 
 ## Remaining UX And Accessibility Work
 
-- Provider setup still needs a guided add/edit flow, not only selection of configured profiles.
+- Provider setup now has guided add/test flow; edit and health-status polish remain.
 - Settings inspector should show provider health, auth mode, model capabilities, and setup actions in one place.
 - Model picker should show actual resolved model after `Auto` and warn when a profile has known bake-off failures.
 - Command palette should execute more commands directly instead of logging unsupported commands.
