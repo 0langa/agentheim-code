@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-05-24
+
+### Added
+- Diagnostics bundle now includes redacted config, provider health, and recent session summaries
+- CLI support commands for diagnostics export, provider connection testing, config export/import, and version checks
+- Broader Playwright smoke coverage for keyboard flow, onboarding, provider wizard, and streaming session behavior
+- Relative-time display helpers for inspector and terminal surfaces
+
+### Changed
+- Runtime request IDs now propagate deeper into run artifacts, cancellation paths, and diagnostics surfaces
+- Session cancel/resume behavior is more explicit and resilient in the coder runtime
+- Workspace explorer now batches large file lists client-side while preserving the backend safety cap
+- Approval, diff, terminal, and inspector panels have been refined for daily-use review flows
+- Release automation and release docs were relabeled to the verified `1.9.0` baseline instead of the premature `2.0.0` claim
+
+### Fixed
+- Playwright smoke mocks now preserve realistic session/view state through onboarding, provider creation, and streaming flows
+- Version drift across Python, web, desktop, Tauri, tests, and release docs has been reconciled to `1.9.0`
+- Removed a debug-only Playwright spec that did not belong in the baseline
+
 ## [1.5.0] - 2026-05-23
 
 ### Added
@@ -17,7 +37,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Workspace explorer capped at 500 files to prevent UI lock on large repositories
 - Honest command palette that hides unsupported backend commands
 - OpenAPI-to-TypeScript type generation script and generated `apps/web/src/generated/api-types.ts`
-- Visual regression scaffolding in Playwright smoke tests with baseline screenshot capture
 - ADR-0001 documenting the intentional config surface split (UI config vs provider profiles)
 - ADR-0002 documenting the OpenAPI-to-TypeScript generation approach
 - CI caching for Rust/cargo (`Swatinem/rust-cache@v2`) and Playwright browsers

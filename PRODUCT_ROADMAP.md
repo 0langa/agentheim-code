@@ -1,6 +1,6 @@
 # Product Roadmap
 
-Updated: 2026-05-23
+Updated: 2026-05-24
 
 This roadmap describes the current audited baseline and the next useful product
 moves from here. It intentionally avoids stale phase-complete language and old
@@ -10,8 +10,8 @@ For the full forward implementation program, see [PLAN_2.0.0.md](PLAN_2.0.0.md).
 
 ## Current Baseline
 
-The repository version is currently `1.5.0`. This is the verified product
-baseline after completing the audited `1.1.0` through `1.5.0` workstreams.
+The repository version is currently `1.9.0`. This is the verified product
+baseline after completing the audited `1.6.0` through `1.9.0` workstreams.
 
 Confirmed product shape:
 
@@ -25,12 +25,14 @@ Confirmed product shape:
 - Windows packaging scripts and CI artifact upload
 - request IDs and size limits on backend endpoints
 - graceful startup/shutdown hooks
+- request-id propagation into runtime artifacts and diagnostics surfaces
+- session cancel/resume hardening in the coder runtime
 - improved diff rendering (LCS-style line diff)
 - ANSI-safe terminal output
 - honest command palette (unsupported commands hidden)
-- workspace explorer capped at 500 files with large-workspace scaling
+- workspace explorer capped at 500 files with incremental client-side batching
 - OpenAPI-to-TypeScript type generation pipeline
-- visual regression scaffolding in Playwright smoke tests
+- broader Playwright smoke coverage for onboarding, provider, and streaming flows
 - CI caching for Rust/cargo and Playwright browsers
 - first-party OCI GenAI provider adapter with the legacy vendored bridge removed
 - Python non-integration coverage gate proven at 90%+
@@ -55,42 +57,30 @@ Confirmed product shape:
 
 ## Near-Term Priorities
 
-### 1. Reliability And Observability
+### 1. 2.0.0-rc1 Contract Freeze
 
-- ✅ request ids propagated via `x-request-id` header and middleware
-- ✅ request size limits (256KB JSON body cap) with structured 413 errors
-- ✅ graceful startup/shutdown lifespan hooks for FastAPI
-- ✅ improved cancellation cleanup in runtime subprocesses
-- ✅ expanded structured error coverage (`E_PROVIDER_TIMEOUT`, `E_REQUEST_TOO_LARGE`)
-- propagate request ids deeper into shared runtime logs
+- broaden generated API type adoption across the frontend
+- freeze terminology across CLI, UI, API docs, and release notes
+- tighten the code-vs-doc truth audit before any `2.0.0` claim
 
-### 2. UX Scale And Clarity
+### 2. Premium Finish
 
-- ✅ workspace explorer capped at 500 files for large workspaces
-- ✅ LCS-style line diff replaces naive greedy diff
-- ✅ ANSI escape stripping for clean terminal rendering
-- ✅ honest command palette hides unsupported backend commands
-- enrich approvals with clearer file-change previews
+- expand Playwright coverage from smoke into release-grade flows
+- add stable screenshots and final user-facing polish
+- keep keyboard, onboarding, provider, approval, and streaming flows trustworthy
 
-### 3. Config And Supportability
+### 3. Release Sign-Off
 
-- ✅ documented config boundary in ADR-0001 (UI config vs provider profiles)
-- continue reducing inherited compatibility surface that is not part of the shipped product
-- document config paths and overrides more explicitly in-product
-- improve installed-app smoke coverage for packaged desktop builds
-
-### 4. Release Engineering
-
-- ✅ CI caching for Rust/cargo and Playwright browsers
-- decide on a Windows signing strategy
-- keep the wheel and installer artifact flow reliable before expanding platforms
+- refresh `docs/RELEASE_CHECKLIST.md` with fresh verification output only
+- rerun browser, desktop, wheel, and installer smoke from a clean tree
+- sign off the release state only when docs and artifacts match the shipped truth
 
 ## Longer-Term Opportunities
 
 - native file watching instead of purely pull-based refresh flows
 - richer provider fallback and circuit-breaker behavior
 - ✅ OpenAPI-to-TypeScript type generation pipeline
-- ✅ visual regression scaffolding in Playwright smoke tests
+- stable visual regression checks once the UI surface is intentionally frozen
 - optional benchmark suites for model-output quality
 
 ## Release Discipline

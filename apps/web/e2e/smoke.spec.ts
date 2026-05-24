@@ -22,6 +22,26 @@ function createMockState(): SessionState {
   };
 }
 
+function buildSessionView(
+  session: Record<string, unknown>,
+  approvals: Array<Record<string, unknown>> = [],
+) {
+  return {
+    session: {
+      ...session,
+      transcript: (session.transcript as Array<Record<string, unknown>> | undefined) ?? [],
+      current_assistant_message: session.current_assistant_message ?? "",
+    },
+    queued_prompts: [],
+    available_commands: ["new"],
+    approvals,
+    events: [],
+    command_results: [],
+    diffs: [],
+    artifacts: [],
+  };
+}
+
 type WizardTemplate = {
   kind: string;
   display_name: string;
@@ -46,6 +66,7 @@ type MockApiOptions = {
   onboardingDismissed?: boolean;
   modelConfigured?: boolean;
   wizardTemplates?: WizardTemplate[];
+  streamDelayMs?: number;
 };
 
 async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
@@ -56,6 +77,7 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
     onboardingDismissed = false,
     modelConfigured = true,
     wizardTemplates = [],
+    streamDelayMs = 0,
   } = opts;
 
   const state = createMockState();
@@ -224,14 +246,9 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
         },
       };
       state.sessions = [session];
-      state.view ??= {
-        session: {
-          ...session,
-          transcript: [],
-        },
-        queued_prompts: [],
-        available_commands: ["new"],
-        approvals: withApproval
+      state.view ??= buildSessionView(
+        session,
+        withApproval
           ? [
               {
                 request_id: "req-1",
@@ -248,11 +265,7 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
               },
             ]
           : [],
-        events: [],
-        command_results: [],
-        diffs: [],
-        artifacts: [],
-      };
+      );
       await json(session);
       return;
     }
@@ -264,18 +277,28 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
 
     if (path === "/api/coder/sessions/sess-1/messages/stream") {
       const body = route.request().postDataJSON() as { prompt: string };
-      state.view = {
-        ...state.view,
-        session: {
-          ...(state.view?.session as Record<string, unknown>),
-          status: "idle",
-          transcript: [
-            { role: "user", content: body.prompt },
-            { role: "assistant", content: "Done from stream." },
-          ],
-          current_assistant_message: "",
+      const session = {
+        ...((state.view?.session as Record<string, unknown>) ?? {}),
+        session_id: "sess-1",
+        status: "idle",
+        mode: "code",
+        trust_mode: "ask",
+        workspace_root: ".",
+        model_selection: {
+          profile: "local",
+          provider: "ollama",
+          model: "llama3.2",
         },
+        transcript: [
+          { role: "user", content: body.prompt },
+          { role: "assistant", content: "Done from stream." },
+        ],
+        current_assistant_message: "",
       };
+      state.view = buildSessionView(session, (state.view?.approvals as Array<Record<string, unknown>> | undefined) ?? []);
+      if (streamDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, streamDelayMs));
+      }
       await route.fulfill({
         status: 200,
         contentType: "text/event-stream",
@@ -335,7 +358,8 @@ test.describe("Agentheim Code Web", () => {
     await prompt.fill("Ship it");
     await page.keyboard.press("Control+Enter");
 
-    await expect(page.getByText("Done from stream.")).toBeVisible();
+    const chat = page.getByRole("log", { name: "Conversation transcript" });
+    await expect(chat.getByText("Done from stream.")).toBeVisible();
   });
 
   test("pending approvals can be granted from the keyboard", async ({ page }) => {
@@ -418,7 +442,7 @@ test.describe("Agentheim Code Web", () => {
 
     // Test the connection.
     await page.getByRole("button", { name: "Test Connection" }).click();
-    await expect(page.getByText("Connection successful")).toBeVisible();
+    await expect(page.getByText("✓ Connection successful")).toBeVisible();
 
     // Save the provider.
     await page.getByRole("button", { name: "Save Provider" }).click();
@@ -429,28 +453,11 @@ test.describe("Agentheim Code Web", () => {
     // Refresh the Settings panel to verify the provider list updated.
     await page.getByRole("button", { name: "Runs" }).click();
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByText("My OpenAI")).toBeVisible();
+    await expect(page.locator(".provider-row").getByText("My OpenAI")).toBeVisible();
   });
 
   test("session creation and streaming shows assistant response and status changes", async ({ page }) => {
-    await mockApi(page);
-
-    // Override the stream endpoint with a delayed response so the "running" state is observable.
-    // Playwright routes are checked in reverse registration order, so this must be added AFTER mockApi.
-    await page.route("**/api/coder/sessions/sess-1/messages/stream", async (route) => {
-      const body = route.request().postDataJSON() as { prompt: string };
-      await new Promise((r) => setTimeout(r, 600));
-      await route.fulfill({
-        status: 200,
-        contentType: "text/event-stream",
-        body: [
-          'event: token\ndata: {"token":"Done "}',
-          'event: token\ndata: {"token":"from stream."}',
-          'event: done\ndata: {"session_id":"sess-1"}',
-          "",
-        ].join("\n\n"),
-      });
-    });
+    await mockApi(page, { streamDelayMs: 600 });
     await page.goto("/");
 
     // Create a new session.
@@ -480,7 +487,7 @@ test.describe("Agentheim Code Web", () => {
     await expect(chat).toHaveAttribute("aria-busy", "true");
 
     // Wait for the streamed assistant message to appear.
-    await expect(page.getByText("Done from stream.")).toBeVisible();
+    await expect(chat.getByText("Done from stream.")).toBeVisible();
 
     // After streaming completes the chat should no longer be busy.
     await expect(chat).toHaveAttribute("aria-busy", "false");

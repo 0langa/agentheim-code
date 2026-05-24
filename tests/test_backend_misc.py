@@ -24,7 +24,7 @@ class TestVersion:
         v = _version()
         assert isinstance(v, str)
         assert v != ""
-        assert v == "1.5.0"
+        assert v == "1.9.0"
 
 
 class TestWorkspace:

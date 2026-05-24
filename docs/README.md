@@ -17,7 +17,7 @@ This folder is the maintained documentation baseline for Agentheim Code.
 - [Release checklist](RELEASE_CHECKLIST.md): release verification template
 - [Future improvements](FUTURE_IMPROVEMENTS.md): verified backlog and non-goals
 - [Product roadmap](../PRODUCT_ROADMAP.md): product direction from the current baseline
-- [2.0.0 plan](../PLAN_2.0.0.md): forward execution plan from the verified 1.5.0 baseline
+- [2.0.0 plan](../PLAN_2.0.0.md): remaining execution plan from the verified 1.9.0 baseline
 - [Contributing](../CONTRIBUTING.md): contributor workflow and repo conventions
 - [Changelog](../CHANGELOG.md): shipped changes
 

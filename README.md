@@ -6,7 +6,7 @@ Agentheim Code is a standalone local-first coding workbench with:
 - a React/Vite frontend in `apps/web`
 - an optional Tauri desktop shell in `apps/desktop`
 
-Current verified baseline: `2.0.0`
+Current verified baseline: `1.9.0`
 
 The product flow is simple:
 
@@ -54,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 
 ## Current Product Baseline
 
-- Release-synced `2.0.0` baseline with verified Python, web, desktop, and packaging checks
+- Release-synced `1.9.0` baseline with verified Python, web, desktop, and packaging checks
 - First-run onboarding with workspace selection and Ollama auto-detection
 - Provider wizard with test, create, and delete flows
 - Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`

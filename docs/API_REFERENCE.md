@@ -271,6 +271,22 @@ Each item includes:
 
 Lists run views for the workspace.
 
+### `GET /api/coder/models`
+
+Returns the current provider/model selection payload used by the workbench.
+Current implementation includes:
+
+- `configured`
+- `default_profile`
+- `profiles`
+- per-model `health` summaries when persisted health data exists
+- per-model `recommendations` metadata for planner suitability and cost support
+
+### `GET /api/coder/commands`
+
+Returns the built-in command registry exposed to the frontend command palette.
+The palette still executes only the frontend-supported subset directly.
+
 ### `GET /api/coder/sessions/{session_id}/diff`
 
 Returns per-file before/after diff payloads from the session view.

@@ -1,10 +1,10 @@
 # Agentheim Code 2.0.0 Plan
 
-Updated: 2026-05-23
+Updated: 2026-05-24
 
-This file is the forward execution plan from the verified `1.5.0` baseline to
-`2.0.0`. It assumes the current product is real, working, and worth hardening,
-not replacing.
+This file is the forward execution plan from the verified `1.9.0` baseline to
+`2.0.0`. Phases `1.6.0` through `1.9.0` are now reflected in `main`; the
+remaining scope is release-candidate hardening and final release truth sync.
 
 ## Starting Point
 
@@ -17,6 +17,7 @@ Current proven baseline:
 - first-party OCI adapter and trimmed inherited vendor surface
 - Windows NSIS packaging path with clean wheel smoke
 - Python non-integration coverage at `92%`
+- broadened Playwright smoke coverage for onboarding, provider, and streaming flows
 
 ## 2.0.0 Product Goal
 
@@ -39,7 +40,7 @@ that:
 
 ## Release Map
 
-### Phase 1: `1.6.0` Runtime Correctness And Observability
+### Completed: `1.6.0` Runtime Correctness And Observability
 
 Primary goal: make failures diagnosable and long-running work more trustworthy.
 
@@ -66,7 +67,7 @@ Acceptance:
 - cancel/stop behavior is materially more reliable for active turns
 - common provider failures surface specific recovery guidance instead of generic fallback text
 
-### Phase 2: `1.7.0` Workbench Scale And UX Polish
+### Completed: `1.7.0` Workbench Scale And UX Polish
 
 Primary goal: keep the workbench fast and high-signal on larger repositories and longer sessions.
 
@@ -94,7 +95,7 @@ Acceptance:
 - diffs and approvals feel trustworthy enough for daily use
 - keyboard-only operation covers the core workbench flow cleanly
 
-### Phase 3: `1.8.0` Standalone Product Boundary Cleanup
+### Completed: `1.8.0` Standalone Product Boundary Cleanup
 
 Primary goal: remove the last confusing inheritance seams and own the product boundary end to end.
 
@@ -122,7 +123,7 @@ Acceptance:
 - storage decisions are documented with a migration story if changed
 - dead compatibility code is removed rather than tolerated
 
-### Phase 4: `1.9.0` Distribution, Install, And Trust Hardening
+### Completed: `1.9.0` Distribution, Install, And Trust Hardening
 
 Primary goal: make install/update/support feel like a product, not a dev environment.
 
@@ -258,11 +259,9 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 
 ## First Recommended Next Step
 
-Start with `1.6.0` and keep it boring:
+Start with `2.0.0-rc1` and keep it disciplined:
 
-- request-id propagation
-- cancellation reliability
-- richer structured errors
-- diagnostics correlation
-
-That work reduces support cost immediately and makes every later UX or release-engineering improvement easier to verify.
+- finish the code-vs-doc truth pass
+- stabilize and broaden release-grade Playwright coverage
+- freeze product terminology and release metadata
+- only then decide whether `2.0.0` is honestly earned

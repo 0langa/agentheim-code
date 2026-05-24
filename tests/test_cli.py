@@ -29,7 +29,7 @@ class TestVersion:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert "agentheim-code" in result.output
-        assert "1.5.0" in result.output
+        assert "1.9.0" in result.output
 
 
 class TestModels:

@@ -6,7 +6,7 @@ are preparing.
 
 ## Scope And Intent
 
-- current repo version: `2.0.0`
+- current repo version: `1.9.0`
 - primary packaged target: Windows NSIS installer
 - Python wheel remains part of the release surface
 - no tag, push, or hosted release creation unless explicitly requested
@@ -47,7 +47,7 @@ This currently performs:
 ### Local release artifact staging
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.5.0
+powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.9.0
 ```
 
 This script is Windows-only and currently stages local artifacts only. It does
@@ -90,24 +90,24 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-Last verified: 2026-05-23
+Last verified: 2026-05-24
 
-- branch: `codex/agentheim-1.5.0`
-- version: `1.5.0`
+- branch: `main`
+- version: `1.9.0`
 - `ruff check`: All checks passed
 - `ruff format --check`: 49 files already formatted
 - `mypy`: Success: no issues found in 21 source files
-- `pytest`: 269 passed, 3 deselected, 92.28% coverage
-- `npm --prefix apps/web run test -- --run`: 12 test files, 45 tests passed
-- `npm --prefix apps/web run build`: built in 7.93s
-- `npm --prefix apps/web run e2e`: 2 passed (chromium)
+- `pytest`: 269 passed, 3 deselected, 91.07% coverage
+- `npm --prefix apps/web run test -- --run`: 12 test files, 62 tests passed
+- `npm --prefix apps/web run build`: passed
+- `npm --prefix apps/web run e2e`: 5 passed (chromium)
 - `cargo test`: 1 passed
-- `python -m build --wheel`: agentheim_code-1.5.0-py3-none-any.whl
-- `scripts/package-beta.ps1`: passed; built the Windows NSIS installer and completed clean wheel smoke
-- `scripts/release.ps1 -Version <version>`: not executed
-- manual browser smoke: `/coder` loaded with title `Agentheim Code`; top bar rendered `Coder Hub`; Settings and New Session controls were present
-- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` launched against a live local backend and stayed alive for 5 seconds before controlled shutdown
-- wheel contents smoke: confirmed final wheel excludes deleted `vendor/aictx` and `interfaces/desktop_ui` paths
+- `python -m build --wheel`: agentheim_code-1.9.0-py3-none-any.whl
+- `scripts/package-beta.ps1`: passed; built `Agentheim Code_1.9.0_x64-setup.exe` and completed clean wheel smoke
+- `scripts/release.ps1 -Version 1.9.0`: not executed
+- manual browser smoke: `/coder` loaded with title `Agentheim Code`; top bar rendered `AGENTHEIM CODE` / `Coder Hub`; Settings and New controls were present
+- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` launched against a live local backend and stayed alive after startup
+- wheel contents smoke: clean wheel build completed successfully for `1.9.0`
 
 ### Unverified / Deferred
 - `scripts/release.ps1` local staging flow was not run because no local release bundle was requested

@@ -38,6 +38,8 @@ agentheim-code version-check
 ```powershell
 agentheim-code diagnostics --out agentheim-diagnostics.json
 agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://api.openai.com/v1" --model "gpt-4o-mini"
+agentheim-code config export --path agentheim-code-config.json
+agentheim-code config import --path agentheim-code-config.json
 ```
 
 ### Provider Comparison
