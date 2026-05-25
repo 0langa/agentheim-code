@@ -141,7 +141,7 @@ class TestManagementAccounts:
         with patch("agentheim_code.provider_management.get_secret_store", return_value=MagicMock()):
             resp = client.post(
                 "/api/provider-management/profiles/p/accounts/a1/rotate-secret",
-                json={"secret_name": "api_key", "secret_value": "sk-123"},
+                json={"secret_name": "api_key", "secret_value": "example-secret-123"},
             )
         assert resp.status_code == 200
         assert resp.json()["ok"] is True
@@ -161,7 +161,7 @@ class TestManagementAccounts:
                         "headers": {},
                         "metadata": {"template": "openai_v1"},
                     },
-                    "secret_value": "sk-draft",
+                    "secret_value": "example-draft-secret",
                     "profile_name": "p",
                     "existing_account_id": "openai",
                 },

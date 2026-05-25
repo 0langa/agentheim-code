@@ -11,7 +11,7 @@ This is a historical test report. The canonical forward plan now lives in
 
 Artifacts are under:
 
-`C:\Users\juliu\AppData\Local\Temp\agentheim-code-universal-bakeoff-20260522-231704`
+`C:\temp\agentheim-code-universal-bakeoff-20260522-231704`
 
 ## Provider Results
 

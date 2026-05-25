@@ -56,7 +56,7 @@ describe("ProviderAccountEditor", () => {
       target: { value: "https://api.openai.com/v1" },
     });
     fireEvent.change(screen.getByLabelText("Secret"), {
-      target: { value: "sk-draft" },
+      target: { value: "example-draft-secret" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Test Connection" }));
 
@@ -67,7 +67,7 @@ describe("ProviderAccountEditor", () => {
         endpoint: "https://api.openai.com/v1",
         display_name: "OpenAI Cloud",
       }),
-      "sk-draft",
+      "example-draft-secret",
     );
     expect(screen.getByText(/Connection successful/i)).toBeVisible();
   });
@@ -93,7 +93,7 @@ describe("ProviderAccountEditor", () => {
       target: { value: "https://api.openai.com/v1" },
     });
     fireEvent.change(screen.getByLabelText("Secret"), {
-      target: { value: "sk-save" },
+      target: { value: "example-save-secret" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add Account" }));
 
@@ -102,7 +102,7 @@ describe("ProviderAccountEditor", () => {
         id: "openai-cloud",
         endpoint: "https://api.openai.com/v1",
       }),
-      "sk-save",
+      "example-save-secret",
     );
   });
 });

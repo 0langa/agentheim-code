@@ -70,7 +70,7 @@ class TestCreateProfile:
                 provider_kind="openai_v1",
                 provider_id="my-openai",
                 model_id="gpt-4o",
-                fields={"api_key": "sk-test123", "endpoint": "https://api.openai.com/v1"},
+                fields={"api_key": "example-openai-secret-123", "endpoint": "https://api.openai.com/v1"},
                 set_as_default=True,
             )
 
@@ -182,13 +182,13 @@ class TestCreateProfile:
                 model_id="claude-sonnet",
                 fields={
                     "region": "us-west-2",
-                    "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+                    "access_key_id": "AWSACCESSKEYEXAMPLE1",
                     "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
                 },
             )
 
         assert profile.providers["bedrock-1"].headers["aws-region"] == "us-west-2"
-        assert profile.providers["bedrock-1"].headers["aws-access-key-id"] == "AKIAIOSFODNN7EXAMPLE"
+        assert profile.providers["bedrock-1"].headers["aws-access-key-id"] == "AWSACCESSKEYEXAMPLE1"
         assert "aws-secret-access-key-ref" in profile.providers["bedrock-1"].headers
         store.set.assert_called()
 

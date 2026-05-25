@@ -81,7 +81,7 @@ async function installMockApi(page) {
     status: "idle",
     mode: "code",
     trust_mode: "ask",
-    workspace_root: "C:/Users/juliu/source/repos/agentheim-code",
+    workspace_root: "C:/workspace/agentheim-code",
     model_selection: {
       profile: "local",
       provider: "ollama",

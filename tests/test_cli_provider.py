@@ -24,10 +24,16 @@ class TestProviderTestCommand:
                     "estimated_cost_usd": 0.0001,
                 },
             }
-            provider_test("openai_v1", endpoint="", api_key="sk-test", model="gpt-4o", region="")
+            provider_test(
+                "openai_v1",
+                endpoint="",
+                api_key="example-openai-secret",
+                model="gpt-4o",
+                region="",
+            )
         mock_test.assert_called_once_with(
             provider_kind="openai_v1",
-            fields={"api_key": "sk-test"},
+            fields={"api_key": "example-openai-secret"},
             model_id="gpt-4o",
         )
 

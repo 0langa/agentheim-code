@@ -210,7 +210,7 @@ class TestAccountCrud:
             patch("agentheim_code.provider_management.get_secret_store") as mock_store,
             patch("agentheim_code.provider_wizard.verify_provider_connection") as verify,
         ):
-            mock_store.return_value.get.return_value = "sk-existing"
+            mock_store.return_value.get.return_value = "example-existing-secret"
             verify.return_value = {"ok": True, "latency_ms": 101}
             result = validate_account_draft(
                 account.model_copy(update={"endpoint": "https://draft.example/v1"}),
@@ -219,7 +219,7 @@ class TestAccountCrud:
             )
         assert result["ok"] is True
         verify.assert_called_once()
-        assert verify.call_args.kwargs["fields"]["api_key"] == "sk-existing"
+        assert verify.call_args.kwargs["fields"]["api_key"] == "example-existing-secret"
         assert verify.call_args.kwargs["fields"]["endpoint"] == "https://draft.example/v1"
 
 

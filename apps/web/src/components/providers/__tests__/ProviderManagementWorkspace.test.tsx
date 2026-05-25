@@ -130,7 +130,7 @@ describe("ProviderManagementWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rotate Secret" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Rotate Secret" })).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText("New Secret"), {
-      target: { value: "sk-rotated" },
+      target: { value: "example-rotated-secret" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save Secret" }));
     await waitFor(() =>
@@ -138,7 +138,7 @@ describe("ProviderManagementWorkspace", () => {
         "default",
         "openai",
         "api_key",
-        "sk-rotated",
+        "example-rotated-secret",
       ),
     );
   });

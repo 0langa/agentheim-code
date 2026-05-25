@@ -16,7 +16,7 @@ from agentheim_code.structured_errors import from_exception, redact_text
 
 
 def test_redact_text_masks_common_secret_patterns() -> None:
-    text = "api_key=secretvalue Bearer tokenvalue sk-abcdefghijklmnopqrstuvwxyz"
+    text = "api_key=secretvalue Bearer tokenvalue sk-REDACTIONTOKENEXAMPLE123456"
 
     redacted = redact_text(text)
 
@@ -103,7 +103,7 @@ def test_diagnostics_bundle_redacts_config_and_lists_logs(tmp_path: Path, monkey
     config = {
         "providers": {
             "openai": {
-                "api_key": "sk-abcdefghijklmnopqrstuvwxyz",
+                "api_key": "sk-REDACTIONTOKENEXAMPLE123456",
                 "endpoint": "https://example.test",
             }
         }

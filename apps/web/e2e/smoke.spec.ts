@@ -912,14 +912,14 @@ test.describe("Agentheim Code Web", () => {
     await page.getByLabel("Account ID").fill("openai-cloud");
     await page.getByLabel("Display Name").fill("OpenAI Cloud");
     await page.getByLabel("Endpoint").fill("https://api.openai.com/v1");
-    await page.getByLabel("Secret").fill("sk-test");
+    await page.getByLabel("Secret").fill("example-openai-secret");
     await page.getByRole("button", { name: "Test Connection" }).click();
     await expect(page.getByText(/Connection successful/i)).toBeVisible();
     await page.getByRole("button", { name: "Add Account", exact: true }).click();
     await expect(page.getByText(/Secret saved for openai-cloud/i)).toBeVisible();
 
     await page.getByRole("button", { name: "Rotate Secret" }).click();
-    await page.getByLabel("New Secret").fill("sk-rotated");
+    await page.getByLabel("New Secret").fill("example-openai-secret-rotated");
     await page.getByRole("button", { name: "Save Secret" }).click();
     await expect(page.getByText(/Secret rotated for openai-cloud/i)).toBeVisible();
 
