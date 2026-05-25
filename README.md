@@ -125,7 +125,6 @@ Start here:
 - [Privacy and security](docs/PRIVACY_SECURITY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Product roadmap](PRODUCT_ROADMAP.md)
-- [2.0.0 plan](PLAN_2.0.0.md)
 
 ## Type Generation
 

@@ -6,8 +6,6 @@ This roadmap describes the current audited baseline and the next useful product
 moves from here. It intentionally avoids stale phase-complete language and old
 verification counts.
 
-For the full forward implementation program, see [PLAN_2.0.0.md](PLAN_2.0.0.md).
-
 ## Current Baseline
 
 The repository version is currently `2.0.0`. This is the verified product
@@ -86,6 +84,13 @@ The current baseline now includes:
 - rerun browser, desktop, wheel, and installer smoke from a clean tree
 - sign off the release state only when docs and artifacts match the shipped truth
 
+### 4. Provider And Runtime Hardening
+
+- deepen request-id correlation across remaining shared logs and diagnostics
+- expand structured provider/network/filesystem error coverage
+- improve approval preview quality for file edits
+- keep provider discovery claims strictly aligned with real implementation
+
 ## Longer-Term Opportunities
 
 - native file watching instead of purely pull-based refresh flows
@@ -93,6 +98,8 @@ The current baseline now includes:
 - ✅ OpenAPI-to-TypeScript type generation pipeline
 - stable visual regression checks once the UI surface is intentionally frozen
 - optional benchmark suites for model-output quality
+- smarter token estimation than the current fixed heuristic
+- virtualized tree browsing only if the paged flat browser stops being enough
 
 ## Release Discipline
 
