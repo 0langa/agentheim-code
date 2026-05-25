@@ -1,4 +1,10 @@
-import type { ContextPreviewItem, Session } from "./types";
+import type {
+  CoderSessionMessageRequest,
+  ContextValidateRequest,
+  ContextValidationResult,
+  FileBrowsePage,
+  Session,
+} from "./types";
 
 const DEFAULT_API_BASE = "/api";
 let resolvedApiBase: Promise<string> | null = null;
@@ -72,19 +78,27 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   return fetch(url, init);
 }
 
+function mergeHeaders(init?: RequestInit, requestId?: string): Headers {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("content-type") && init?.body !== undefined) {
+    headers.set("content-type", "application/json");
+  }
+  if (requestId) {
+    headers.set("x-request-id", requestId);
+  }
+  return headers;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${await getApiBase()}${path}`;
   const requestId = newRequestId();
   const response = await fetchWithRetry(url, {
-    headers: {
-      "content-type": "application/json",
-      "x-request-id": requestId,
-    },
     ...init,
+    headers: mergeHeaders(init, requestId),
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text, requestId);
+    throw new ApiError(response.status, text, response.headers.get("x-request-id") ?? requestId);
   }
   return response.json() as Promise<T>;
 }
@@ -131,11 +145,12 @@ export async function streamSessionMessage(
     `${apiBase}/coder/sessions/${sessionId}/messages/stream`,
     {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-request-id": newRequestId(),
-      },
-      body: JSON.stringify({ prompt, context_files: contextFiles, use_context_bundle: true }),
+      headers: mergeHeaders(undefined, newRequestId()),
+      body: JSON.stringify({
+        prompt,
+        context_files: contextFiles,
+        use_context_bundle: true,
+      } satisfies CoderSessionMessageRequest),
       signal,
     },
   );
@@ -171,13 +186,25 @@ export async function cancelSession(sessionId: string): Promise<Session> {
 export async function validateContext(
   sessionId: string,
   paths: string[],
-): Promise<{ items: ContextPreviewItem[]; errors: string[]; total_token_estimate: number }> {
-  return api<{ items: ContextPreviewItem[]; errors: string[]; total_token_estimate: number }>(
+): Promise<ContextValidationResult> {
+  return api<ContextValidationResult>(
     `/coder/sessions/${sessionId}/context/validate`,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ paths }),
+      body: JSON.stringify({ paths } satisfies ContextValidateRequest),
     },
   );
+}
+
+export async function browseFiles(
+  query = "",
+  offset = 0,
+  limit = 100,
+): Promise<FileBrowsePage> {
+  const params = new URLSearchParams({
+    q: query,
+    offset: String(offset),
+    limit: String(limit),
+  });
+  return api<FileBrowsePage>(`/coder/files/browser?${params.toString()}`);
 }

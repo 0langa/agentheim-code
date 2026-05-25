@@ -61,6 +61,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 - Trust modes: `read_only`, `ask`, `workspace`
 - Streaming chat with markdown and code rendering
 - `@` file context search, validation, preview, and token estimate
+- Incremental workspace browser with server-side paging, preview, copy path, and attach
 - Approval inspector for shell, file, and tool actions
 - Runs, timeline, terminal output, diff review, usage, and settings panels
 - Dark, light, and high-contrast themes

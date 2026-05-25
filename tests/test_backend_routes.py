@@ -120,6 +120,31 @@ def test_files_endpoint(client: TestClient) -> None:
     assert isinstance(resp.json(), list)
 
 
+def test_file_browser_endpoint_pages_results(client: TestClient, workspace_dir: str) -> None:
+    workspace = Path(workspace_dir)
+    (workspace / "src").mkdir()
+    for index in range(5):
+        (workspace / "src" / f"file{index}.py").write_text("print('hi')", encoding="utf-8")
+
+    first = client.get("/api/coder/files/browser", params={"limit": 2})
+
+    assert first.status_code == 200
+    payload = first.json()
+    assert len(payload["items"]) == 2
+    assert payload["has_more"] is True
+    assert payload["next_offset"] == 2
+
+    second = client.get(
+        "/api/coder/files/browser",
+        params={"limit": 2, "offset": payload["next_offset"]},
+    )
+
+    assert second.status_code == 200
+    payload = second.json()
+    assert len(payload["items"]) == 2
+    assert payload["next_offset"] == 4
+
+
 def test_files_search_filters_workspace_paths(client: TestClient, workspace_dir: str) -> None:
     workspace = Path(workspace_dir)
     (workspace / "src").mkdir()
@@ -131,6 +156,22 @@ def test_files_search_filters_workspace_paths(client: TestClient, workspace_dir:
 
     assert resp.status_code == 200
     assert resp.json() == [{"path": "src/app.py", "type": "file"}]
+
+
+def test_file_browser_search_filters_directories_and_files(
+    client: TestClient, workspace_dir: str
+) -> None:
+    workspace = Path(workspace_dir)
+    (workspace / "docs").mkdir()
+    (workspace / "docs" / "guide.md").write_text("# hi", encoding="utf-8")
+
+    resp = client.get("/api/coder/files/browser", params={"q": "doc", "limit": 10})
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["query"] == "doc"
+    assert {"path": "docs", "type": "directory"} in payload["items"]
+    assert {"path": "docs/guide.md", "type": "file"} in payload["items"]
 
 
 def test_runs_endpoint_empty(client: TestClient) -> None:

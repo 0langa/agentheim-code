@@ -332,4 +332,30 @@ describe("App API integration", () => {
       expect(screen.queryByText("Unsupported")).not.toBeInTheDocument();
     });
   });
+
+  it("supports opening runs from the command palette", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([
+        { id: "runs", label: "Open Runs", cli: "agentheim-code runs", surface: "drawer" },
+      ])
+      .mockResolvedValueOnce([
+        { session_id: "sess-5", status: "idle", mode: "code", workspace_root: "." },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.keyDown(window, { ctrlKey: true, key: "k" });
+    fireEvent.click((await screen.findAllByText("Open Runs"))[0]);
+
+    expect(await screen.findByPlaceholderText("Filter sessions...")).toBeInTheDocument();
+    expect(screen.getByText("sess-5")).toBeInTheDocument();
+  });
 });

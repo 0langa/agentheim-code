@@ -20,8 +20,11 @@ These items should not be tracked as missing anymore:
 - graceful backend lifespan hooks exist
 - cancellation cleanup is better than simple session flagging
 - diagnostics bundle generation exists
+- OpenAPI-to-TypeScript generation exists and is consumed directly for config, command, provider-detection, and file-browser surfaces
 - provider health persistence exists
 - a first-party OCI GenAI adapter exists; the older vendored bridge has been removed
+- a paged backend file browser exists; the old 500-item client cap is gone
+- the command palette now directly supports runs, timeline, files, terminal, usage, settings, retry, stop, approvals, and new-session flows
 - Typer shell completion support exists
 - dark, light, and high-contrast themes exist
 - keyboard shortcuts exist for command palette, settings, new session, and send
@@ -34,7 +37,7 @@ These items should not be tracked as missing anymore:
 
 ### Backend And Runtime
 
-- propagate request ids deeper into shared runtime logs and run artifacts
+- finish request-id correlation across remaining shared core/provider logging paths
 - make token estimation smarter than a fixed chars-per-token heuristic
 - expand structured error coverage for provider, network, and filesystem failures
 - consider provider circuit breaker or fallback behavior
@@ -43,13 +46,11 @@ These items should not be tracked as missing anymore:
 ### Frontend
 
 - split `App.tsx` state into more maintainable slices
-- virtualize or incrementally load the files panel for large workspaces
-- replace the naive line diff algorithm
-- render ANSI terminal output cleanly
-- add request retry/backoff for safe API calls
-- make command palette execution fully honest: either support more commands or hide them
+- graduate the flat paged files browser into a virtualized tree view if larger repositories demand it
+- move beyond the current line-based diff viewer only if richer structured diffs materially improve review quality
+- preserve useful terminal formatting if runtime output starts relying on more than ANSI stripping
+- keep the command palette exhaustive for the supported workbench surface as new actions are added
 - improve approval presentation for file edits
-- improve file-panel scaling beyond the current 500-item cap
 
 ### Desktop And CI
 
@@ -61,8 +62,6 @@ These items should not be tracked as missing anymore:
 
 ### Docs And Process
 
-- generate TypeScript API types from FastAPI/OpenAPI
-- add ADRs for major architecture choices
 - keep release checklist result blocks fresh instead of preserving stale numbers
 - add visual regression checks only after the UI surface is more stable
 
@@ -78,24 +77,23 @@ at once. Better next steps for this repository are:
 Examples:
 
 - request ids before full OpenTelemetry
+- tree-virtualization only if the paged flat browser stops being enough
 - `jsdiff`-class improvements before a full custom diff framework
-- file-list scaling before adding an IDE plugin system
-- API type generation before a larger frontend state-management rewrite
+- request/type surface cleanup before a larger frontend state-management rewrite
 
 ## Priority Order
 
 ### P1
 
-- file panel scaling
-- more honest command palette behavior
-- deeper request-id propagation into logs and diagnostics
+- config-surface cleanup
+- deeper request-id correlation across shared logs and diagnostics
+- approval preview quality
 
 ### P2
 
 - smarter token estimation
-- richer diff rendering
-- ANSI terminal rendering
-- config-surface cleanup
+- richer diff presentation where line-based review becomes limiting
+- stronger file-browser ergonomics for very large repos
 - CI caching
 - OCI provider parity and broader provider regression coverage
 

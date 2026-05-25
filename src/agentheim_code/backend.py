@@ -5,7 +5,7 @@ import json
 import urllib.request
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +40,7 @@ from core.run_view import list_run_views
 from workflows.coder.runtime import (
     approve_request,
     available_commands,
+    browse_file_tree,
     cancel_session,
     create_session,
     get_session,
@@ -99,12 +100,64 @@ class OnboardingCompleteRequest(BaseModel):
     default_workspace: str | None = None
 
 
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    workspace: str
+
+
+class UiConfigResponse(BaseModel):
+    onboarding_complete: bool
+    onboarding_dismissed: bool
+    default_workspace: str
+    theme: Literal["dark", "light", "high_contrast"]
+
+
+class LocalProviderResponse(BaseModel):
+    kind: str
+    display_name: str
+    detected: bool
+    endpoint: str
+    models: list[str] = Field(default_factory=list)
+
+
+class FileEntryResponse(BaseModel):
+    path: str
+    type: str
+
+
+class FileBrowseResponse(BaseModel):
+    items: list[FileEntryResponse]
+    next_offset: int | None = None
+    has_more: bool
+    query: str = ""
+
+
+class CommandRegistryEntry(BaseModel):
+    id: str
+    label: str
+    cli: str
+    surface: str
+
+
 def _version() -> str:
     return __version__
 
 
 def _json_model(model: Any) -> dict[str, Any]:
     return cast(dict[str, Any], model.model_dump(mode="json"))
+
+
+def _ui_config_response(payload: dict[str, Any]) -> UiConfigResponse:
+    return UiConfigResponse(
+        onboarding_complete=bool(payload.get("onboarding_complete", False)),
+        onboarding_dismissed=bool(payload.get("onboarding_dismissed", False)),
+        default_workspace=str(payload.get("default_workspace", ".")),
+        theme=cast(
+            Literal["dark", "light", "high_contrast"],
+            payload.get("theme", "dark"),
+        ),
+    )
 
 
 def _web_dist_dir() -> Path:
@@ -324,31 +377,33 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         response.headers[REQUEST_ID_HEADER] = request_id
         return response
 
-    @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "version": _version(), "workspace": str(workspace_path)}
+    @app.get("/api/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
+        return HealthResponse(status="ok", version=_version(), workspace=str(workspace_path))
 
-    @app.get("/api/config")
-    def api_get_config() -> dict[str, Any]:
-        return _read_ui_config()
+    @app.get("/api/config", response_model=UiConfigResponse)
+    def api_get_config() -> UiConfigResponse:
+        return _ui_config_response(_read_ui_config())
 
-    @app.patch("/api/config")
-    def api_patch_config(body: UiConfigPatch) -> dict[str, Any]:
-        return _write_ui_config(body)
+    @app.patch("/api/config", response_model=UiConfigResponse)
+    def api_patch_config(body: UiConfigPatch) -> UiConfigResponse:
+        return _ui_config_response(_write_ui_config(body))
 
-    @app.post("/api/onboarding/complete")
-    def api_complete_onboarding(body: OnboardingCompleteRequest) -> dict[str, Any]:
-        return _write_ui_config(
-            UiConfigPatch(
-                onboarding_complete=True,
-                onboarding_dismissed=False,
-                default_workspace=body.default_workspace,
+    @app.post("/api/onboarding/complete", response_model=UiConfigResponse)
+    def api_complete_onboarding(body: OnboardingCompleteRequest) -> UiConfigResponse:
+        return _ui_config_response(
+            _write_ui_config(
+                UiConfigPatch(
+                    onboarding_complete=True,
+                    onboarding_dismissed=False,
+                    default_workspace=body.default_workspace,
+                )
             )
         )
 
-    @app.get("/api/onboarding/local-providers")
-    def api_local_providers() -> list[dict[str, Any]]:
-        return [_detect_ollama()]
+    @app.get("/api/onboarding/local-providers", response_model=list[LocalProviderResponse])
+    def api_local_providers() -> list[LocalProviderResponse]:
+        return [LocalProviderResponse.model_validate(_detect_ollama())]
 
     @app.get("/api/coder/sessions")
     def api_list_sessions(workspace_root: str | None = None) -> list[dict[str, Any]]:
@@ -647,18 +702,49 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             ).diffs
         ]
 
-    @app.get("/api/coder/files")
-    def api_files(workspace_root: str | None = None) -> list[dict[str, Any]]:
+    @app.get("/api/coder/files", response_model=list[FileEntryResponse])
+    def api_files(workspace_root: str | None = None) -> list[FileEntryResponse]:
         return cast(
-            list[dict[str, Any]], list_file_tree(_workspace(workspace_path, workspace_root))
+            list[FileEntryResponse],
+            [
+                FileEntryResponse.model_validate(item)
+                for item in list_file_tree(_workspace(workspace_path, workspace_root))
+            ],
         )
 
-    @app.get("/api/coder/files/search")
+    @app.get("/api/coder/files/browser", response_model=FileBrowseResponse)
+    def api_file_browser(
+        q: str = "",
+        limit: int = 100,
+        offset: int = 0,
+        workspace_root: str | None = None,
+    ) -> FileBrowseResponse:
+        bounded_limit = max(1, min(limit, 200))
+        bounded_offset = max(offset, 0)
+        items, next_offset = browse_file_tree(
+            _workspace(workspace_path, workspace_root),
+            query=q,
+            limit=bounded_limit,
+            offset=bounded_offset,
+        )
+        return FileBrowseResponse(
+            items=[FileEntryResponse.model_validate(item) for item in items],
+            next_offset=next_offset,
+            has_more=next_offset is not None,
+            query=q,
+        )
+
+    @app.get("/api/coder/files/search", response_model=list[FileEntryResponse])
     def api_file_search(
         q: str = "", limit: int = 50, workspace_root: str | None = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[FileEntryResponse]:
         bounded_limit = max(1, min(limit, 200))
-        return _search_file_tree(_workspace(workspace_path, workspace_root), q, bounded_limit)
+        return [
+            FileEntryResponse.model_validate(item)
+            for item in _search_file_tree(
+                _workspace(workspace_path, workspace_root), q, bounded_limit
+            )
+        ]
 
     @app.get("/api/coder/files/preview")
     def api_file_preview(path: str = "", workspace_root: str | None = None) -> str:
@@ -711,9 +797,9 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         health = load_health()
         return {"health": {k: v.to_dict() for k, v in health.items()}}
 
-    @app.get("/api/coder/commands")
-    def api_commands() -> list[dict[str, str]]:
-        return cast(list[dict[str, str]], available_commands())
+    @app.get("/api/coder/commands", response_model=list[CommandRegistryEntry])
+    def api_commands() -> list[CommandRegistryEntry]:
+        return [CommandRegistryEntry.model_validate(item) for item in available_commands()]
 
     @app.get("/api/providers/templates")
     def api_provider_templates() -> list[dict[str, Any]]:

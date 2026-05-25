@@ -4,6 +4,7 @@ import contextlib
 import json
 import os
 from datetime import UTC, datetime
+from itertools import islice
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -503,7 +504,11 @@ def _invoke_planner_json(
         )
     if not response.content or not response.content.strip():
         raise ValueError("Provider returned an empty response.")
-    if response.usage and max_output_tokens and response.usage.output_tokens >= int(max_output_tokens * 0.95):
+    if (
+        response.usage
+        and max_output_tokens
+        and response.usage.output_tokens >= int(max_output_tokens * 0.95)
+    ):
         raise ValueError(
             f"Provider response may be truncated: output_tokens={response.usage.output_tokens} "
             f"approaches max_output_tokens={max_output_tokens}."
@@ -1159,16 +1164,46 @@ def list_session_views(workspace_root: str | Path) -> list[CoderSessionView]:
     return [get_session_view(workspace, session.session_id) for session in list_sessions(workspace)]
 
 
-def list_file_tree(workspace_root: str | Path, *, limit: int = 500) -> list[dict[str, Any]]:
+def _iter_file_tree_entries(workspace: Path):
+    for root, dirnames, filenames in os.walk(workspace):
+        current = Path(root)
+        relative_root = current.relative_to(workspace)
+        dirnames[:] = sorted(name for name in dirnames if name not in {".ai-team", ".git"})
+        for dirname in dirnames:
+            path = (relative_root / dirname).as_posix()
+            yield {"path": path, "type": "directory"}
+        for filename in sorted(filenames):
+            path = (relative_root / filename).as_posix()
+            yield {"path": path, "type": "file"}
+
+
+def browse_file_tree(
+    workspace_root: str | Path,
+    *,
+    offset: int = 0,
+    limit: int = 100,
+    query: str = "",
+) -> tuple[list[dict[str, Any]], int | None]:
     workspace = safe_project_path(workspace_root)
-    items: list[dict[str, Any]] = []
-    for path in sorted(workspace.rglob("*")):
-        if ".ai-team" in path.parts or ".git" in path.parts:
-            continue
-        relative = path.relative_to(workspace).as_posix()
-        items.append({"path": relative, "type": "directory" if path.is_dir() else "file"})
-        if len(items) >= limit:
-            break
+    normalized_query = query.strip().lower()
+    bounded_offset = max(offset, 0)
+    bounded_limit = max(1, limit)
+
+    def filtered_entries():
+        for item in _iter_file_tree_entries(workspace):
+            if normalized_query and normalized_query not in str(item["path"]).lower():
+                continue
+            yield item
+
+    window = list(islice(filtered_entries(), bounded_offset, bounded_offset + bounded_limit + 1))
+    has_more = len(window) > bounded_limit
+    items = window[:bounded_limit]
+    next_offset = bounded_offset + bounded_limit if has_more else None
+    return items, next_offset
+
+
+def list_file_tree(workspace_root: str | Path, *, limit: int = 500) -> list[dict[str, Any]]:
+    items, _ = browse_file_tree(workspace_root, offset=0, limit=limit)
     return items
 
 
@@ -1186,7 +1221,12 @@ def cancel_session(
     if request_id:
         cancel_details["request_id"] = request_id
     session = _record_activity(
-        workspace, session, ActivityKind.BLOCKED, "Session cancelled.", cancel_details, request_id=request_id
+        workspace,
+        session,
+        ActivityKind.BLOCKED,
+        "Session cancelled.",
+        cancel_details,
+        request_id=request_id,
     )
     _append_event(
         workspace,
@@ -1348,7 +1388,11 @@ def post_message(
             workspace, session, ActivityKind.THINKING, "Planning next turn.", request_id=request_id
         )
         session = _record_activity(
-            workspace, session, ActivityKind.SCANNING, "Scanning workspace state.", request_id=request_id
+            workspace,
+            session,
+            ActivityKind.SCANNING,
+            "Scanning workspace state.",
+            request_id=request_id,
         )
 
         ledger = _open_ledger(workspace, session_id)
@@ -1385,7 +1429,12 @@ def post_message(
 
 
 def approve_request(
-    workspace_root: str | Path, session_id: str, request_id: str, *, grant: bool, caller_request_id: str = ""
+    workspace_root: str | Path,
+    session_id: str,
+    request_id: str,
+    *,
+    grant: bool,
+    caller_request_id: str = "",
 ) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     session = _load_session(workspace, session_id)

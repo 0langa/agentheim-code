@@ -37,6 +37,7 @@ export function Onboarding({
   });
 
   const ollama = providers.find((provider) => provider.kind === "ollama");
+  const ollamaModels = ollama?.models ?? [];
 
   return (
     <div
@@ -72,7 +73,7 @@ export function Onboarding({
           {ollama?.detected ? (
             <p>
               Ollama detected at {ollama.endpoint}
-              {ollama.models.length > 0 ? ` (${ollama.models.join(", ")})` : ""}
+              {ollamaModels.length > 0 ? ` (${ollamaModels.join(", ")})` : ""}
             </p>
           ) : (
             <p>No local Ollama server detected. Add an API provider or skip setup.</p>

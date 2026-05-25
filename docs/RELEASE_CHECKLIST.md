@@ -90,23 +90,23 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-Last verified: 2026-05-24
+Last verified: 2026-05-25
 
-- branch: `main`
-- version: `1.9.0`
+- branch: `codex/rc1-polish`
+- version: `1.9.0` plus unreleased `2.0.0-rc1` hardening
 - `ruff check`: All checks passed
 - `ruff format --check`: 49 files already formatted
 - `mypy`: Success: no issues found in 21 source files
-- `pytest`: 269 passed, 3 deselected, 91.07% coverage
-- `npm --prefix apps/web run test -- --run`: 12 test files, 62 tests passed
+- `pytest`: 271 passed, 3 deselected, 91.26% coverage
+- `npm --prefix apps/web run test -- --run`: 12 test files, 68 tests passed
 - `npm --prefix apps/web run build`: passed
 - `npm --prefix apps/web run e2e`: 5 passed (chromium)
 - `cargo test`: 1 passed
 - `python -m build --wheel`: agentheim_code-1.9.0-py3-none-any.whl
 - `scripts/package-beta.ps1`: passed; built `Agentheim Code_1.9.0_x64-setup.exe` and completed clean wheel smoke
 - `scripts/release.ps1 -Version 1.9.0`: not executed
-- manual browser smoke: `/coder` loaded with title `Agentheim Code`; top bar rendered `AGENTHEIM CODE` / `Coder Hub`; Settings and New controls were present
-- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` launched against a live local backend and stayed alive after startup
+- manual browser smoke: `/api/health` returned `status=ok`, `version=1.9.0`; `/coder` loaded with title `Agentheim Code`; the page rendered `AGENTHEIM CODE`, `Coder Hub`, and the `New` action
+- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` stayed alive after startup from the built release binary
 - wheel contents smoke: clean wheel build completed successfully for `1.9.0`
 
 ### Unverified / Deferred

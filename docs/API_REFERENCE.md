@@ -220,13 +220,32 @@ The frontend currently parses these events manually in `apps/web/src/api.ts`.
 
 ### `GET /api/coder/files`
 
-Returns the workspace file tree.
+Returns the legacy bounded workspace file snapshot used by older clients.
+Current implementation returns the first page-like slice of the workspace tree.
+
+### `GET /api/coder/files/browser?q=...&offset=0&limit=100`
+
+Returns the paged workspace browser payload used by the current workbench.
+
+Response fields:
+
+- `items`
+- `next_offset`
+- `has_more`
+- `query`
+
+This route:
+
+- supports flat substring filtering with `q`
+- excludes `.git` and `.ai-team`
+- bounds `limit` to `1..200`
+- allows the frontend to incrementally load more results instead of fetching one capped list
 
 ### `GET /api/coder/files/search?q=...&limit=50`
 
 Returns matching file entries. Current implementation:
 
-- filters against the existing file tree
+- filters against the workspace file tree
 - returns files only
 - excludes `.git` and `.ai-team`
 - bounds `limit` to `1..200`

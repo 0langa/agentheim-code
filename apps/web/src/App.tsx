@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { startTransition, useEffect, useState } from "react";
 
 import { api, cancelSession, streamSessionMessage, validateContext } from "./api";
 import { Chat } from "./components/Chat";
@@ -10,7 +10,6 @@ import { Inspector } from "./components/Inspector";
 import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
-import type { WorkbenchSelection } from "./state/sessionState";
 import type {
   ContextPreviewItem,
   CoderCommand,
@@ -46,6 +45,23 @@ export function App() {
   const [contextPreviews, setContextPreviews] = useState<ContextPreviewItem[]>([]);
   const [sessionFilter, setSessionFilter] = useState("");
   const errorRef = React.useRef<HTMLDivElement | null>(null);
+
+  const mergeSession = React.useCallback((session: Session) => {
+    setSessions((current) => {
+      const withoutCurrent = current.filter((item) => item.session_id !== session.session_id);
+      return [session, ...withoutCurrent];
+    });
+  }, []);
+
+  const applySessionView = React.useCallback(
+    (view: SessionView) => {
+      startTransition(() => {
+        setActive(view);
+        mergeSession(view.session);
+      });
+    },
+    [mergeSession],
+  );
 
   useEffect(() => {
     api<UiConfig>("/config")
@@ -122,7 +138,7 @@ export function App() {
       const view = await api<SessionView>(
         `/coder/sessions/${session.session_id}/view`,
       );
-      setActive(view);
+      applySessionView(view);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -183,6 +199,21 @@ export function App() {
         },
       };
     });
+    setSessions((current) =>
+      current.map((session) =>
+        session.session_id === sessionId
+          ? {
+              ...session,
+              status: "running",
+              transcript: [
+                ...(session.transcript ?? []),
+                { role: "user", content: promptText },
+              ],
+              current_assistant_message: "",
+            }
+          : session,
+      ),
+    );
     try {
       await streamSessionMessage(
         sessionId,
@@ -214,7 +245,7 @@ export function App() {
       const view = await api<SessionView>(
         `/coder/sessions/${sessionId}/view`,
       );
-      setActive(view);
+      applySessionView(view);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError("Generation stopped.");
@@ -235,7 +266,7 @@ export function App() {
         const view = await api<SessionView>(
           `/coder/sessions/${active.session.session_id}/view`,
         );
-        setActive(view);
+        applySessionView(view);
       } catch {
         // Best-effort cancel
       }
@@ -291,7 +322,7 @@ export function App() {
         { method: "POST" },
       );
       const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
-      setActive(view);
+      applySessionView(view);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -318,7 +349,7 @@ export function App() {
     setError(null);
     try {
       const view = await api<SessionView>(`/coder/sessions/${sessionId}/view`);
-      setActive(view);
+      applySessionView(view);
       setSelectedMode(view.session.mode ?? "code");
       setSelectedTrustMode(view.session.trust_mode ?? "ask");
       setSelectedProfile(view.session.model_selection?.profile ?? "auto");
@@ -334,8 +365,11 @@ export function App() {
     "new",
     "settings",
     "approvals",
+    "runs",
+    "timeline",
     "terminal",
     "files",
+    "usage",
     "retry",
     "stop",
   ]);
@@ -343,13 +377,21 @@ export function App() {
     const builtins: CoderCommand[] = [
       { id: "settings", label: "Open Settings", cli: "/settings", surface: "global" },
       { id: "approvals", label: "Open Approvals", cli: "/approvals", surface: "global" },
+      { id: "runs", label: "Open Runs", cli: "/runs", surface: "global" },
+      { id: "timeline", label: "Open Timeline", cli: "/timeline", surface: "global" },
       { id: "terminal", label: "Open Terminal", cli: "/terminal", surface: "global" },
       { id: "files", label: "Open Files", cli: "/files", surface: "global" },
+      { id: "usage", label: "Open Usage", cli: "/usage", surface: "global" },
       { id: "retry", label: "Retry Last Prompt", cli: "/retry", surface: "global" },
       { id: "stop", label: "Stop Current Run", cli: "/stop", surface: "global" },
     ];
-    const combined = [...commands, ...builtins];
-    return combined.filter((cmd) => supportedCommandIds.has(cmd.id));
+    const byId = new Map<string, CoderCommand>();
+    for (const command of [...commands, ...builtins]) {
+      if (supportedCommandIds.has(command.id) && !byId.has(command.id)) {
+        byId.set(command.id, command);
+      }
+    }
+    return Array.from(byId.values());
   }, [commands]);
 
   const executeCommand = (command: CoderCommand) => {
@@ -359,16 +401,20 @@ export function App() {
       setInspector("settings");
     } else if (command.id === "approvals") {
       setInspector("approvals");
+    } else if (command.id === "runs") {
+      setInspector("runs");
+    } else if (command.id === "timeline") {
+      setInspector("timeline");
     } else if (command.id === "terminal") {
       setInspector("terminal");
     } else if (command.id === "files") {
       setInspector("files");
+    } else if (command.id === "usage") {
+      setInspector("usage");
     } else if (command.id === "retry") {
       retryPrompt();
     } else if (command.id === "stop") {
       stopPrompt();
-    } else {
-      console.log("Execute command:", command.cli);
     }
   };
 
@@ -385,7 +431,7 @@ export function App() {
       },
     );
     const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
-    setActive(view);
+    applySessionView(view);
   };
 
   const changeProfile = async (profile: string) => {

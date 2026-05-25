@@ -1,6 +1,6 @@
 # Product Roadmap
 
-Updated: 2026-05-24
+Updated: 2026-05-25
 
 This roadmap describes the current audited baseline and the next useful product
 moves from here. It intentionally avoids stale phase-complete language and old
@@ -30,12 +30,22 @@ Confirmed product shape:
 - improved diff rendering (LCS-style line diff)
 - ANSI-safe terminal output
 - honest command palette (unsupported commands hidden)
-- workspace explorer capped at 500 files with incremental client-side batching
+- incremental workspace explorer backed by paged server-side file browsing
 - OpenAPI-to-TypeScript type generation pipeline
 - broader Playwright smoke coverage for onboarding, provider, and streaming flows
 - CI caching for Rust/cargo and Playwright browsers
 - first-party OCI GenAI provider adapter with the legacy vendored bridge removed
 - Python non-integration coverage gate proven at 90%+
+
+## Current `2.0.0-rc1` Hardening Progress
+
+Unreleased branch work toward `2.0.0-rc1` currently includes:
+
+- broader frontend consumption of generated OpenAPI types
+- paged backend file browsing replacing the old capped client snapshot flow
+- stronger session-list synchronization while active runs change state
+- more complete command-palette execution for runs, timeline, and usage navigation
+- broader e2e and smoke coverage around the updated workbench behavior
 
 ## What Is Working Well
 
@@ -50,7 +60,7 @@ Confirmed product shape:
 - The packaged desktop shell is not part of the Python wheel. `agentheim-code app`
   requires a built or installed Tauri binary.
 - UI config and provider profile storage are intentionally split across different config systems.
-- The files panel loads the file tree and filters client-side.
+- The files panel is still a flat browser rather than a fully virtualized tree.
 - The diff viewer is intentionally simple and line-based.
 - The command palette only directly executes a built-in subset of actions.
 - Release automation is Windows-first and local-artifact oriented.
@@ -59,13 +69,13 @@ Confirmed product shape:
 
 ### 1. 2.0.0-rc1 Contract Freeze
 
-- broaden generated API type adoption across the frontend
+- broaden generated API type adoption across remaining session/view-heavy frontend surfaces
 - freeze terminology across CLI, UI, API docs, and release notes
 - tighten the code-vs-doc truth audit before any `2.0.0` claim
 
 ### 2. Premium Finish
 
-- expand Playwright coverage from smoke into release-grade flows
+- expand Playwright coverage from smoke into fuller release-grade flows
 - add stable screenshots and final user-facing polish
 - keep keyboard, onboarding, provider, approval, and streaming flows trustworthy
 

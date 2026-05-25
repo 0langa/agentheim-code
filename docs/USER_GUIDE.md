@@ -111,14 +111,15 @@ Lists sessions and supports a simple text filter over:
 
 Shows the current workspace tree with:
 
+- incremental backend loading
 - simple substring search
 - changed-file badges
 - preview
 - copy path
 - attach to context
 
-For large workspaces the file list is capped at 500 visible entries to keep
-rendering responsive.
+Large workspaces now load in backend pages instead of one capped client-side
+list. Use `Load next 100` to keep browsing without locking the panel.
 
 ### Terminal
 
@@ -172,6 +173,9 @@ The current Settings panel includes:
 The command palette only shows actions that the workbench can execute directly.
 Unsupported CLI-only commands are hidden rather than displayed as non-functional
 items.
+
+The current supported palette actions include navigation for Runs, Timeline,
+Files, Terminal, Usage, Settings, approvals, retry, stop, and new session.
 
 ## CLI Flow
 

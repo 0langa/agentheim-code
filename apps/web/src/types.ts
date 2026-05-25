@@ -1,18 +1,33 @@
 /**
- * Canonical hand-written types for the Agentheim Code frontend.
+ * Canonical frontend types.
  *
- * API types can be regenerated from the backend OpenAPI schema:
- *   npm --prefix apps/web run types:api
- *
- * See docs/adr/0002-api-type-generation.md for the generation workflow.
+ * Generated OpenAPI types are used where the backend contract is explicit.
+ * Hand-written shapes remain for richer UI-only models that the backend does
+ * not yet describe precisely enough in OpenAPI.
  */
 
-export type CoderCommand = {
-  id: string;
-  label: string;
-  cli: string;
-  surface: string;
-};
+import type { components, paths } from "./generated/api-types";
+
+type ApiResponse<
+  Path extends keyof paths,
+  Method extends keyof paths[Path],
+> = paths[Path][Method] extends {
+  responses: { 200: { content: { "application/json": infer Payload } } };
+}
+  ? Payload
+  : never;
+
+type ApiSchemas = components["schemas"];
+
+export type CoderCommand = ApiResponse<"/api/coder/commands", "get">[number];
+export type UiConfig = ApiResponse<"/api/config", "get">;
+export type UiConfigPatch = ApiSchemas["UiConfigPatch"];
+export type LocalProvider = ApiResponse<"/api/onboarding/local-providers", "get">[number];
+export type FileEntry = ApiResponse<"/api/coder/files", "get">[number];
+export type FileBrowsePage = ApiResponse<"/api/coder/files/browser", "get">;
+export type CoderSessionCreateRequest = ApiSchemas["CoderSessionCreateRequest"];
+export type CoderSessionMessageRequest = ApiSchemas["CoderSessionMessageRequest"];
+export type ContextValidateRequest = ApiSchemas["ContextValidateRequest"];
 
 export type ModelBinding = {
   id: string;
@@ -39,26 +54,6 @@ export type ModelOptions = {
   error?: string;
 };
 
-export type UiConfig = {
-  onboarding_complete: boolean;
-  onboarding_dismissed: boolean;
-  default_workspace: string;
-  theme: "dark" | "light" | "high_contrast";
-};
-
-export type LocalProvider = {
-  kind: string;
-  display_name: string;
-  detected: boolean;
-  endpoint: string;
-  models: string[];
-};
-
-export type FileEntry = {
-  path: string;
-  type: "file" | "directory";
-};
-
 export type TranscriptEntry = {
   role: string;
   content: string;
@@ -81,6 +76,14 @@ export type ContextPreviewItem = {
   truncation_reason: string;
   token_estimate: number;
 };
+
+export type ContextValidationResult = {
+  items: ContextPreviewItem[];
+  errors: string[];
+  total_token_estimate: number;
+};
+
+export type TranscriptRole = "user" | "assistant" | "system";
 
 export type Session = {
   session_id: string;
@@ -170,7 +173,6 @@ export type SessionView = {
   artifacts?: string[];
 };
 
-// Provider wizard types
 export type WizardField = {
   name: string;
   label: string;

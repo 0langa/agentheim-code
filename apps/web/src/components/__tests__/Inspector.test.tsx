@@ -110,6 +110,7 @@ describe("Inspector", () => {
       />,
     );
 
+    await screen.findByText("No providers configured. Add one to get started.");
     fireEvent.change(screen.getByLabelText("Theme"), {
       target: { value: "high_contrast" },
     });
@@ -264,6 +265,7 @@ describe("Inspector", () => {
       />,
     );
 
+    await screen.findByText("No providers configured. Add one to get started.");
     expect(screen.getByText("Keyboard Shortcuts")).toBeInTheDocument();
     expect(screen.getByText(/Ctrl\+K/)).toBeInTheDocument();
     expect(screen.getByText(/Ctrl\+,/)).toBeInTheDocument();

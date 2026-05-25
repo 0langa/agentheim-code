@@ -329,6 +329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/coder/files/browser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Api File Browser */
+        get: operations["api_file_browser_api_coder_files_browser_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/coder/files/search": {
         parameters: {
             query?: never;
@@ -627,15 +644,69 @@ export interface components {
             /** Model */
             model?: string | null;
         };
+        /** CommandRegistryEntry */
+        CommandRegistryEntry: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Cli */
+            cli: string;
+            /** Surface */
+            surface: string;
+        };
         /** ContextValidateRequest */
         ContextValidateRequest: {
             /** Paths */
             paths?: string[];
         };
+        /** FileBrowseResponse */
+        FileBrowseResponse: {
+            /** Items */
+            items: components["schemas"]["FileEntryResponse"][];
+            /** Next Offset */
+            next_offset?: number | null;
+            /** Has More */
+            has_more: boolean;
+            /**
+             * Query
+             * @default
+             */
+            query: string;
+        };
+        /** FileEntryResponse */
+        FileEntryResponse: {
+            /** Path */
+            path: string;
+            /** Type */
+            type: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HealthResponse */
+        HealthResponse: {
+            /** Status */
+            status: string;
+            /** Version */
+            version: string;
+            /** Workspace */
+            workspace: string;
+        };
+        /** LocalProviderResponse */
+        LocalProviderResponse: {
+            /** Kind */
+            kind: string;
+            /** Display Name */
+            display_name: string;
+            /** Detected */
+            detected: boolean;
+            /** Endpoint */
+            endpoint: string;
+            /** Models */
+            models?: string[];
         };
         /** OnboardingCompleteRequest */
         OnboardingCompleteRequest: {
@@ -652,6 +723,20 @@ export interface components {
             default_workspace?: string | null;
             /** Theme */
             theme?: string | null;
+        };
+        /** UiConfigResponse */
+        UiConfigResponse: {
+            /** Onboarding Complete */
+            onboarding_complete: boolean;
+            /** Onboarding Dismissed */
+            onboarding_dismissed: boolean;
+            /** Default Workspace */
+            default_workspace: string;
+            /**
+             * Theme
+             * @enum {string}
+             */
+            theme: "dark" | "light" | "high_contrast";
         };
         /** ValidationError */
         ValidationError: {
@@ -690,9 +775,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -712,9 +795,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UiConfigResponse"];
                 };
             };
         };
@@ -738,9 +819,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UiConfigResponse"];
                 };
             };
             /** @description Validation Error */
@@ -773,9 +852,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UiConfigResponse"];
                 };
             };
             /** @description Validation Error */
@@ -804,9 +881,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["LocalProviderResponse"][];
                 };
             };
         };
@@ -1375,9 +1450,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["FileEntryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_file_browser_api_coder_files_browser_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+                offset?: number;
+                workspace_root?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileBrowseResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1410,9 +1517,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["FileEntryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -1550,9 +1655,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    }[];
+                    "application/json": components["schemas"]["CommandRegistryEntry"][];
                 };
             };
         };
