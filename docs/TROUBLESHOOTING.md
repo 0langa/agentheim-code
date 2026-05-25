@@ -40,7 +40,7 @@ If that fails:
 
 - start Ollama
 - confirm port `11434` is available
-- add a provider manually with the wizard
+- add a provider manually from **Providers & Models**
 
 ## Provider Test Failed
 

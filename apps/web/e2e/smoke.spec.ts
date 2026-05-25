@@ -6,6 +6,7 @@ type SessionState = {
   view: Record<string, unknown> | null;
   providersConfigured: boolean;
   providers: Array<Record<string, unknown>>;
+  discoveredModels: Record<string, Array<Record<string, unknown>>>;
   onboardingComplete: boolean;
   onboardingDismissed: boolean;
 };
@@ -34,6 +35,7 @@ function createMockState(): SessionState {
     view: null,
     providersConfigured: false,
     providers: [],
+    discoveredModels: {},
     onboardingComplete: true,
     onboardingDismissed: false,
   };
@@ -276,6 +278,314 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
       return;
     }
 
+    if (path === "/api/provider-management/profiles") {
+      if (method === "GET") {
+        await json({
+          configured: state.providersConfigured,
+          default_profile: state.providers[0]?.name ?? "default",
+          profiles: state.providers.map((p: Record<string, unknown>) => ({
+            name: p.name,
+            providers: p.providers,
+            models: p.models,
+          })),
+        });
+      } else if (method === "POST") {
+        const body = route.request().postDataJSON() as Record<string, unknown>;
+        state.providersConfigured = true;
+        state.providers.push({
+          name: body.name,
+          providers: [],
+          models: [],
+        });
+        await json({ ok: true, profile: { name: body.name } });
+      }
+      return;
+    }
+
+    if (path === "/api/provider-management/profiles/import" && method === "POST") {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const imported = body.data as Record<string, unknown>;
+      const importedName =
+        String(body.name ?? imported.name ?? `imported-${state.providers.length + 1}`);
+      state.providersConfigured = true;
+      state.providers.push({
+        name: importedName,
+        providers: Array.isArray(imported.providers) ? imported.providers : [],
+        models: Array.isArray(imported.models) ? imported.models : [],
+      });
+      await json({ ok: true, profile: { name: importedName } });
+      return;
+    }
+
+    if (path.startsWith("/api/provider-management/profiles/") && path.endsWith("/export")) {
+      const profileName = path.split("/")[4];
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      await json({ ok: true, data: profile ?? {} });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.endsWith("/duplicate") &&
+      method === "POST"
+    ) {
+      const profileName = path.split("/")[4];
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const targetName = String(body.target_name ?? `${profileName}-copy`);
+      state.providers.push({
+        name: targetName,
+        providers: Array.isArray(profile?.providers)
+          ? structuredClone(profile.providers as Array<Record<string, unknown>>)
+          : [],
+        models: Array.isArray(profile?.models)
+          ? structuredClone(profile.models as Array<Record<string, unknown>>)
+          : [],
+      });
+      await json({ ok: true, profile: { name: targetName } });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.endsWith("/set-default") &&
+      method === "POST"
+    ) {
+      const profileName = path.split("/")[4];
+      const index = state.providers.findIndex((p: Record<string, unknown>) => p.name === profileName);
+      if (index > 0) {
+        const [profile] = state.providers.splice(index, 1);
+        state.providers.unshift(profile);
+      }
+      await json({ ok: true, default_profile: profileName });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/accounts/") &&
+      path.endsWith("/rotate-secret") &&
+      method === "POST"
+    ) {
+      await json({ ok: true });
+      return;
+    }
+
+    if (
+      path === "/api/provider-management/accounts/test-draft" &&
+      method === "POST"
+    ) {
+      await json({
+        ok: true,
+        result: {
+          ok: true,
+          latency_ms: 98,
+        },
+      });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/accounts/") &&
+      path.endsWith("/test") &&
+      method === "POST"
+    ) {
+      await json({
+        ok: true,
+        result: {
+          ok: true,
+          latency_ms: 120,
+        },
+      });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/accounts/") &&
+      path.endsWith("/discover-models") &&
+      method === "POST"
+    ) {
+      const [, , , , profileName, , accountId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const account = (profile?.providers as Array<Record<string, unknown>> | undefined)?.find(
+        (item) => item.id === accountId
+      );
+      const template = String(account?.metadata?.template ?? account?.kind ?? "");
+      if (template === "aws_bedrock") {
+        await json({
+          ok: true,
+          supported: false,
+          discovery_mode: "manual_only",
+          models: [],
+        });
+        return;
+      }
+      const models =
+        state.discoveredModels[accountId] ?? [
+          {
+            id: "gpt-4.1-mini",
+            display_name: "GPT-4.1 Mini",
+            provider_model_name: "gpt-4.1-mini",
+            capabilities: ["text", "json", "streaming"],
+          },
+        ];
+      state.discoveredModels[accountId] = models;
+      await json({
+        ok: true,
+        supported: true,
+        discovery_mode: "remote_list_with_manual_fallback",
+        models,
+      });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.endsWith("/accounts") &&
+      method === "POST"
+    ) {
+      const profileName = path.split("/")[4];
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const account = {
+        ...body,
+        display_name: body.display_name ?? body.id,
+        metadata: body.metadata ?? {},
+      };
+      (profile?.providers as Array<Record<string, unknown>>).push(account);
+      await json({ ok: true, account });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/accounts/") &&
+      method === "PATCH"
+    ) {
+      const [, , , , profileName, , accountId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const providers = (profile?.providers as Array<Record<string, unknown>> | undefined) ?? [];
+      const index = providers.findIndex((item) => item.id === accountId);
+      providers[index] = { ...providers[index], ...body };
+      await json({ ok: true, account: providers[index] });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/accounts/") &&
+      method === "DELETE"
+    ) {
+      const [, , , , profileName, , accountId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const providers = (profile?.providers as Array<Record<string, unknown>> | undefined) ?? [];
+      profile!.providers = providers.filter((item) => item.id !== accountId);
+      if (url.searchParams.get("cascade") === "true") {
+        const models = (profile?.models as Array<Record<string, unknown>> | undefined) ?? [];
+        profile!.models = models.filter((item) => item.provider !== accountId);
+      }
+      await json({ ok: true });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.endsWith("/models") &&
+      method === "POST"
+    ) {
+      const profileName = path.split("/")[4];
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const model = { ...body, display_name: body.display_name ?? body.id };
+      (profile?.models as Array<Record<string, unknown>>).push(model);
+      await json({ ok: true, model });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/models/") &&
+      path.endsWith("/set-default") &&
+      method === "POST"
+    ) {
+      const [, , , , profileName, , modelId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const models = (profile?.models as Array<Record<string, unknown>> | undefined) ?? [];
+      const target = models.find((item) => item.id === modelId);
+      if (target) {
+        for (const model of models) {
+          if (model.role === target.role) model.is_default = false;
+        }
+        target.is_default = true;
+      }
+      await json({ ok: true, model: target });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/models/") &&
+      method === "PATCH"
+    ) {
+      const [, , , , profileName, , modelId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const models = (profile?.models as Array<Record<string, unknown>> | undefined) ?? [];
+      const index = models.findIndex((item) => item.id === modelId);
+      models[index] = { ...models[index], ...body };
+      await json({ ok: true, model: models[index] });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.includes("/models/") &&
+      method === "DELETE"
+    ) {
+      const [, , , , profileName, , modelId] = path.split("/");
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const models = (profile?.models as Array<Record<string, unknown>> | undefined) ?? [];
+      profile!.models = models.filter((item) => item.id !== modelId);
+      await json({ ok: true });
+      return;
+    }
+
+    if (
+      path.startsWith("/api/provider-management/profiles/") &&
+      path.endsWith("/models/import-discovered") &&
+      method === "POST"
+    ) {
+      const profileName = path.split("/")[4];
+      const profile = state.providers.find((p: Record<string, unknown>) => p.name === profileName);
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      const accountId = String(body.account_id ?? "");
+      const selectedModels = Array.isArray(body.models)
+        ? (body.models as Array<Record<string, unknown>>)
+        : [];
+      const imported = selectedModels.map((item) => ({
+        id: String(item.id),
+        provider: accountId,
+        model: String(item.provider_model_name ?? item.id),
+        role: "planner",
+        display_name: item.display_name,
+        capabilities: Array.isArray(item.capabilities) ? item.capabilities : ["text"],
+        source: "discovered",
+        is_default: false,
+        enabled: true,
+      }));
+      (profile?.models as Array<Record<string, unknown>>).push(...imported);
+      await json({ ok: true, models: imported });
+      return;
+    }
+
+    if (path === "/api/provider-management/templates") {
+      await json(wizardTemplates);
+      return;
+    }
+
     if (path === "/api/providers/test" && method === "POST") {
       await json({
         ok: true,
@@ -492,7 +802,7 @@ test.describe("Agentheim Code Web", () => {
     await expect(page.getByText("sess-1")).toBeVisible();
   });
 
-  test("provider wizard flow adds a new provider via settings", async ({ page }) => {
+  test("provider management workspace opens from settings", async ({ page }) => {
     const templates: WizardTemplate[] = [
       {
         kind: "openai_v1",
@@ -516,34 +826,137 @@ test.describe("Agentheim Code Web", () => {
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
-    // Open the provider wizard.
-    await page.getByRole("button", { name: "+ Add Provider" }).click();
-    const wizardDialog = page.getByRole("dialog", { name: "Add AI Provider" });
-    await expect(wizardDialog).toBeVisible();
+    // Open the provider management workspace.
+    await page.getByRole("button", { name: "Open Providers & Models" }).click();
+    const workspaceDialog = page.getByRole("dialog", { name: "Providers & Models" });
+    await expect(workspaceDialog).toBeVisible();
 
-    // Select the OpenAI template.
-    await page.locator('button.provider-card[title="OpenAI"]').click();
+    // Verify tabs are present
+    await expect(page.getByRole("button", { name: "Accounts", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Models", exact: true })).toBeVisible();
 
-    // Fill in the configuration fields.
-    await page.getByLabel("Profile Name").fill("My OpenAI");
-    await page.getByLabel("Provider ID").fill("openai");
-    await page.getByLabel("Model ID").fill("gpt-4.1");
-    await page.getByLabel("API Key").fill("sk-test-key");
+    // Close the workspace
+    await page.keyboard.press("Escape");
+    await expect(workspaceDialog).toHaveCount(0);
+  });
 
-    // Test the connection.
-    await page.getByRole("button", { name: "Test Connection" }).click();
-    await expect(page.getByText("✓ Connection successful")).toBeVisible();
+  test("provider management workspace opens from command palette", async ({ page }) => {
+    await mockApi(page, { modelConfigured: true });
+    await page.goto("/");
 
-    // Save the provider.
-    await page.getByRole("button", { name: "Save Provider" }).click();
+    await expect(page.locator("main.shell")).toBeVisible();
 
-    // Verify the wizard closes.
-    await expect(wizardDialog).toHaveCount(0);
+    await page.keyboard.press("Control+K");
+    await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+    await page.getByPlaceholder("Search commands").fill("providers");
+    await page.keyboard.press("Enter");
 
-    // Refresh the Settings panel to verify the provider list updated.
-    await page.getByRole("button", { name: "Runs" }).click();
+    const workspaceDialog = page.getByRole("dialog", { name: "Providers & Models" });
+    await expect(workspaceDialog).toBeVisible();
+
+    // Verify tabs are present
+    await expect(page.getByRole("button", { name: "Accounts" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Models" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Defaults & Roles" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Diagnostics" })).toBeVisible();
+  });
+
+  test("provider management lifecycle supports draft test, rotation, discovery, import-export, and manual fallback", async ({
+    page,
+  }) => {
+    const templates: WizardTemplate[] = [
+      {
+        kind: "openai_compatible",
+        display_name: "OpenAI-compatible",
+        endpoint: "https://example.com/v1",
+        auth_mode: "bearer",
+        provider_type: "openai_compatible",
+        capabilities: ["text", "json", "streaming"],
+        docs_url: "https://example.com/docs",
+        support_state: "beta",
+        wizard_fields: [],
+      },
+      {
+        kind: "aws_bedrock",
+        display_name: "AWS Bedrock",
+        endpoint: "-",
+        auth_mode: "aws_chain",
+        provider_type: "aws_bedrock",
+        capabilities: ["text", "json"],
+        docs_url: "https://docs.aws.amazon.com/bedrock/",
+        support_state: "experimental",
+        wizard_fields: [],
+      },
+    ];
+
+    await mockApi(page, {
+      modelConfigured: true,
+      wizardTemplates: templates,
+      initialSessions: [],
+      initialView: null,
+    });
+    await page.goto("/");
+
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.locator(".provider-row").getByText("My OpenAI")).toBeVisible();
+    await page.getByRole("button", { name: "Open Providers & Models" }).click();
+    const workspaceDialog = page.getByRole("dialog", { name: "Providers & Models" });
+    await expect(workspaceDialog).toBeVisible();
+
+    await page.getByRole("button", { name: "+ New Profile" }).click();
+    await page.getByLabel("Profile Name").fill("cloud");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByLabel("Profile", { exact: true })).toHaveValue("cloud");
+
+    await page.getByRole("button", { name: "+ Add Account" }).click();
+    await page.getByLabel("Template").selectOption("openai_compatible");
+    await page.getByLabel("Account ID").fill("openai-cloud");
+    await page.getByLabel("Display Name").fill("OpenAI Cloud");
+    await page.getByLabel("Endpoint").fill("https://api.openai.com/v1");
+    await page.getByLabel("Secret").fill("sk-test");
+    await page.getByRole("button", { name: "Test Connection" }).click();
+    await expect(page.getByText(/Connection successful/i)).toBeVisible();
+    await page.getByRole("button", { name: "Add Account", exact: true }).click();
+    await expect(page.getByText(/Secret saved for openai-cloud/i)).toBeVisible();
+
+    await page.getByRole("button", { name: "Rotate Secret" }).click();
+    await page.getByLabel("New Secret").fill("sk-rotated");
+    await page.getByRole("button", { name: "Save Secret" }).click();
+    await expect(page.getByText(/Secret rotated for openai-cloud/i)).toBeVisible();
+
+    await page.getByRole("button", { name: "Discover Models" }).click();
+    await expect(page.getByText("GPT-4.1 Mini")).toBeVisible();
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Import Selected" }).click();
+
+    await page.getByRole("button", { name: "Models", exact: true }).click();
+    await expect(page.getByText("GPT-4.1 Mini")).toBeVisible();
+    await page.getByRole("table").getByRole("button", { name: "Set Default" }).click();
+
+    await page.getByRole("button", { name: "Accounts", exact: true }).click();
+    await page.getByRole("button", { name: "+ Add Account" }).click();
+    await page.getByLabel("Template").selectOption("aws_bedrock");
+    await page.getByLabel("Account ID").fill("bedrock");
+    await page.getByLabel("Display Name").fill("Bedrock");
+    await page.getByRole("button", { name: "Add Account", exact: true }).click();
+    await page.getByRole("button", { name: "Discover Models" }).nth(1).click();
+    await expect(
+      page.getByText(/does not support automatic model discovery/i),
+    ).toBeVisible();
+    await page
+      .getByRole("dialog", { name: /Discover Models — Bedrock/i })
+      .getByText("Close", { exact: true })
+      .click();
+
+    await page.getByRole("button", { name: "Export" }).click();
+    await expect(page.getByText("Export Profile")).toBeVisible();
+    const exported = await page.getByLabel("Profile JSON").inputValue();
+    await page.getByText("Close", { exact: true }).click();
+
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.getByLabel("Profile Name").fill("imported-cloud");
+    await page.getByLabel("Exported Profile JSON").fill(exported);
+    await page.getByRole("button", { name: "Import" }).nth(1).click();
+    await expect(page.getByLabel("Profile", { exact: true })).toHaveValue("imported-cloud");
   });
 
   test("session creation and streaming shows assistant response and status changes", async ({ page }) => {

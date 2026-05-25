@@ -10,15 +10,15 @@ For the full forward implementation program, see [PLAN_2.0.0.md](PLAN_2.0.0.md).
 
 ## Current Baseline
 
-The repository version is currently `1.9.0`. This is the verified product
-baseline after completing the audited `1.6.0` through `1.9.0` workstreams.
+The repository version is currently `2.0.0`. This is the verified product
+baseline after completing the audited `1.6.0` through `2.0.0` workstreams.
 
 Confirmed product shape:
 
 - local FastAPI backend
 - browser workbench and optional Tauri shell
 - onboarding with Ollama auto-detection
-- provider wizard with test/create/delete flows
+- provider and model management workspace with draft testing, secret rotation, import/export, and discovery/manual fallback flows
 - session creation, resume, cancel, approvals, diffs, terminal results, and usage
 - bounded file-context validation with previews and token estimates
 - structured errors and diagnostics bundle generation
@@ -37,9 +37,9 @@ Confirmed product shape:
 - first-party OCI GenAI provider adapter with the legacy vendored bridge removed
 - Python non-integration coverage gate proven at 90%+
 
-## Current `2.0.0-rc1` Hardening Progress
+## Verified `2.0.0` Baseline
 
-Unreleased branch work toward `2.0.0-rc1` currently includes:
+The current baseline now includes:
 
 - broader frontend consumption of generated OpenAPI types
 - paged backend file browsing replacing the old capped client snapshot flow
@@ -68,11 +68,11 @@ Unreleased branch work toward `2.0.0-rc1` currently includes:
 
 ## Near-Term Priorities
 
-### 1. 2.0.0-rc1 Contract Freeze
+### 1. Post-2.0 Contract Discipline
 
 - broaden generated API type adoption across remaining session/view-heavy frontend surfaces
 - freeze terminology across CLI, UI, API docs, and release notes
-- tighten the code-vs-doc truth audit before any `2.0.0` claim
+- keep the code-vs-doc truth audit strict after the `2.0.0` release
 
 ### 2. Premium Finish
 

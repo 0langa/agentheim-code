@@ -267,7 +267,7 @@ export function Inspector({
               className="primary small"
               type="button"
             >
-              + Add Provider
+              Open Providers &amp; Models
             </button>
           </article>
 

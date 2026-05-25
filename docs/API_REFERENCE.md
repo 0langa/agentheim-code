@@ -335,7 +335,10 @@ pending params:
 - `target`
 - `action_kind`
 
-## Providers
+## Providers (Legacy)
+
+These endpoints remain for backward compatibility. New integrations should prefer
+the `/api/provider-management/*` routes below.
 
 ### `GET /api/providers/templates`
 
@@ -383,6 +386,214 @@ Deletes a provider profile and its stored secrets when possible.
 ### `POST /api/providers/test`
 
 Tests a provider with a real inference call using the supplied fields.
+
+## Provider Management
+
+The `/api/provider-management/*` namespace replaces the legacy provider routes
+with full CRUD for profiles, accounts, and model bindings.
+
+Onboarding now reuses the same provider-management stack through a guided
+wrapper in the frontend rather than maintaining a separate provider form path.
+
+### Profiles
+
+#### `GET /api/provider-management/profiles`
+
+Lists all profiles with redacted accounts and bindings.
+
+#### `POST /api/provider-management/profiles`
+
+Creates a profile. Body:
+
+```json
+{
+  "name": "work",
+  "set_as_default": false
+}
+```
+
+#### `GET /api/provider-management/profiles/{name}`
+
+Returns a single profile.
+
+#### `PATCH /api/provider-management/profiles/{name}`
+
+Renames or updates profile metadata.
+
+#### `DELETE /api/provider-management/profiles/{name}`
+
+Deletes the profile and its secrets.
+
+#### `POST /api/provider-management/profiles/{name}/duplicate`
+
+Duplicates the profile under a new name.
+
+#### `POST /api/provider-management/profiles/{name}/set-default`
+
+Sets the profile as the document-wide default.
+
+#### `GET /api/provider-management/profiles/{name}/export`
+
+Exports the profile as a portable JSON document (secrets redacted).
+
+#### `POST /api/provider-management/profiles/import`
+
+Imports a previously exported profile JSON document. Validates provider refs and
+deduplicates entries.
+
+### Accounts
+
+#### `POST /api/provider-management/profiles/{name}/accounts`
+
+Adds a provider account to the profile. Body:
+
+```json
+{
+  "id": "openai",
+  "kind": "openai_v1",
+  "endpoint": "https://api.openai.com/v1",
+  "auth_mode": "bearer",
+  "timeout_seconds": 60,
+  "headers": {},
+  "metadata": {
+    "template": "openai_v1"
+  }
+}
+```
+
+Add or rotate credentials through the dedicated secret routes. Secrets are
+stored through the shared secret store; the API never returns raw secrets.
+
+#### `PATCH /api/provider-management/profiles/{name}/accounts/{account_id}`
+
+Updates an existing account. Partial updates are supported.
+
+#### `DELETE /api/provider-management/profiles/{name}/accounts/{account_id}`
+
+Removes the account. Use `?cascade=true` to also remove dependent model bindings.
+
+#### `POST /api/provider-management/profiles/{name}/accounts/{account_id}/test`
+
+Runs a live connection test against the provider.
+
+#### `POST /api/provider-management/accounts/test-draft`
+
+Runs a live connection test against an unsaved account payload from the editor.
+This is the route used when the UI tests a draft account before it has been
+saved to a profile.
+
+Body:
+
+```json
+{
+  "account": {
+    "id": "openai-cloud",
+    "kind": "openai_compatible",
+    "endpoint": "https://api.openai.com/v1",
+    "auth_mode": "bearer",
+    "timeout_seconds": 60,
+    "headers": {},
+    "metadata": {
+      "template": "openai_compatible"
+    }
+  },
+  "secret_value": "sk-...",
+  "profile_name": "default",
+  "existing_account_id": "openai-cloud"
+}
+```
+
+`existing_account_id` is optional and lets the backend reuse a stored secret
+reference when the user is editing an existing account but leaves the secret
+blank.
+
+#### `POST /api/provider-management/profiles/{name}/accounts/{account_id}/rotate-secret`
+
+Rotates a stored secret. Body:
+
+```json
+{
+  "secret_name": "api_key",
+  "secret_value": "sk-new-..."
+}
+```
+
+#### `POST /api/provider-management/profiles/{name}/accounts/{account_id}/discover-models`
+
+Triggers remote model discovery for supported providers. Returns:
+
+```json
+{
+  "ok": true,
+  "supported": true,
+  "discovery_mode": "remote_list",
+  "models": [{"id": "gpt-4o", "display_name": "GPT-4o", ...}]
+}
+```
+
+For unsupported providers `supported` is `false` and `models` is empty.
+The UI surfaces this as an explicit manual-entry fallback instead of pretending
+discovery succeeded.
+
+#### `GET /api/provider-management/profiles/{name}/accounts/{account_id}/discovered-models`
+
+Re-runs discovery without persisting; useful for UI refresh.
+
+### Models
+
+#### `POST /api/provider-management/profiles/{name}/models`
+
+Adds a model binding. Body:
+
+```json
+{
+  "id": "planner",
+  "role": "planner",
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "display_name": "Planner",
+  "capabilities": ["text", "json", "streaming"],
+  "enabled": true,
+  "is_default": true
+}
+```
+
+#### `PATCH /api/provider-management/profiles/{name}/models/{binding_id}`
+
+Updates a model binding.
+
+#### `DELETE /api/provider-management/profiles/{name}/models/{binding_id}`
+
+Removes the binding.
+
+#### `POST /api/provider-management/profiles/{name}/models/{binding_id}/set-default`
+
+Sets this binding as the default for its role.
+
+#### `POST /api/provider-management/profiles/{name}/models/{binding_id}/assign-role`
+
+Changes the role of an existing binding.
+
+#### `POST /api/provider-management/profiles/{name}/models/import-discovered`
+
+Bulk-imports models from a prior discovery result. Body:
+
+```json
+{
+  "account_id": "openai",
+  "models": ["gpt-4o", "gpt-4o-mini"]
+}
+```
+
+### Templates
+
+#### `GET /api/provider-management/templates`
+
+Lists all templates with capability metadata.
+
+#### `GET /api/provider-management/templates/{template_id}`
+
+Returns a single template with its capability metadata attached.
 
 ## WebSocket
 

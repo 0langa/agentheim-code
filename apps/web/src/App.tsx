@@ -7,6 +7,7 @@ import { Composer } from "./components/Composer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Onboarding } from "./components/Onboarding";
 import { Inspector } from "./components/Inspector";
+import { ProviderManagementWorkspace } from "./components/providers/ProviderManagementWorkspace";
 import { ProviderWizard } from "./components/ProviderWizard";
 import { Rail } from "./components/Rail";
 import { TopBar } from "./components/TopBar";
@@ -30,6 +31,7 @@ export function App() {
   const [prompt, setPrompt] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
   const [inspector, setInspector] = useState("timeline");
   const [selectedMode, setSelectedMode] = useState("code");
   const [selectedTrustMode, setSelectedTrustMode] = useState("ask");
@@ -365,6 +367,7 @@ export function App() {
   const supportedCommandIds = new Set([
     "new",
     "settings",
+    "providers",
     "approvals",
     "runs",
     "timeline",
@@ -377,6 +380,7 @@ export function App() {
   const allCommands: CoderCommand[] = React.useMemo(() => {
     const builtins: CoderCommand[] = [
       { id: "settings", label: "Open Settings", cli: "/settings", surface: "global" },
+      { id: "providers", label: "Open Providers & Models", cli: "/providers", surface: "global" },
       { id: "approvals", label: "Open Approvals", cli: "/approvals", surface: "global" },
       { id: "runs", label: "Open Runs", cli: "/runs", surface: "global" },
       { id: "timeline", label: "Open Timeline", cli: "/timeline", surface: "global" },
@@ -400,6 +404,8 @@ export function App() {
       createSession();
     } else if (command.id === "settings") {
       setInspector("settings");
+    } else if (command.id === "providers") {
+      setManagementOpen(true);
     } else if (command.id === "approvals") {
       setInspector("approvals");
     } else if (command.id === "runs") {
@@ -557,7 +563,7 @@ export function App() {
           active={active}
           commands={allCommands}
           onSelectSession={selectSession}
-          onOpenProviderWizard={() => setWizardOpen(true)}
+          onOpenProviderWizard={() => setManagementOpen(true)}
           onGrantApproval={(requestId) => void handleApproval(requestId, true)}
           onDenyApproval={(requestId) => void handleApproval(requestId, false)}
           theme={uiConfig?.theme ?? "dark"}
@@ -571,6 +577,17 @@ export function App() {
           <ProviderWizard
             onClose={() => setWizardOpen(false)}
             onSaved={() => {
+              api<ModelOptions>("/coder/models")
+                .then(setModelOptions)
+                .catch((err) => setError(err.message));
+            }}
+          />
+        )}
+
+        {managementOpen && (
+          <ProviderManagementWorkspace
+            onClose={() => setManagementOpen(false)}
+            onProfilesChanged={() => {
               api<ModelOptions>("/coder/models")
                 .then(setModelOptions)
                 .catch((err) => setError(err.message));

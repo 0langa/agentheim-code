@@ -6,9 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-26
+
 ### Added
 - Paged workspace browser endpoint for incremental file loading in the web workbench
 - Reproducible docs screenshot pipeline via `npm --prefix apps/web run docs:screenshots`
+- Dedicated Providers & Models management workspace with profile import/export, draft account testing, secret rotation, discovery, and manual fallback flows
+- Draft provider-account test route for unsaved account verification before save
+- Focused provider-management backend, frontend, and Playwright coverage
 
 ### Changed
 - The workbench file explorer now loads files from the backend in pages instead of browsing one capped client-side list
@@ -16,12 +21,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Command palette support now includes Runs, Timeline, and Usage navigation
 - Session and session-view frontend types now align more closely with generated OpenAPI contracts
 - User-facing docs now include stable workbench screenshots and frozen `New session` terminology
+- Onboarding provider setup now reuses the same provider-management surface instead of a separate legacy form path
+- Provider capability/discovery metadata is now stricter about manual-only and hybrid providers
 
 ### Fixed
 - Session list state now stays in sync more reliably when the active session changes status
 - Generated API contract is consumed more directly for config, command, provider-detection, and file-browser types
 - Workspace file search now ignores stale out-of-order page responses instead of letting older results overwrite newer searches
 - Full Playwright coverage now includes files paging/preview and usage-plus-runs-filter flows
+- Draft provider tests now exercise the current unsaved account state instead of only persisted account ids
+- Provider secret rotation is now wired through the main UI instead of being silently ignored
 
 ## [1.9.0] - 2026-05-24
 

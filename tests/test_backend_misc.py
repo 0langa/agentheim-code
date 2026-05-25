@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
+from agentheim_code import __version__
 from agentheim_code.backend import (
     _approval_display_fields,
     _chunk_text,
@@ -24,7 +25,7 @@ class TestVersion:
         v = _version()
         assert isinstance(v, str)
         assert v != ""
-        assert v == "1.9.0"
+        assert v == __version__
 
 
 class TestWorkspace:

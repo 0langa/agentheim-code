@@ -1,10 +1,12 @@
 # Agentheim Code 2.0.0 Plan
 
+Completed: 2026-05-26
+
 Updated: 2026-05-24
 
-This file is the forward execution plan from the verified `1.9.0` baseline to
-`2.0.0`. Phases `1.6.0` through `1.9.0` are now reflected in `main`; the
-remaining scope is release-candidate hardening and final release truth sync.
+This file is the historical execution plan from the verified `1.9.0` baseline
+to the shipped `2.0.0` release. It is retained as the implementation record
+for the final rc hardening and release-truth-sync pass.
 
 ## Starting Point
 

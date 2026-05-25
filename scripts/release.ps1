@@ -1,5 +1,5 @@
 # Release automation for Agentheim Code
-# Usage: powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.9.0
+# Usage: powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 2.0.0
 param(
     [Parameter(Mandatory=$true)]
     [string]$Version

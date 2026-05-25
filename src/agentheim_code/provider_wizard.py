@@ -5,6 +5,9 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
+from agentheim_code.provider_management import (
+    create_profile as mgmt_create_profile,
+)
 from config.config import (
     ModelBinding,
     ProfilesDocument,
@@ -127,7 +130,11 @@ def create_profile(
     fields: dict[str, str],
     set_as_default: bool = False,
 ) -> TeamProfile:
-    """Create a new provider profile with a single provider and model binding."""
+    """Create a new provider profile with a single provider and model binding.
+
+    Delegates to the management layer for storage, but preserves the legacy
+    one-shot creation shape for backward compatibility.
+    """
     templates = list_provider_templates(include_experimental=True)
     template_map = {t["kind"]: t for t in templates}
     if provider_kind not in template_map:
@@ -185,28 +192,25 @@ def create_profile(
         provider=provider_id,
         model=model_id,
         capabilities=template.get("capabilities", ["text"]),
+        is_default=True,
     )
 
-    # Load existing document
+    # Use management layer to ensure profile exists
     try:
         doc = load_profiles_document()
     except Exception:
         doc = ProfilesDocument(version=1, default_profile=name, profiles={})
 
-    # Create or update profile
-    if name in doc.profiles:
-        profile = doc.profiles[name]
-        new_providers = dict(profile.providers)
-        new_providers[provider_id] = provider_account
-        new_models = dict(profile.models)
-        new_models["planner"] = model_binding
-        profile = profile.model_copy(update={"providers": new_providers, "models": new_models})
-    else:
-        profile = TeamProfile(
-            name=name,
-            providers={provider_id: provider_account},
-            models={"planner": model_binding},
-        )
+    if name not in doc.profiles:
+        mgmt_create_profile(name, set_as_default=True)
+        doc = load_profiles_document()
+
+    profile = doc.profiles[name]
+    new_providers = dict(profile.providers)
+    new_providers[provider_id] = provider_account
+    new_models = dict(profile.models)
+    new_models["planner"] = model_binding
+    profile = profile.model_copy(update={"providers": new_providers, "models": new_models})
 
     doc.profiles[name] = profile
     if set_as_default or not doc.default_profile:
@@ -218,7 +222,11 @@ def create_profile(
 
 
 def delete_profile(name: str) -> None:
-    """Delete a provider profile and its associated secrets."""
+    """Delete a provider profile and its associated secrets.
+
+    Kept for backward compatibility. Handles secret cleanup directly so
+    mocked stores in tests continue to work, then delegates profile removal.
+    """
     doc = load_profiles_document()
     if name not in doc.profiles:
         raise ValueError(f"Profile '{name}' not found")
@@ -230,11 +238,9 @@ def delete_profile(name: str) -> None:
             with contextlib.suppress(Exception):
                 store.delete(provider.secret_ref)
 
-    del doc.profiles[name]
-    if doc.default_profile == name:
-        doc.default_profile = next(iter(doc.profiles), "default")
-    save_profiles_document(doc)
-    logger.info("Deleted provider profile '%s'", name)
+    from agentheim_code.provider_management import delete_profile as mgmt_delete
+
+    mgmt_delete(name)
 
 
 def verify_provider_connection(

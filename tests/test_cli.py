@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from agentheim_code import __version__
 from agentheim_code.backend import _origin_allowed, create_app
 from agentheim_code.cli import app
 from agentheim_code.desktop import DesktopLaunchError
@@ -29,7 +30,7 @@ class TestVersion:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert "agentheim-code" in result.output
-        assert "1.9.0" in result.output
+        assert __version__ in result.output
 
 
 class TestModels:

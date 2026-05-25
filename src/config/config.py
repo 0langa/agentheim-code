@@ -222,6 +222,14 @@ class ProviderAccount(BaseModel):
     timeout_seconds: int = Field(default=60, ge=1)
     headers: dict[str, str] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # Optional management fields (added for provider-model-management)
+    display_name: str | None = None
+    notes: str | None = None
+    disabled: bool = False
+    last_verified_at: str | None = None
+    last_verified_status: str | None = None
+    last_verified_error: str | None = None
+    last_model_sync_at: str | None = None
 
 
 class ModelBinding(BaseModel):
@@ -233,6 +241,17 @@ class ModelBinding(BaseModel):
     model: str = Field(min_length=1)
     display_name: str | None = None
     capabilities: list[str] = Field(default_factory=lambda: [ModelCapability.TEXT.value])
+    # Optional management fields (added for provider-model-management)
+    source: Literal["manual", "discovered"] = "manual"
+    remote_id: str | None = None
+    enabled: bool = True
+    is_default: bool = False
+    context_window: int | None = None
+    max_output_tokens: int | None = None
+    supports_tools: bool | None = None
+    supports_vision: bool | None = None
+    supports_streaming: bool | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class TeamProfile(BaseModel):

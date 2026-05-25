@@ -3,37 +3,29 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ProviderWizard } from "../ProviderWizard";
 
-vi.mock("../../api", () => ({
-  api: vi.fn().mockImplementation((path: string) => {
-    if (path === "/providers/wizard-templates") {
-      return Promise.resolve([
-        {
-          kind: "openai_v1",
-          display_name: "OpenAI",
-          endpoint: "https://api.openai.com/v1",
-          auth_mode: "bearer",
-          provider_type: "openai",
-          capabilities: ["text", "json", "streaming"],
-          docs_url: "https://example.com",
-          support_state: "stable",
-          wizard_fields: [],
-        },
-      ]);
-    }
-    return Promise.resolve({ ok: true });
-  }),
+vi.mock("../providers/ProviderManagementWorkspace", () => ({
+  ProviderManagementWorkspace: ({
+    onClose,
+  }: {
+    onClose: () => void;
+    onProfilesChanged?: () => void;
+  }) => (
+    <div role="dialog" aria-label="Providers & Models">
+      <button aria-label="Close" onClick={onClose} type="button">
+        Close
+      </button>
+    </div>
+  ),
 }));
 
 describe("ProviderWizard", () => {
-  it("closes on Escape", async () => {
+  it("renders the provider management workspace wrapper", async () => {
     const onClose = vi.fn();
 
     render(<ProviderWizard onClose={onClose} onSaved={() => undefined} />);
 
-    const dialog = await screen.findByRole("dialog", { name: "Add AI Provider" });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Close" })).toHaveFocus());
-
-    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Providers & Models" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalled();
   });
 });

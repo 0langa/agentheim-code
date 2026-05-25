@@ -93,4 +93,81 @@ export type ProviderTemplate = {
   docs_url: string;
   support_state: string;
   wizard_fields: WizardField[];
+  capabilities_meta?: {
+    supports_connection_test: boolean;
+    supports_remote_model_listing: boolean;
+    supports_manual_model_entry: boolean;
+    supports_endpoint_edit: boolean;
+    supports_secret_rotation: boolean;
+    discovery_mode: string;
+    docs_url: string;
+    notes: string;
+  };
+};
+
+export type ManagementProviderAccount = {
+  id: string;
+  kind: string;
+  endpoint: string;
+  auth_mode: string;
+  secret_ref?: string;
+  has_secret?: boolean;
+  timeout_seconds: number;
+  headers: Record<string, string>;
+  metadata: Record<string, unknown>;
+  display_name?: string;
+  notes?: string;
+  disabled?: boolean;
+  last_verified_at?: string;
+  last_verified_status?: string;
+  last_verified_error?: string;
+  last_model_sync_at?: string;
+};
+
+export type ManagementModelBinding = {
+  id: string;
+  role: string;
+  provider: string;
+  model: string;
+  display_name?: string;
+  capabilities: string[];
+  source?: string;
+  remote_id?: string;
+  enabled?: boolean;
+  is_default?: boolean;
+  context_window?: number;
+  max_output_tokens?: number;
+  supports_tools?: boolean;
+  supports_vision?: boolean;
+  supports_streaming?: boolean;
+};
+
+export type ManagementProfile = {
+  name: string;
+  providers: ManagementProviderAccount[];
+  models: ManagementModelBinding[];
+};
+
+export type ManagementAccountTestResult = {
+  ok: boolean;
+  error?: string;
+  latency_ms?: number;
+  model?: string;
+  usage?: unknown;
+  usage_warning?: string;
+  warning?: string;
+};
+
+export type DiscoveredModel = {
+  id: string;
+  display_name: string;
+  provider_model_name: string;
+  capabilities: string[];
+  context_window?: number;
+  max_output_tokens?: number;
+  supports_tools?: boolean;
+  supports_vision?: boolean;
+  supports_streaming?: boolean;
+  deprecation_status?: string;
+  source?: string;
 };

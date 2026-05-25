@@ -2,7 +2,13 @@ import type {
   CoderSessionMessageRequest,
   ContextValidateRequest,
   ContextValidationResult,
+  DiscoveredModel,
   FileBrowsePage,
+  ManagementAccountTestResult,
+  ManagementModelBinding,
+  ManagementProfile,
+  ManagementProviderAccount,
+  ProviderTemplate,
   Session,
 } from "./types";
 
@@ -208,3 +214,192 @@ export async function browseFiles(
   });
   return api<FileBrowsePage>(`/coder/files/browser?${params.toString()}`);
 }
+
+// Provider management API
+
+export async function listManagementProfiles() {
+  return api<{ configured: boolean; default_profile?: string; profiles: ManagementProfile[] }>(
+    "/provider-management/profiles",
+  );
+}
+
+export async function getManagementProfile(profileName: string) {
+  return api<{ ok: boolean; profile: ManagementProfile }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}`,
+  );
+}
+
+export async function createManagementProfile(name: string, setAsDefault = false) {
+  return api<{ ok: boolean; profile: { name: string } }>("/provider-management/profiles", {
+    method: "POST",
+    body: JSON.stringify({ name, set_as_default: setAsDefault }),
+  });
+}
+
+export async function deleteManagementProfile(name: string) {
+  return api<{ ok: boolean }>(`/provider-management/profiles/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function duplicateManagementProfile(source: string, target: string) {
+  return api<{ ok: boolean; profile: { name: string } }>(
+    `/provider-management/profiles/${encodeURIComponent(source)}/duplicate`,
+    {
+      method: "POST",
+      body: JSON.stringify({ target_name: target }),
+    },
+  );
+}
+
+export async function setDefaultManagementProfile(name: string) {
+  return api<{ ok: boolean }>(
+    `/provider-management/profiles/${encodeURIComponent(name)}/set-default`,
+    { method: "POST" },
+  );
+}
+
+export async function exportManagementProfile(name: string) {
+  return api<{ ok: boolean; data: unknown }>(
+    `/provider-management/profiles/${encodeURIComponent(name)}/export`,
+  );
+}
+
+export async function importManagementProfile(data: unknown, name?: string) {
+  return api<{ ok: boolean; profile: { name: string } }>("/provider-management/profiles/import", {
+    method: "POST",
+    body: JSON.stringify({ data, name }),
+  });
+}
+
+export async function addManagementAccount(profileName: string, account: unknown) {
+  return api<{ ok: boolean; account: ManagementProviderAccount }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts`,
+    { method: "POST", body: JSON.stringify(account) },
+  );
+}
+
+export async function updateManagementAccount(
+  profileName: string,
+  accountId: string,
+  updates: unknown,
+) {
+  return api<{ ok: boolean; account: ManagementProviderAccount }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts/${encodeURIComponent(accountId)}`,
+    { method: "PATCH", body: JSON.stringify(updates) },
+  );
+}
+
+export async function deleteManagementAccount(
+  profileName: string,
+  accountId: string,
+  cascade = false,
+) {
+  return api<{ ok: boolean }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts/${encodeURIComponent(accountId)}?cascade=${cascade}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function testManagementAccount(profileName: string, accountId: string, modelId?: string) {
+  return api<{ ok: boolean; result: ManagementAccountTestResult }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts/${encodeURIComponent(accountId)}/test`,
+    { method: "POST", body: JSON.stringify({ model_id: modelId }) },
+  );
+}
+
+export async function testDraftManagementAccount(
+  account: ManagementProviderAccount,
+  options?: {
+    secretValue?: string;
+    modelId?: string;
+    profileName?: string;
+    existingAccountId?: string;
+  },
+) {
+  return api<{ ok: boolean; result: ManagementAccountTestResult }>(
+    "/provider-management/accounts/test-draft",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        account,
+        secret_value: options?.secretValue,
+        model_id: options?.modelId,
+        profile_name: options?.profileName,
+        existing_account_id: options?.existingAccountId,
+      }),
+    },
+  );
+}
+
+export async function rotateManagementSecret(
+  profileName: string,
+  accountId: string,
+  secretName: string,
+  secretValue: string,
+) {
+  return api<{ ok: boolean }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts/${encodeURIComponent(accountId)}/rotate-secret`,
+    { method: "POST", body: JSON.stringify({ secret_name: secretName, secret_value: secretValue }) },
+  );
+}
+
+export async function discoverManagementModels(profileName: string, accountId: string) {
+  return api<{
+    ok: boolean;
+    supported: boolean;
+    discovery_mode: string;
+    models: DiscoveredModel[];
+  }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/accounts/${encodeURIComponent(accountId)}/discover-models`,
+    { method: "POST" },
+  );
+}
+
+export async function addManagementModel(profileName: string, model: unknown) {
+  return api<{ ok: boolean; model: ManagementModelBinding }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/models`,
+    { method: "POST", body: JSON.stringify(model) },
+  );
+}
+
+export async function updateManagementModel(
+  profileName: string,
+  modelId: string,
+  updates: unknown,
+) {
+  return api<{ ok: boolean; model: ManagementModelBinding }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/models/${encodeURIComponent(modelId)}`,
+    { method: "PATCH", body: JSON.stringify(updates) },
+  );
+}
+
+export async function deleteManagementModel(profileName: string, modelId: string) {
+  return api<{ ok: boolean }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/models/${encodeURIComponent(modelId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function setDefaultManagementModel(profileName: string, modelId: string) {
+  return api<{ ok: boolean; model: ManagementModelBinding }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/models/${encodeURIComponent(modelId)}/set-default`,
+    { method: "POST" },
+  );
+}
+
+export async function importDiscoveredManagementModels(
+  profileName: string,
+  accountId: string,
+  models: DiscoveredModel[],
+) {
+  return api<{ ok: boolean; models: ManagementModelBinding[] }>(
+    `/provider-management/profiles/${encodeURIComponent(profileName)}/models/import-discovered`,
+    { method: "POST", body: JSON.stringify({ account_id: accountId, models }) },
+  );
+}
+
+export async function getManagementTemplates() {
+  return api<ProviderTemplate[]>("/provider-management/templates");
+}
+

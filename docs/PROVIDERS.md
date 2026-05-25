@@ -33,14 +33,23 @@ Only Ollama is auto-detected today.
 
 ### Add A Provider Manually
 
-Open the provider wizard and fill in:
+Open **Providers & Models** from Settings or the command palette (`Ctrl/Cmd+K`, type
+"providers"). The management workspace supports:
 
-- profile name
-- provider id
-- model id
-- provider-specific auth and endpoint fields
+- creating and switching profiles
+- exporting and importing profiles
+- adding provider accounts per profile
+- binding models to roles (planner, coder, reviewer, etc.)
+- testing draft accounts before save and retesting saved accounts later
+- discovering available models from supported providers
+- importing discovered models in bulk
+- rotating secrets
 
-Test the connection before saving.
+Onboarding now reuses this same workspace as the provider-management source of
+truth rather than keeping a separate provider form stack.
+
+For a quick single-provider setup, use the **Add Account** flow in the Accounts
+tab, then bind a model in the Models tab.
 
 ## Template Registry
 
@@ -106,14 +115,33 @@ agentheim-code provider-test openai_v1 --api-key "sk-..." --endpoint "https://ap
 
 ### UI
 
-1. Open the provider wizard
-2. Fill the template fields
-3. Select `Test Connection`
+1. Open **Providers & Models** from Settings
+2. Select a profile and an account
+3. Click **Test Connection** in the account row
 4. Save only after a successful result
 
 A successful test can still return a usage warning. That means inference worked
 but the provider did not return token or cost metadata in a way the product can
 use.
+
+## Model Discovery
+
+Providers that support remote model listing can be scanned directly from the
+workspace:
+
+- Open the **Accounts** tab
+- Select an account
+- Click **Discover Models**
+- Review the returned list and **Import** the ones you want
+
+Discovery is supported for:
+
+- OpenAI-compatible endpoints (`/v1/models`)
+- Ollama (`/api/tags`)
+- selected cloud providers with a real supported remote model catalog path
+
+Providers marked as `manual_only` (e.g. AWS Bedrock, OCI GenAI, Vertex AI) do
+not support remote discovery; add models manually instead.
 
 ## Profiles, Models, And Health
 
@@ -121,6 +149,8 @@ use.
 - the model selector chooses the planner model within that profile
 - `Auto` keeps runtime defaults
 - `/api/coder/models` enriches model entries with persisted provider health when available
+- provider accounts now show a health badge (`verified`, `failed`, `unknown`) in the workspace
+- last model sync timestamps help you know when discovery results were refreshed
 
 ## Secrets
 

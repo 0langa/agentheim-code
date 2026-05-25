@@ -30,8 +30,9 @@ Fresh UI config opens onboarding automatically.
 
 1. Choose the workspace.
 2. If Ollama is running, review the detected local endpoint.
-3. Or open the provider wizard and add a profile manually.
-4. Start the first session.
+3. Or open **Providers & Models** and add a profile manually.
+4. Test the draft account before saving if you want to verify endpoint + auth first.
+5. Start the first session.
 
 Skipping onboarding only dismisses the dialog. Settings still exposes provider
 setup later.
@@ -165,8 +166,18 @@ The current Settings panel includes:
 
 - theme selector
 - active session mode/trust/model summary
-- configured provider profiles
+- **Manage Providers & Models** button (opens the full workspace)
 - command list
+
+The **Providers & Models** workspace supports:
+
+- **Profiles** — create, duplicate, import, export, delete, and set the default profile
+- **Accounts** — add, edit, test drafts before save, test saved accounts, discover models, and rotate secrets
+- **Models** — bind discovered or manually added models to roles and set defaults
+- Discovery fallback — providers without remote listing support show an explicit manual-entry path instead of a fake empty success state
+- Onboarding reuse — the first-run provider step opens the same underlying management surface instead of a separate provider form stack
+- **Defaults & Roles** — review the default coding model for the selected profile
+- **Diagnostics** — view connection health and last sync timestamps
 
 ## Keyboard Shortcuts
 
@@ -181,7 +192,8 @@ Unsupported CLI-only commands are hidden rather than displayed as non-functional
 items.
 
 The current supported palette actions include navigation for Runs, Timeline,
-Files, Terminal, Usage, Settings, approvals, retry, stop, and new session.
+Files, Terminal, Usage, Settings, Providers & Models, approvals, retry, stop,
+and new session.
 
 ## CLI Flow
 

@@ -6,7 +6,7 @@ are preparing.
 
 ## Scope And Intent
 
-- current repo version: `1.9.0`
+- current repo version: `2.0.0`
 - primary packaged target: Windows NSIS installer
 - Python wheel remains part of the release surface
 - no tag, push, or hosted release creation unless explicitly requested
@@ -47,7 +47,7 @@ This currently performs:
 ### Local release artifact staging
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 1.9.0
+powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Version 2.0.0
 ```
 
 This script is Windows-only and currently stages local artifacts only. It does
@@ -71,7 +71,11 @@ not create tags, publish to PyPI, or push to GitHub.
 - fresh config shows onboarding
 - existing configured user lands in the main workbench
 - Ollama detection path is visible when Ollama is running
-- provider wizard can test and save a provider
+- provider management workspace can test, save, discover, and import providers
+- draft provider test works before save
+- provider secret rotation works from the workspace
+- provider profile export/import works from the workspace
+- unsupported discovery paths show a clear manual-entry fallback
 - `@` context search can add and remove files
 - context preview shows token estimates and rejected files
 - stop cancels an active run
@@ -90,25 +94,24 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-Last verified: 2026-05-25
+Last verified: 2026-05-26
 
-- branch: `codex/rc1-polish`
-- version: `1.9.0` plus unreleased `2.0.0-rc1` hardening
+- branch: `codex/provider-model-management`
+- version: `2.0.0`
 - `ruff check`: All checks passed
-- `ruff format --check`: 49 files already formatted
-- `mypy`: Success: no issues found in 21 source files
-- `pytest`: 272 passed, 3 deselected, 91.86% coverage
-- `npm --prefix apps/web run test -- --run`: 12 test files, 68 tests passed
+- `ruff format --check`: 56 files already formatted
+- `mypy`: Success: no issues found in 26 source files
+- `pytest`: 316 passed, 3 deselected, 81.21% coverage
+- `npm --prefix apps/web run test -- --run`: 14 test files, 75 tests passed
 - `npm --prefix apps/web run build`: passed
-- `npm --prefix apps/web run e2e`: 7 passed (chromium)
+- `npm --prefix apps/web run e2e`: 9 passed (chromium)
 - `cargo test`: 1 passed
-- `python -m build --wheel`: agentheim_code-1.9.0-py3-none-any.whl
-- `scripts/package-beta.ps1`: passed; built `Agentheim Code_1.9.0_x64-setup.exe` and completed clean wheel smoke
-- `npm --prefix apps/web run docs:screenshots`: generated `workbench-overview.png`, `workbench-files.png`, and `workbench-usage.png`
-- `scripts/release.ps1 -Version 1.9.0`: not executed
-- manual browser smoke: `/api/health` returned `status=ok`, `version=1.9.0`; `/coder` loaded with title `Agentheim Code`; the page rendered `AGENTHEIM CODE`, `Coder Hub`, and the `New session` action
-- built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` stayed alive after startup from the built release binary
-- wheel contents smoke: clean wheel build completed successfully for `1.9.0`
+- `python -m build --wheel`: passed; built `agentheim_code-2.0.0-py3-none-any.whl`
+- `scripts/package-beta.ps1`: passed; clean wheel smoke + NSIS installer lookup succeeded
+- manual browser smoke: passed; `/api/health` returned `status=ok`, `version=2.0.0`, and `/coder` served `<title>Agentheim Code</title>`
+- built desktop shell smoke: passed; `python -m agentheim_code.cli app --workspace .` stayed alive for 12s and logged backend startup on `http://127.0.0.1:9999`
+- provider-management live smoke: passed; create profile, draft test before save, add account, rotate secret, manual fallback discovery, add/set default model, export/import profile, and cleanup all succeeded
+- wheel contents smoke: passed via `scripts/package-beta.ps1` clean venv install + `agentheim-code --help`
 
 ### Unverified / Deferred
 - `scripts/release.ps1` local staging flow was not run because no local release bundle was requested

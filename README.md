@@ -6,7 +6,7 @@ Agentheim Code is a standalone local-first coding workbench with:
 - a React/Vite frontend in `apps/web`
 - an optional Tauri desktop shell in `apps/desktop`
 
-Current verified baseline: `1.9.0`
+Current verified baseline: `2.0.0`
 
 ![Agentheim Code workbench overview](docs/assets/workbench-overview.png)
 
@@ -56,9 +56,9 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 
 ## Current Product Baseline
 
-- Release-synced `1.9.0` baseline with verified Python, web, desktop, and packaging checks
+- Release-synced `2.0.0` baseline with verified Python, web, desktop, and packaging checks
 - First-run onboarding with workspace selection and Ollama auto-detection
-- Provider wizard with test, create, and delete flows
+- Providers & Models workspace with account/model/profile lifecycle management
 - Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
 - Trust modes: `read_only`, `ask`, `workspace`
 - Streaming chat with markdown and code rendering
@@ -76,7 +76,7 @@ Fresh UI config opens onboarding automatically.
 
 1. Pick a workspace.
 2. If Ollama is running locally, the app shows the detected endpoint.
-3. Or open the provider wizard and add a provider profile.
+3. Or open **Providers & Models** and add a provider profile.
 4. Start the first session.
 
 Skipping onboarding only dismisses the first-run dialog. Provider setup remains
@@ -85,8 +85,9 @@ available from Settings.
 ## Provider Setup
 
 - Local auto-detection currently targets Ollama at `http://localhost:11434/v1`.
-- Other local or cloud providers are configured through the provider wizard.
-- You can test a provider before saving it.
+- Other local or cloud providers are configured through **Providers & Models**.
+- Provider accounts can be tested before saving, secrets can be rotated later,
+  and profiles can be exported or imported from the same workspace.
 
 Useful checks:
 

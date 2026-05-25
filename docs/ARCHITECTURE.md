@@ -16,7 +16,7 @@ CLI / Browser / Tauri shell
 
 - `src/agentheim_code`
   Product CLI, app launcher, FastAPI backend, onboarding/config APIs,
-  diagnostics, provider wizard, context bundle adapter, packaged web assets.
+  diagnostics, provider-management APIs, onboarding wrapper, context bundle adapter, packaged web assets.
 - `apps/web`
   React/Vite workbench UI.
 - `apps/desktop`
