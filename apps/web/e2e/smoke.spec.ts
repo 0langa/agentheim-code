@@ -10,6 +10,23 @@ type SessionState = {
   onboardingDismissed: boolean;
 };
 
+type FileBrowserPage = {
+  items: Array<Record<string, unknown>>;
+  has_more: boolean;
+  next_offset: number | null;
+  query: string;
+};
+
+type UsagePayload = {
+  session_id: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number | null;
+  calls: number;
+  breakdown: Array<Record<string, unknown>>;
+};
+
 function createMockState(): SessionState {
   return {
     activeSessionId: null,
@@ -67,6 +84,11 @@ type MockApiOptions = {
   modelConfigured?: boolean;
   wizardTemplates?: WizardTemplate[];
   streamDelayMs?: number;
+  fileBrowserPages?: Record<string, FileBrowserPage>;
+  filePreviews?: Record<string, string>;
+  usagePayload?: UsagePayload;
+  initialSessions?: Array<Record<string, unknown>>;
+  initialView?: Record<string, unknown> | null;
 };
 
 async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
@@ -78,12 +100,25 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
     modelConfigured = true,
     wizardTemplates = [],
     streamDelayMs = 0,
+    fileBrowserPages = {},
+    filePreviews = {},
+    usagePayload,
+    initialSessions = [],
+    initialView = null,
   } = opts;
 
   const state = createMockState();
   state.onboardingComplete = onboardingComplete;
   state.onboardingDismissed = onboardingDismissed;
   state.providersConfigured = modelConfigured;
+  state.sessions = initialSessions;
+  state.view = initialView;
+  state.activeSessionId =
+    typeof initialView?.session === "object" && initialView?.session
+      ? String((initialView.session as Record<string, unknown>).session_id ?? "")
+      : initialSessions[0]
+        ? String(initialSessions[0].session_id ?? "")
+        : null;
 
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
@@ -181,6 +216,25 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
       return;
     }
 
+    if (path === "/api/coder/files/browser") {
+      const key = `${url.searchParams.get("q") ?? ""}|${url.searchParams.get("offset") ?? "0"}`;
+      await json(
+        fileBrowserPages[key] ?? {
+          items: [],
+          has_more: false,
+          next_offset: null,
+          query: url.searchParams.get("q") ?? "",
+        },
+      );
+      return;
+    }
+
+    if (path === "/api/coder/files/preview") {
+      const previewPath = url.searchParams.get("path") ?? "";
+      await json(filePreviews[previewPath] ?? "No preview available.");
+      return;
+    }
+
     if (path === "/api/providers/profiles") {
       if (method === "GET") {
         await json({
@@ -272,6 +326,42 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
 
     if (path === "/api/coder/sessions/sess-1/view") {
       await json(state.view);
+      return;
+    }
+
+    if (path === "/api/coder/sessions/sess-1/usage") {
+      await json(
+        usagePayload ?? {
+          session_id: "sess-1",
+          input_tokens: 1200,
+          output_tokens: 340,
+          total_tokens: 1540,
+          estimated_cost_usd: 0.0123,
+          calls: 2,
+          breakdown: [
+            {
+              sequence: 1,
+              timestamp: "2026-05-25T12:00:00+00:00",
+              model: "llama3.2",
+              provider: "ollama",
+              input_tokens: 800,
+              output_tokens: 200,
+              total_tokens: 1000,
+              estimated_cost_usd: 0.008,
+            },
+            {
+              sequence: 2,
+              timestamp: "2026-05-25T12:01:00+00:00",
+              model: "llama3.2",
+              provider: "ollama",
+              input_tokens: 400,
+              output_tokens: 140,
+              total_tokens: 540,
+              estimated_cost_usd: 0.0043,
+            },
+          ],
+        },
+      );
       return;
     }
 
@@ -461,7 +551,7 @@ test.describe("Agentheim Code Web", () => {
     await page.goto("/");
 
     // Create a new session.
-    await page.getByRole("button", { name: "New session" }).click();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "New session" }).click();
 
     // Verify the session appears in the Runs panel.
     await page.getByRole("button", { name: "Runs" }).click();
@@ -495,5 +585,98 @@ test.describe("Agentheim Code Web", () => {
     // Verify the session status in the runs panel remains idle after streaming.
     await page.getByRole("button", { name: "Runs" }).click();
     await expect(page.getByText("idle")).toBeVisible();
+  });
+
+  test("files panel loads paged results and previews a file", async ({ page }) => {
+    const session = {
+      session_id: "sess-1",
+      status: "idle",
+      mode: "code",
+      trust_mode: "ask",
+      workspace_root: ".",
+      model_selection: {
+        profile: "local",
+        provider: "ollama",
+        model: "llama3.2",
+      },
+      changed_files: ["src/file0.ts"],
+    };
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      path: `src/file${index}.ts`,
+      type: "file",
+    }));
+    const secondPage = Array.from({ length: 20 }, (_, index) => ({
+      path: `src/file${index + 100}.ts`,
+      type: "file",
+    }));
+
+    await mockApi(page, {
+      initialSessions: [session],
+      initialView: buildSessionView(session),
+      fileBrowserPages: {
+        "|0": { items: firstPage, has_more: true, next_offset: 100, query: "" },
+        "|100": { items: secondPage, has_more: false, next_offset: null, query: "" },
+      },
+      filePreviews: {
+        "src/file0.ts": "export const preview = true;",
+      },
+    });
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Runs" }).click();
+    await page.getByRole("button", { name: /sess-1/i }).click();
+    await page.getByRole("button", { name: "Files" }).click();
+    await expect(page.getByText("100 entries loaded")).toBeVisible();
+    await page.getByRole("button", { name: "Load next 100" }).click();
+    await expect(page.getByText("120 entries loaded")).toBeVisible();
+    await page.getByLabel("Preview src/file0.ts").click();
+    await expect(page.getByText("export const preview = true;")).toBeVisible();
+  });
+
+  test("command palette opens usage and runs filter narrows visible sessions", async ({ page }) => {
+    const sessionOne = {
+      session_id: "sess-1",
+      status: "completed",
+      mode: "code",
+      trust_mode: "ask",
+      workspace_root: ".",
+      model_selection: {
+        profile: "local",
+        provider: "ollama",
+        model: "llama3.2",
+      },
+    };
+    const sessionTwo = {
+      session_id: "sess-2",
+      status: "failed",
+      mode: "review",
+      trust_mode: "ask",
+      workspace_root: ".",
+      model_selection: {
+        profile: "local",
+        provider: "ollama",
+        model: "llama3.2",
+      },
+    };
+
+    await mockApi(page, {
+      initialSessions: [sessionOne, sessionTwo],
+      initialView: buildSessionView(sessionOne),
+    });
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Runs" }).click();
+    await page.getByRole("button", { name: /sess-1/i }).click();
+    await page.keyboard.press("Control+K");
+    await page.keyboard.type("usage");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { name: "Usage" })).toBeVisible();
+    await expect(page.getByText("1.5k")).toBeVisible();
+
+    await page.getByRole("button", { name: "Runs" }).click();
+    const filter = page.getByPlaceholder("Filter sessions...");
+    await filter.fill("sess-2");
+    await expect(page.getByRole("button", { name: /sess-2/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /sess-1/i })).toHaveCount(0);
   });
 });

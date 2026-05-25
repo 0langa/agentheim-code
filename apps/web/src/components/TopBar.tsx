@@ -25,7 +25,7 @@ export function TopBar({ active, onNewSession }: TopBarProps) {
           {modelLabel}
         </span>
         <button className="primary" onClick={onNewSession} type="button">
-          New
+          New session
         </button>
       </div>
     </header>

@@ -42,12 +42,14 @@ setup later.
 - Center: top bar, chat transcript, composer
 - Right inspector: the currently selected panel
 
+![Workbench overview](assets/workbench-overview.png)
+
 ## Sessions
 
 Create a session from:
 
 - the rail `New session` button
-- the top bar `New` button
+- the top bar `New session` button
 - `Ctrl/Cmd+Shift+N`
 
 The active session view keeps:
@@ -121,6 +123,8 @@ Shows the current workspace tree with:
 Large workspaces now load in backend pages instead of one capped client-side
 list. Use `Load next 100` to keep browsing without locking the panel.
 
+![Files panel with preview](assets/workbench-files.png)
+
 ### Terminal
 
 Shows command results with:
@@ -152,6 +156,8 @@ available.
 ### Usage
 
 Shows aggregated token and cost data when the provider returns usage metadata.
+
+![Usage panel](assets/workbench-usage.png)
 
 ### Settings
 

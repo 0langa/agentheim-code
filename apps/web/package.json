@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "types:api": "openapi-typescript http://127.0.0.1:8765/openapi.json -o src/generated/api-types.ts"
+    "types:api": "openapi-typescript http://127.0.0.1:8765/openapi.json -o src/generated/api-types.ts",
+    "docs:screenshots": "node scripts/capture-doc-screenshots.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

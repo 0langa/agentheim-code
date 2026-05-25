@@ -8,16 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Paged workspace browser endpoint for incremental file loading in the web workbench
+- Reproducible docs screenshot pipeline via `npm --prefix apps/web run docs:screenshots`
 
 ### Changed
 - The workbench file explorer now loads files from the backend in pages instead of browsing one capped client-side list
 - Frontend request helpers now preserve `x-request-id` when custom headers are added
 - Command palette support now includes Runs, Timeline, and Usage navigation
+- Session and session-view frontend types now align more closely with generated OpenAPI contracts
+- User-facing docs now include stable workbench screenshots and frozen `New session` terminology
 
 ### Fixed
 - Session list state now stays in sync more reliably when the active session changes status
 - Generated API contract is consumed more directly for config, command, provider-detection, and file-browser types
 - Workspace file search now ignores stale out-of-order page responses instead of letting older results overwrite newer searches
+- Full Playwright coverage now includes files paging/preview and usage-plus-runs-filter flows
 
 ## [1.9.0] - 2026-05-24
 

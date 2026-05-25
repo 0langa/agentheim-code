@@ -4,16 +4,21 @@ import { render, screen } from "@testing-library/react";
 import { TerminalPanel } from "../TerminalPanel";
 
 describe("TerminalPanel", () => {
+  const makeResult = (overrides: Record<string, unknown> = {}) => ({
+    command: ["pytest"],
+    stdout: "",
+    stderr: "",
+    exit_code: 0,
+    status: "ok",
+    timestamp: "2026-05-25T12:00:00Z",
+    ...overrides,
+  });
+
   it("renders terminal output without raw ansi escapes", () => {
     render(
       <TerminalPanel
         results={[
-          {
-            command: ["pytest"],
-            stdout: "\u001b[31mFAIL\u001b[0m",
-            stderr: "",
-            exit_code: 1,
-          },
+          makeResult({ stdout: "\u001b[31mFAIL\u001b[0m", exit_code: 1, status: "failed" }),
         ]}
       />,
     );
@@ -28,13 +33,11 @@ describe("TerminalPanel", () => {
     render(
       <TerminalPanel
         results={[
-          {
+          makeResult({
             command: ["echo", "hi"],
             stdout: "hi",
-            stderr: "",
-            exit_code: 0,
             timestamp: "2026-05-23T11:58:00Z",
-          },
+          }),
         ]}
       />,
     );
@@ -47,8 +50,8 @@ describe("TerminalPanel", () => {
     render(
       <TerminalPanel
         results={[
-          { command: ["a"], stdout: "", stderr: "", exit_code: 0 },
-          { command: ["b"], stdout: "", stderr: "", exit_code: 0 },
+          makeResult({ command: ["a"] }),
+          makeResult({ command: ["b"], timestamp: "2026-05-25T12:00:01Z" }),
         ]}
       />,
     );
@@ -62,20 +65,8 @@ describe("TerminalPanel", () => {
     render(
       <TerminalPanel
         results={[
-          {
-            command: ["a"],
-            stdout: "",
-            stderr: "",
-            exit_code: 0,
-            timestamp: new Date(baseTime).toISOString(),
-          },
-          {
-            command: ["b"],
-            stdout: "",
-            stderr: "",
-            exit_code: 0,
-            timestamp: new Date(baseTime + 3000).toISOString(),
-          },
+          makeResult({ command: ["a"], timestamp: new Date(baseTime).toISOString() }),
+          makeResult({ command: ["b"], timestamp: new Date(baseTime + 3000).toISOString() }),
         ]}
       />,
     );
@@ -90,20 +81,8 @@ describe("TerminalPanel", () => {
     render(
       <TerminalPanel
         results={[
-          {
-            command: ["a"],
-            stdout: "",
-            stderr: "",
-            exit_code: 0,
-            timestamp: new Date(baseTime).toISOString(),
-          },
-          {
-            command: ["b"],
-            stdout: "",
-            stderr: "",
-            exit_code: 0,
-            timestamp: new Date(baseTime + 6000).toISOString(),
-          },
+          makeResult({ command: ["a"], timestamp: new Date(baseTime).toISOString() }),
+          makeResult({ command: ["b"], timestamp: new Date(baseTime + 6000).toISOString() }),
         ]}
       />,
     );

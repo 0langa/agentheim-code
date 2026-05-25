@@ -46,6 +46,7 @@ Unreleased branch work toward `2.0.0-rc1` currently includes:
 - stronger session-list synchronization while active runs change state
 - more complete command-palette execution for runs, timeline, and usage navigation
 - broader e2e and smoke coverage around the updated workbench behavior
+- stable mock-backed screenshots and user-doc polish for the current workbench surface
 
 ## What Is Working Well
 

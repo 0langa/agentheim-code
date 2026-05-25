@@ -8,6 +8,8 @@ Agentheim Code is a standalone local-first coding workbench with:
 
 Current verified baseline: `1.9.0`
 
+![Agentheim Code workbench overview](docs/assets/workbench-overview.png)
+
 The product flow is simple:
 
 1. Choose a workspace.
@@ -130,6 +132,12 @@ The frontend can regenerate TypeScript types from the FastAPI OpenAPI schema:
 
 ```powershell
 npm --prefix apps/web run types:api
+```
+
+Regenerate the stable user-doc screenshots with:
+
+```powershell
+npm --prefix apps/web run docs:screenshots
 ```
 
 See `docs/adr/0002-api-type-generation.md` for details.

@@ -36,7 +36,17 @@ from agentheim_code.structured_errors import (
 )
 from agentheim_code.usage_api import aggregate_session_usage
 from config.config import list_provider_templates, load_profiles_document
-from core.run_view import list_run_views
+from core.run_view import RunView, list_run_views
+from workflows.coder.models import (
+    CoderApproval,
+    CoderCommandResult,
+    CoderDiff,
+    CoderEvent,
+    CoderMessage,
+    CoderModelSelection,
+    CoderSession,
+    CoderSessionView,
+)
 from workflows.coder.runtime import (
     approve_request,
     available_commands,
@@ -140,6 +150,122 @@ class CommandRegistryEntry(BaseModel):
     surface: str
 
 
+class TranscriptEntryResponse(BaseModel):
+    role: str
+    content: str
+    timestamp: str
+
+
+class SessionModelSelectionResponse(BaseModel):
+    profile: str = "auto"
+    provider: str = "auto"
+    model: str = "auto"
+    actual_profile: str | None = None
+    actual_provider: str | None = None
+    actual_model: str | None = None
+
+
+class SessionResponse(BaseModel):
+    session_id: str
+    status: str
+    mode: str
+    trust_mode: str
+    workspace_root: str
+    model_selection: SessionModelSelectionResponse
+    transcript: list[TranscriptEntryResponse] = Field(default_factory=list)
+    current_user_prompt: str | None = None
+    current_assistant_message: str | None = None
+    changed_files: list[str] = Field(default_factory=list)
+    repair_attempts: int = 0
+    last_failure_reason: str = ""
+    last_verification_command: list[str] = Field(default_factory=list)
+    last_verification_exit_code: int | None = None
+
+
+class SessionEventResponse(BaseModel):
+    event_id: str
+    type: str
+    message: str
+    timestamp: str
+    payload: dict[str, str] = Field(default_factory=dict)
+
+
+class CommandResultResponse(BaseModel):
+    command: list[str] = Field(default_factory=list)
+    exit_code: int | None = None
+    status: str
+    stdout: str = ""
+    stderr: str = ""
+    timestamp: str
+
+
+class SessionDiffResponse(BaseModel):
+    path: str
+    status: str
+    before: str
+    after: str
+    timestamp: str
+
+
+class ApprovalDisplayResponse(BaseModel):
+    request_id: str
+    tool_id: str
+    risk_level: str
+    reason: str
+    status: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    target: str = ""
+    action_kind: str = "tool"
+
+
+class SessionViewResponse(BaseModel):
+    session: SessionResponse
+    queued_prompts: list[str] = Field(default_factory=list)
+    available_commands: list[str] = Field(default_factory=list)
+    events: list[SessionEventResponse] = Field(default_factory=list)
+    approvals: list[ApprovalDisplayResponse] = Field(default_factory=list)
+    diffs: list[SessionDiffResponse] = Field(default_factory=list)
+    command_results: list[CommandResultResponse] = Field(default_factory=list)
+    artifacts: list[str] = Field(default_factory=list)
+
+
+class ContextPreviewResponse(BaseModel):
+    path: str
+    status: str
+    size: int
+    preview: str
+    truncation_reason: str
+    token_estimate: int
+
+
+class ContextValidationResponse(BaseModel):
+    session_id: str
+    items: list[ContextPreviewResponse] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    total_token_estimate: int
+
+
+class UsageBreakdownResponse(BaseModel):
+    sequence: int
+    timestamp: str
+    model: str | None = None
+    provider: str | None = None
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float | None = None
+
+
+class UsageResponse(BaseModel):
+    session_id: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float | None = None
+    calls: int
+    breakdown: list[UsageBreakdownResponse] = Field(default_factory=list)
+
+
 def _version() -> str:
     return __version__
 
@@ -157,6 +283,127 @@ def _ui_config_response(payload: dict[str, Any]) -> UiConfigResponse:
             Literal["dark", "light", "high_contrast"],
             payload.get("theme", "dark"),
         ),
+    )
+
+
+def _transcript_entry_response(message: CoderMessage) -> TranscriptEntryResponse:
+    return TranscriptEntryResponse(
+        role=message.role,
+        content=message.content,
+        timestamp=message.created_at,
+    )
+
+
+def _model_selection_response(
+    selection: CoderModelSelection,
+) -> SessionModelSelectionResponse:
+    return SessionModelSelectionResponse(
+        profile=selection.profile,
+        provider=selection.provider,
+        model=selection.model,
+        actual_profile=selection.actual_profile,
+        actual_provider=selection.actual_provider,
+        actual_model=selection.actual_model,
+    )
+
+
+def _session_response(session: CoderSession) -> SessionResponse:
+    return SessionResponse(
+        session_id=session.session_id,
+        status=session.status.value,
+        mode=session.mode.value,
+        trust_mode=session.trust_mode.value,
+        workspace_root=session.workspace_root,
+        model_selection=_model_selection_response(session.model_selection),
+        transcript=[_transcript_entry_response(entry) for entry in session.transcript],
+        current_user_prompt=session.current_user_prompt,
+        current_assistant_message=session.current_assistant_message,
+        changed_files=session.changed_files,
+        repair_attempts=session.repair_attempts,
+        last_failure_reason=session.last_failure_reason,
+        last_verification_command=session.last_verification_command,
+        last_verification_exit_code=session.last_verification_exit_code,
+    )
+
+
+def _session_event_response(event: CoderEvent) -> SessionEventResponse:
+    return SessionEventResponse(
+        event_id=event.event_id,
+        type=event.kind,
+        message=event.message,
+        timestamp=event.created_at,
+        payload=event.details,
+    )
+
+
+def _command_result_response(result: CoderCommandResult) -> CommandResultResponse:
+    exit_code = result.exit_code
+    status = "ok" if exit_code in {0, None} else "failed"
+    return CommandResultResponse(
+        command=result.command,
+        exit_code=exit_code,
+        status=status,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        timestamp=result.created_at,
+    )
+
+
+def _session_diff_response(diff: CoderDiff) -> SessionDiffResponse:
+    return SessionDiffResponse(
+        path=diff.path,
+        status=diff.status,
+        before=diff.before,
+        after=diff.after,
+        timestamp=diff.created_at,
+    )
+
+
+def _approval_response(
+    approval: CoderApproval,
+    session: CoderSession,
+) -> ApprovalDisplayResponse:
+    display = _approval_display_fields(
+        approval.model_dump(mode="json"),
+        session.model_dump(mode="json"),
+    )
+    return ApprovalDisplayResponse(
+        request_id=approval.request_id,
+        tool_id=approval.tool_id,
+        risk_level=approval.risk_level,
+        reason=approval.reason,
+        status=approval.status,
+        params=cast(dict[str, Any], display.get("params", {})),
+        target=str(display.get("target", "")),
+        action_kind=str(display.get("action_kind", "tool")),
+    )
+
+
+def _session_view_response(view: CoderSessionView) -> SessionViewResponse:
+    return SessionViewResponse(
+        session=_session_response(view.session),
+        queued_prompts=view.queued_prompts,
+        available_commands=view.available_commands,
+        events=[_session_event_response(event) for event in view.events],
+        approvals=[_approval_response(approval, view.session) for approval in view.approvals],
+        diffs=[_session_diff_response(diff) for diff in view.diffs],
+        command_results=[_command_result_response(result) for result in view.command_results],
+        artifacts=view.artifacts,
+    )
+
+
+def _usage_response(payload: dict[str, Any]) -> UsageResponse:
+    return UsageResponse(
+        session_id=str(payload.get("session_id", "")),
+        input_tokens=int(payload.get("input_tokens", 0) or 0),
+        output_tokens=int(payload.get("output_tokens", 0) or 0),
+        total_tokens=int(payload.get("total_tokens", 0) or 0),
+        estimated_cost_usd=cast(float | None, payload.get("estimated_cost_usd")),
+        calls=int(payload.get("calls", 0) or 0),
+        breakdown=[
+            UsageBreakdownResponse.model_validate(item)
+            for item in cast(list[dict[str, Any]], payload.get("breakdown", []))
+        ],
     )
 
 
@@ -264,16 +511,6 @@ def _approval_display_fields(approval: dict[str, Any], session: dict[str, Any]) 
         "target": target,
         "action_kind": action_kind,
     }
-
-
-def _session_view_response(view: Any) -> dict[str, Any]:
-    payload = _json_model(view)
-    session = cast(dict[str, Any], payload.get("session", {}))
-    payload["approvals"] = [
-        _approval_display_fields(cast(dict[str, Any], approval), session)
-        for approval in payload.get("approvals", [])
-    ]
-    return payload
 
 
 def _read_ui_config() -> dict[str, Any]:
@@ -405,15 +642,15 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     def api_local_providers() -> list[LocalProviderResponse]:
         return [LocalProviderResponse.model_validate(_detect_ollama())]
 
-    @app.get("/api/coder/sessions")
-    def api_list_sessions(workspace_root: str | None = None) -> list[dict[str, Any]]:
+    @app.get("/api/coder/sessions", response_model=list[SessionResponse])
+    def api_list_sessions(workspace_root: str | None = None) -> list[SessionResponse]:
         return [
-            session.model_dump(mode="json")
+            _session_response(session)
             for session in list_sessions(_workspace(workspace_path, workspace_root))
         ]
 
-    @app.post("/api/coder/sessions")
-    def api_create_session(body: CoderSessionCreateRequest) -> dict[str, Any]:
+    @app.post("/api/coder/sessions", response_model=SessionResponse)
+    def api_create_session(body: CoderSessionCreateRequest) -> SessionResponse:
         session = create_session(
             _workspace(workspace_path, body.workspace_root),
             trust_mode=body.trust_mode,
@@ -422,30 +659,34 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             provider=body.provider,
             model=body.model,
         )
-        return _json_model(session)
+        return _session_response(session)
 
-    @app.get("/api/coder/sessions/{session_id}")
-    def api_get_session(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+    @app.get("/api/coder/sessions/{session_id}", response_model=SessionResponse)
+    def api_get_session(session_id: str, workspace_root: str | None = None) -> SessionResponse:
         try:
-            return _json_model(get_session(_workspace(workspace_path, workspace_root), session_id))
+            return _session_response(
+                get_session(_workspace(workspace_path, workspace_root), session_id)
+            )
         except Exception as exc:
             if "not found" in str(exc).lower():
                 raise HTTPException(status_code=404, detail=E_SESSION_NOT_FOUND.to_dict()) from exc
             raise HTTPException(status_code=500, detail=from_exception(exc).to_dict()) from exc
 
-    @app.get("/api/coder/sessions/{session_id}/view")
-    def api_get_session_view(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
+    @app.get("/api/coder/sessions/{session_id}/view", response_model=SessionViewResponse)
+    def api_get_session_view(
+        session_id: str, workspace_root: str | None = None
+    ) -> SessionViewResponse:
         return _session_view_response(
             get_session_view(_workspace(workspace_path, workspace_root), session_id)
         )
 
-    @app.post("/api/coder/sessions/{session_id}/messages")
+    @app.post("/api/coder/sessions/{session_id}/messages", response_model=SessionResponse)
     def api_post_message(
         session_id: str,
         request: Request,
         body: CoderSessionMessageRequest,
         workspace_root: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         request_id = str(getattr(request.state, "request_id", ""))
         if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
             raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
@@ -462,7 +703,9 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                 },
             )
         try:
-            return _json_model(post_message(workspace, session_id, prompt, request_id=request_id))
+            return _session_response(
+                post_message(workspace, session_id, prompt, request_id=request_id)
+            )
         except ValueError as exc:
             if "already running" in str(exc).lower():
                 raise HTTPException(status_code=409, detail=E_SESSION_LOCKED.to_dict()) from exc
@@ -565,21 +808,21 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    @app.post("/api/coder/sessions/{session_id}/queue")
+    @app.post("/api/coder/sessions/{session_id}/queue", response_model=SessionResponse)
     def api_queue_message(
         session_id: str, body: CoderQueueRequest, workspace_root: str | None = None
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         if len(body.prompt.encode("utf-8")) > MAX_JSON_BODY_BYTES:
             raise HTTPException(status_code=413, detail=E_REQUEST_TOO_LARGE.to_dict())
-        return _json_model(
+        return _session_response(
             queue_message(_workspace(workspace_path, workspace_root), session_id, body.prompt)
         )
 
-    @app.patch("/api/coder/sessions/{session_id}/model")
+    @app.patch("/api/coder/sessions/{session_id}/model", response_model=SessionResponse)
     def api_update_model(
         session_id: str, body: CoderSessionModelRequest, workspace_root: str | None = None
-    ) -> dict[str, Any]:
-        return _json_model(
+    ) -> SessionResponse:
+        return _session_response(
             update_session_model(
                 _workspace(workspace_path, workspace_root),
                 session_id,
@@ -589,23 +832,23 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             )
         )
 
-    @app.patch("/api/coder/sessions/{session_id}/mode")
+    @app.patch("/api/coder/sessions/{session_id}/mode", response_model=SessionResponse)
     def api_update_mode(
         session_id: str, body: CoderSessionModeRequest, workspace_root: str | None = None
-    ) -> dict[str, Any]:
-        return _json_model(
+    ) -> SessionResponse:
+        return _session_response(
             set_session_mode(_workspace(workspace_path, workspace_root), session_id, body.mode)
         )
 
-    @app.post("/api/coder/sessions/{session_id}/cancel")
+    @app.post("/api/coder/sessions/{session_id}/cancel", response_model=SessionResponse)
     def api_cancel_session(
         session_id: str,
         request: Request,
         workspace_root: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         request_id = str(getattr(request.state, "request_id", ""))
         try:
-            return _json_model(
+            return _session_response(
                 cancel_session(
                     _workspace(workspace_path, workspace_root), session_id, request_id=request_id
                 )
@@ -619,12 +862,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                 },
             ) from exc
 
-    @app.post("/api/coder/sessions/{session_id}/resume")
+    @app.post("/api/coder/sessions/{session_id}/resume", response_model=SessionResponse)
     def api_resume_session(
         session_id: str,
         request: Request,
         workspace_root: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         request_id = str(getattr(request.state, "request_id", ""))
         workspace = _workspace(workspace_path, workspace_root)
         try:
@@ -642,30 +885,38 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             raise HTTPException(status_code=400, detail=from_exception(exc).to_dict()) from exc
         except Exception as exc:
             raise HTTPException(status_code=500, detail=from_exception(exc).to_dict()) from exc
-        return _json_model(session)
+        return _session_response(session)
 
-    @app.post("/api/coder/sessions/{session_id}/context/validate")
+    @app.post(
+        "/api/coder/sessions/{session_id}/context/validate",
+        response_model=ContextValidationResponse,
+    )
     def api_validate_context(
         session_id: str, body: ContextValidateRequest, workspace_root: str | None = None
-    ) -> dict[str, Any]:
+    ) -> ContextValidationResponse:
         workspace = _workspace(workspace_path, workspace_root)
         bundle = build_context_bundle(workspace, body.paths)
-        return {
-            "session_id": session_id,
-            "items": bundle.to_preview_payload(),
-            "errors": bundle.errors,
-            "total_token_estimate": bundle.total_token_estimate(),
-        }
+        return ContextValidationResponse(
+            session_id=session_id,
+            items=[
+                ContextPreviewResponse.model_validate(item) for item in bundle.to_preview_payload()
+            ],
+            errors=bundle.errors,
+            total_token_estimate=bundle.total_token_estimate(),
+        )
 
-    @app.post("/api/coder/sessions/{session_id}/approvals/{request_id}/grant")
+    @app.post(
+        "/api/coder/sessions/{session_id}/approvals/{request_id}/grant",
+        response_model=SessionResponse,
+    )
     def api_grant_approval(
         session_id: str,
         request_id: str,
         req: Request,
         workspace_root: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         caller_request_id = str(getattr(req.state, "request_id", ""))
-        return _json_model(
+        return _session_response(
             approve_request(
                 _workspace(workspace_path, workspace_root),
                 session_id,
@@ -675,15 +926,18 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             )
         )
 
-    @app.post("/api/coder/sessions/{session_id}/approvals/{request_id}/deny")
+    @app.post(
+        "/api/coder/sessions/{session_id}/approvals/{request_id}/deny",
+        response_model=SessionResponse,
+    )
     def api_deny_approval(
         session_id: str,
         request_id: str,
         req: Request,
         workspace_root: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> SessionResponse:
         caller_request_id = str(getattr(req.state, "request_id", ""))
-        return _json_model(
+        return _session_response(
             approve_request(
                 _workspace(workspace_path, workspace_root),
                 session_id,
@@ -693,10 +947,10 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             )
         )
 
-    @app.get("/api/coder/sessions/{session_id}/diff")
-    def api_diff(session_id: str, workspace_root: str | None = None) -> list[dict[str, Any]]:
+    @app.get("/api/coder/sessions/{session_id}/diff", response_model=list[SessionDiffResponse])
+    def api_diff(session_id: str, workspace_root: str | None = None) -> list[SessionDiffResponse]:
         return [
-            _json_model(diff)
+            _session_diff_response(diff)
             for diff in get_session_view(
                 _workspace(workspace_path, workspace_root), session_id
             ).diffs
@@ -765,11 +1019,9 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Could not read file: {exc}") from exc
 
-    @app.get("/api/coder/runs")
-    def api_runs(workspace_root: str | None = None) -> list[dict[str, Any]]:
-        return [
-            _json_model(view) for view in list_run_views(_workspace(workspace_path, workspace_root))
-        ]
+    @app.get("/api/coder/runs", response_model=list[RunView])
+    def api_runs(workspace_root: str | None = None) -> list[RunView]:
+        return cast(list[RunView], list_run_views(_workspace(workspace_path, workspace_root)))
 
     @app.get("/api/coder/models")
     def api_models() -> dict[str, Any]:
@@ -862,9 +1114,11 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             model_id=body.get("model_id", ""),
         )
 
-    @app.get("/api/coder/sessions/{session_id}/usage")
-    def api_session_usage(session_id: str, workspace_root: str | None = None) -> dict[str, Any]:
-        return aggregate_session_usage(_workspace(workspace_path, workspace_root), session_id)
+    @app.get("/api/coder/sessions/{session_id}/usage", response_model=UsageResponse)
+    def api_session_usage(session_id: str, workspace_root: str | None = None) -> UsageResponse:
+        return _usage_response(
+            aggregate_session_usage(_workspace(workspace_path, workspace_root), session_id)
+        )
 
     @app.websocket("/api/coder/sessions/{session_id}/events")
     async def api_events(websocket: WebSocket, session_id: str) -> None:

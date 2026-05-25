@@ -589,6 +589,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApprovalDisplayResponse */
+        ApprovalDisplayResponse: {
+            /** Request Id */
+            request_id: string;
+            /** Tool Id */
+            tool_id: string;
+            /** Risk Level */
+            risk_level: string;
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Target
+             * @default
+             */
+            target: string;
+            /**
+             * Action Kind
+             * @default tool
+             */
+            action_kind: string;
+        };
         /** CoderQueueRequest */
         CoderQueueRequest: {
             /** Prompt */
@@ -655,10 +682,57 @@ export interface components {
             /** Surface */
             surface: string;
         };
+        /** CommandResultResponse */
+        CommandResultResponse: {
+            /** Command */
+            command?: string[];
+            /** Exit Code */
+            exit_code?: number | null;
+            /** Status */
+            status: string;
+            /**
+             * Stdout
+             * @default
+             */
+            stdout: string;
+            /**
+             * Stderr
+             * @default
+             */
+            stderr: string;
+            /** Timestamp */
+            timestamp: string;
+        };
+        /** ContextPreviewResponse */
+        ContextPreviewResponse: {
+            /** Path */
+            path: string;
+            /** Status */
+            status: string;
+            /** Size */
+            size: number;
+            /** Preview */
+            preview: string;
+            /** Truncation Reason */
+            truncation_reason: string;
+            /** Token Estimate */
+            token_estimate: number;
+        };
         /** ContextValidateRequest */
         ContextValidateRequest: {
             /** Paths */
             paths?: string[];
+        };
+        /** ContextValidationResponse */
+        ContextValidationResponse: {
+            /** Session Id */
+            session_id: string;
+            /** Items */
+            items?: components["schemas"]["ContextPreviewResponse"][];
+            /** Errors */
+            errors?: string[];
+            /** Total Token Estimate */
+            total_token_estimate: number;
         };
         /** FileBrowseResponse */
         FileBrowseResponse: {
@@ -713,6 +787,152 @@ export interface components {
             /** Default Workspace */
             default_workspace?: string | null;
         };
+        /** RunView */
+        RunView: {
+            /** Run Id */
+            run_id: string;
+            /** Status */
+            status: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Workflow Id */
+            workflow_id?: string | null;
+            /** Preset Id */
+            preset_id?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Report Path */
+            report_path?: string | null;
+            /** Artifact Dir */
+            artifact_dir: string;
+            /**
+             * Resume Available
+             * @default false
+             */
+            resume_available: boolean;
+            /** Next Actions */
+            next_actions?: string[];
+        };
+        /** SessionDiffResponse */
+        SessionDiffResponse: {
+            /** Path */
+            path: string;
+            /** Status */
+            status: string;
+            /** Before */
+            before: string;
+            /** After */
+            after: string;
+            /** Timestamp */
+            timestamp: string;
+        };
+        /** SessionEventResponse */
+        SessionEventResponse: {
+            /** Event Id */
+            event_id: string;
+            /** Type */
+            type: string;
+            /** Message */
+            message: string;
+            /** Timestamp */
+            timestamp: string;
+            /** Payload */
+            payload?: {
+                [key: string]: string;
+            };
+        };
+        /** SessionModelSelectionResponse */
+        SessionModelSelectionResponse: {
+            /**
+             * Profile
+             * @default auto
+             */
+            profile: string;
+            /**
+             * Provider
+             * @default auto
+             */
+            provider: string;
+            /**
+             * Model
+             * @default auto
+             */
+            model: string;
+            /** Actual Profile */
+            actual_profile?: string | null;
+            /** Actual Provider */
+            actual_provider?: string | null;
+            /** Actual Model */
+            actual_model?: string | null;
+        };
+        /** SessionResponse */
+        SessionResponse: {
+            /** Session Id */
+            session_id: string;
+            /** Status */
+            status: string;
+            /** Mode */
+            mode: string;
+            /** Trust Mode */
+            trust_mode: string;
+            /** Workspace Root */
+            workspace_root: string;
+            model_selection: components["schemas"]["SessionModelSelectionResponse"];
+            /** Transcript */
+            transcript?: components["schemas"]["TranscriptEntryResponse"][];
+            /** Current User Prompt */
+            current_user_prompt?: string | null;
+            /** Current Assistant Message */
+            current_assistant_message?: string | null;
+            /** Changed Files */
+            changed_files?: string[];
+            /**
+             * Repair Attempts
+             * @default 0
+             */
+            repair_attempts: number;
+            /**
+             * Last Failure Reason
+             * @default
+             */
+            last_failure_reason: string;
+            /** Last Verification Command */
+            last_verification_command?: string[];
+            /** Last Verification Exit Code */
+            last_verification_exit_code?: number | null;
+        };
+        /** SessionViewResponse */
+        SessionViewResponse: {
+            session: components["schemas"]["SessionResponse"];
+            /** Queued Prompts */
+            queued_prompts?: string[];
+            /** Available Commands */
+            available_commands?: string[];
+            /** Events */
+            events?: components["schemas"]["SessionEventResponse"][];
+            /** Approvals */
+            approvals?: components["schemas"]["ApprovalDisplayResponse"][];
+            /** Diffs */
+            diffs?: components["schemas"]["SessionDiffResponse"][];
+            /** Command Results */
+            command_results?: components["schemas"]["CommandResultResponse"][];
+            /** Artifacts */
+            artifacts?: string[];
+        };
+        /** TranscriptEntryResponse */
+        TranscriptEntryResponse: {
+            /** Role */
+            role: string;
+            /** Content */
+            content: string;
+            /** Timestamp */
+            timestamp: string;
+        };
         /** UiConfigPatch */
         UiConfigPatch: {
             /** Onboarding Complete */
@@ -737,6 +957,42 @@ export interface components {
              * @enum {string}
              */
             theme: "dark" | "light" | "high_contrast";
+        };
+        /** UsageBreakdownResponse */
+        UsageBreakdownResponse: {
+            /** Sequence */
+            sequence: number;
+            /** Timestamp */
+            timestamp: string;
+            /** Model */
+            model?: string | null;
+            /** Provider */
+            provider?: string | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Total Tokens */
+            total_tokens: number;
+            /** Estimated Cost Usd */
+            estimated_cost_usd?: number | null;
+        };
+        /** UsageResponse */
+        UsageResponse: {
+            /** Session Id */
+            session_id: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Total Tokens */
+            total_tokens: number;
+            /** Estimated Cost Usd */
+            estimated_cost_usd?: number | null;
+            /** Calls */
+            calls: number;
+            /** Breakdown */
+            breakdown?: components["schemas"]["UsageBreakdownResponse"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -903,9 +1159,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["SessionResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -938,9 +1192,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -973,9 +1225,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1008,9 +1258,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionViewResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1047,9 +1295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1123,9 +1369,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1162,9 +1406,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1201,9 +1443,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1236,9 +1476,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1271,9 +1509,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1310,9 +1546,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ContextValidationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1346,9 +1580,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1382,9 +1614,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1417,9 +1647,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["SessionDiffResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -1580,9 +1808,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["RunView"][];
                 };
             };
             /** @description Validation Error */
@@ -1852,9 +2078,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UsageResponse"];
                 };
             };
             /** @description Validation Error */

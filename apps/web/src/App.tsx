@@ -184,6 +184,7 @@ export function App() {
     setStructuredError(null);
     setLastPrompt(promptText);
     setPrompt("");
+    const optimisticTimestamp = new Date().toISOString();
     setActive((current) => {
       if (!current || current.session.session_id !== sessionId) return current;
       return {
@@ -193,7 +194,7 @@ export function App() {
           status: "running",
           transcript: [
             ...(current.session.transcript ?? []),
-            { role: "user", content: promptText },
+            { role: "user", content: promptText, timestamp: optimisticTimestamp },
           ],
           current_assistant_message: "",
         },
@@ -207,7 +208,7 @@ export function App() {
               status: "running",
               transcript: [
                 ...(session.transcript ?? []),
-                { role: "user", content: promptText },
+                { role: "user", content: promptText, timestamp: optimisticTimestamp },
               ],
               current_assistant_message: "",
             }
@@ -298,7 +299,7 @@ export function App() {
     if (active) {
       try {
         const result = await validateContext(active.session.session_id, next);
-        setContextPreviews(result.items);
+        setContextPreviews(result.items ?? []);
       } catch {
         setContextPreviews([]);
       }

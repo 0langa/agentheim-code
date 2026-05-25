@@ -138,6 +138,13 @@ Returns the session plus derived UI data such as:
 - `queued_prompts`
 - `available_commands`
 
+Current response normalization also gives the frontend stable display fields:
+
+- transcript entries expose `timestamp`
+- events expose `type`, `timestamp`, and optional `payload`
+- command results expose computed `status` and `timestamp`
+- diffs expose `timestamp`
+
 ### `PATCH /api/coder/sessions/{session_id}/mode`
 
 Body:

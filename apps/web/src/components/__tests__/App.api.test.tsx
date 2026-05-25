@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import React from "react";
 
 import { App } from "../../App";
@@ -55,7 +55,11 @@ describe("App API integration", () => {
     // Wait for initial data load to finish
     await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
 
-    const newButton = screen.getAllByText("New")[0];
+    const topBar = document.querySelector(".topbar");
+    expect(topBar).not.toBeNull();
+    const newButton = within(topBar as HTMLElement).getByRole("button", {
+      name: "New session",
+    });
     fireEvent.click(newButton);
 
     await waitFor(() => {
@@ -222,7 +226,11 @@ describe("App API integration", () => {
     fireEvent.change(screen.getByLabelText("Trust mode"), {
       target: { value: "workspace" },
     });
-    fireEvent.click(screen.getAllByText("New")[0]);
+    const topBar = document.querySelector(".topbar");
+    expect(topBar).not.toBeNull();
+    fireEvent.click(
+      within(topBar as HTMLElement).getByRole("button", { name: "New session" }),
+    );
 
     await waitFor(() => {
       const postCall = mockApi.mock.calls.find(
@@ -251,7 +259,9 @@ describe("App API integration", () => {
     render(<App />);
 
     expect(await screen.findByText("Welcome to Agentheim Code")).toBeInTheDocument();
-    expect(mockApi).toHaveBeenCalledWith("/onboarding/local-providers", undefined);
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/onboarding/local-providers", undefined);
+    });
   });
 
   it("skips onboarding by persisting dismissed state", async () => {

@@ -28,6 +28,17 @@ export type FileBrowsePage = ApiResponse<"/api/coder/files/browser", "get">;
 export type CoderSessionCreateRequest = ApiSchemas["CoderSessionCreateRequest"];
 export type CoderSessionMessageRequest = ApiSchemas["CoderSessionMessageRequest"];
 export type ContextValidateRequest = ApiSchemas["ContextValidateRequest"];
+export type TranscriptEntry = ApiSchemas["TranscriptEntryResponse"];
+export type ContextPreviewItem = ApiSchemas["ContextPreviewResponse"];
+export type ContextValidationResult = ApiSchemas["ContextValidationResponse"];
+export type Session = ApiSchemas["SessionResponse"];
+export type SessionEvent = ApiSchemas["SessionEventResponse"];
+export type CommandResult = ApiSchemas["CommandResultResponse"];
+export type SessionDiff = ApiSchemas["SessionDiffResponse"];
+export type CoderApproval = ApiSchemas["ApprovalDisplayResponse"];
+export type UsageData = ApiSchemas["UsageResponse"];
+export type SessionView = ApiResponse<"/api/coder/sessions/{session_id}/view", "get">;
+export type RunView = ApiSchemas["RunView"];
 
 export type ModelBinding = {
   id: string;
@@ -54,12 +65,6 @@ export type ModelOptions = {
   error?: string;
 };
 
-export type TranscriptEntry = {
-  role: string;
-  content: string;
-  timestamp?: string;
-};
-
 export type StructuredError = {
   error_code: string;
   message: string;
@@ -68,110 +73,7 @@ export type StructuredError = {
   related_event_id?: string;
 };
 
-export type ContextPreviewItem = {
-  path: string;
-  status: string;
-  size: number;
-  preview: string;
-  truncation_reason: string;
-  token_estimate: number;
-};
-
-export type ContextValidationResult = {
-  items: ContextPreviewItem[];
-  errors: string[];
-  total_token_estimate: number;
-};
-
 export type TranscriptRole = "user" | "assistant" | "system";
-
-export type Session = {
-  session_id: string;
-  status: string;
-  mode: string;
-  trust_mode?: string;
-  workspace_root: string;
-  model_selection?: {
-    profile?: string;
-    provider: string;
-    model: string;
-    actual_provider?: string | null;
-    actual_model?: string | null;
-  };
-  transcript?: TranscriptEntry[];
-  current_user_prompt?: string;
-  current_assistant_message?: string;
-  changed_files?: string[];
-  repair_attempts?: number;
-  last_failure_reason?: string;
-  last_verification_command?: string[];
-  last_verification_exit_code?: number | null;
-};
-
-export type SessionEvent = {
-  event_id?: string;
-  type?: string;
-  message?: string;
-  timestamp?: string;
-  payload?: Record<string, unknown>;
-};
-
-export type CommandResult = {
-  command?: string[];
-  exit_code?: number | null;
-  status?: string;
-  stdout?: string;
-  stderr?: string;
-  timestamp?: string;
-};
-
-export type SessionDiff = {
-  path?: string;
-  status?: string;
-  before?: string;
-  after?: string;
-};
-
-export type CoderApproval = {
-  request_id: string;
-  tool_id: string;
-  risk_level: string;
-  reason: string;
-  status: string;
-  params?: Record<string, unknown>;
-  target?: string;
-  action_kind?: string;
-};
-
-export type UsageData = {
-  session_id: string;
-  input_tokens: number;
-  output_tokens: number;
-  total_tokens: number;
-  estimated_cost_usd: number | null;
-  calls: number;
-  breakdown: {
-    sequence: number;
-    timestamp: string;
-    model: string | null;
-    provider: string | null;
-    input_tokens: number;
-    output_tokens: number;
-    total_tokens: number;
-    estimated_cost_usd: number | null;
-  }[];
-};
-
-export type SessionView = {
-  session: Session;
-  queued_prompts: string[];
-  available_commands: string[];
-  events?: SessionEvent[];
-  approvals?: CoderApproval[];
-  diffs?: SessionDiff[];
-  command_results?: CommandResult[];
-  artifacts?: string[];
-};
 
 export type WizardField = {
   name: string;

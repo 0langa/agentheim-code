@@ -21,10 +21,12 @@ These items should not be tracked as missing anymore:
 - cancellation cleanup is better than simple session flagging
 - diagnostics bundle generation exists
 - OpenAPI-to-TypeScript generation exists and is consumed directly for config, command, provider-detection, and file-browser surfaces
+- generated OpenAPI types now cover more session/view-heavy frontend surfaces
 - provider health persistence exists
 - a first-party OCI GenAI adapter exists; the older vendored bridge has been removed
 - a paged backend file browser exists; the old 500-item client cap is gone
 - the command palette now directly supports runs, timeline, files, terminal, usage, settings, retry, stop, approvals, and new-session flows
+- release-grade Playwright coverage now includes files paging/preview plus usage and runs-filter flows
 - Typer shell completion support exists
 - dark, light, and high-contrast themes exist
 - keyboard shortcuts exist for command palette, settings, new session, and send
@@ -63,6 +65,7 @@ These items should not be tracked as missing anymore:
 ### Docs And Process
 
 - keep release checklist result blocks fresh instead of preserving stale numbers
+- keep docs screenshots reproducible and mock-backed rather than hand-curated
 - add visual regression checks only after the UI surface is more stable
 
 ## Better Alternatives To The Old Report

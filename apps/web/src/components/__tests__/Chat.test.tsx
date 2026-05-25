@@ -4,15 +4,27 @@ import { render, screen } from "@testing-library/react";
 import { Chat } from "../Chat";
 import type { SessionView } from "../../types";
 
+const BASE_SESSION = {
+  session_id: "test-123",
+  status: "idle",
+  mode: "code",
+  trust_mode: "ask",
+  workspace_root: ".",
+  model_selection: {
+    profile: "local",
+    provider: "ollama",
+    model: "llama3.2",
+  },
+  repair_attempts: 0,
+  last_failure_reason: "",
+} as const;
+
 const ACTIVE_VIEW: SessionView = {
   session: {
-    session_id: "test-123",
-    status: "idle",
-    mode: "code",
-    workspace_root: ".",
+    ...BASE_SESSION,
     transcript: [
-      { role: "user", content: "Hello" },
-      { role: "assistant", content: "Hi there" },
+      { role: "user", content: "Hello", timestamp: "2026-05-25T12:00:00Z" },
+      { role: "assistant", content: "Hi there", timestamp: "2026-05-25T12:00:01Z" },
     ],
     current_assistant_message: "Typing...",
   },
@@ -22,10 +34,10 @@ const ACTIVE_VIEW: SessionView = {
 
 const NO_TRANSCRIPT_VIEW: SessionView = {
   session: {
+    ...BASE_SESSION,
     session_id: "test-456",
     status: "running",
     mode: "ask",
-    workspace_root: ".",
   },
   queued_prompts: [],
   available_commands: [],
@@ -69,6 +81,7 @@ describe("Chat", () => {
               {
                 role: "assistant",
                 content: "Use this:\n\n```ts\nconst ok = true;\n```",
+                timestamp: "2026-05-25T12:00:02Z",
               },
             ],
             current_assistant_message: undefined,

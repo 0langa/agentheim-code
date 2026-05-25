@@ -11,6 +11,21 @@ from fastapi.testclient import TestClient
 
 from agentheim_code.backend import create_app
 from agentheim_code.provider_health import ProviderHealth
+from workflows.coder.models import (
+    ActivityKind,
+    CoderActivity,
+    CoderApproval,
+    CoderCommandResult,
+    CoderDiff,
+    CoderEvent,
+    CoderMessage,
+    CoderMode,
+    CoderModelSelection,
+    CoderSession,
+    CoderSessionView,
+    SessionStatus,
+    TrustMode,
+)
 
 
 @pytest.fixture
@@ -178,6 +193,89 @@ def test_runs_endpoint_empty(client: TestClient) -> None:
     resp = client.get("/api/coder/runs")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_session_view_endpoint_normalizes_ui_field_names(
+    client: TestClient, workspace_dir: str
+) -> None:
+    session = CoderSession(
+        session_id="sess-1",
+        workspace_root=workspace_dir,
+        trust_mode=TrustMode.ASK,
+        mode=CoderMode.CODE,
+        model_selection=CoderModelSelection(profile="auto", provider="ollama", model="llama3.2"),
+        status=SessionStatus.RUNNING,
+        created_at="2026-05-25T12:00:00+00:00",
+        updated_at="2026-05-25T12:01:00+00:00",
+        transcript=[
+            CoderMessage(
+                role="user",
+                content="hello",
+                created_at="2026-05-25T12:00:00+00:00",
+            )
+        ],
+        activities=[
+            CoderActivity(
+                kind=ActivityKind.THINKING,
+                message="thinking",
+                created_at="2026-05-25T12:00:01+00:00",
+            )
+        ],
+        current_assistant_message="working",
+    )
+    view = CoderSessionView(
+        session=session,
+        events=[
+            CoderEvent(
+                event_id="evt-1",
+                kind="thinking",
+                message="Planning next step",
+                created_at="2026-05-25T12:00:02+00:00",
+                details={"phase": "plan"},
+            )
+        ],
+        approvals=[
+            CoderApproval(
+                request_id="req-1",
+                tool_id="shell",
+                risk_level="medium",
+                reason="Needs confirmation",
+                status="pending",
+            )
+        ],
+        diffs=[
+            CoderDiff(
+                path="src/app.py",
+                before="print('old')",
+                after="print('new')",
+                created_at="2026-05-25T12:00:03+00:00",
+            )
+        ],
+        command_results=[
+            CoderCommandResult(
+                command=["pytest", "-q"],
+                exit_code=0,
+                stdout="ok",
+                stderr="",
+                created_at="2026-05-25T12:00:04+00:00",
+            )
+        ],
+        queued_prompts=["next"],
+        available_commands=["stop"],
+    )
+
+    with patch("agentheim_code.backend.get_session_view", return_value=view):
+        resp = client.get("/api/coder/sessions/sess-1/view")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["session"]["transcript"][0]["timestamp"] == "2026-05-25T12:00:00+00:00"
+    assert payload["events"][0]["type"] == "thinking"
+    assert payload["events"][0]["timestamp"] == "2026-05-25T12:00:02+00:00"
+    assert payload["events"][0]["payload"] == {"phase": "plan"}
+    assert payload["command_results"][0]["status"] == "ok"
+    assert payload["command_results"][0]["timestamp"] == "2026-05-25T12:00:04+00:00"
+    assert payload["diffs"][0]["timestamp"] == "2026-05-25T12:00:03+00:00"
 
 
 def test_models_endpoint(client: TestClient) -> None:

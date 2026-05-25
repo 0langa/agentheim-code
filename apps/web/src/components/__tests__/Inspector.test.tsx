@@ -9,9 +9,23 @@ vi.mock("../../api", () => ({
   api: <T,>(path: string, _init?: RequestInit): Promise<T> => mockApi(path) as Promise<T>,
 }));
 
-const sessions: Session[] = [
-  { session_id: "sess-1", status: "idle", mode: "code", workspace_root: "." },
-];
+const makeSession = (overrides: Partial<Session> = {}): Session => ({
+  session_id: "sess-1",
+  status: "idle",
+  mode: "code",
+  trust_mode: "ask",
+  workspace_root: ".",
+  model_selection: {
+    profile: "local",
+    provider: "ollama",
+    model: "llama3.2",
+  },
+  repair_attempts: 0,
+  last_failure_reason: "",
+  ...overrides,
+});
+
+const sessions: Session[] = [makeSession()];
 
 const commands: CoderCommand[] = [
   { id: "new", label: "New Session", cli: "/new", surface: "cli" },
@@ -19,18 +33,38 @@ const commands: CoderCommand[] = [
 
 const active: SessionView = {
   session: {
-    session_id: "sess-1",
-    status: "idle",
-    mode: "code",
-    trust_mode: "ask",
-    workspace_root: ".",
-    model_selection: { provider: "auto", model: "auto" },
+    ...makeSession(),
+    model_selection: { profile: "auto", provider: "auto", model: "auto" },
   },
   queued_prompts: [],
   available_commands: [],
-  events: [{ type: "tool", message: "listed files" }],
-  command_results: [{ command: ["pytest"], exit_code: 0, stdout: "passed" }],
-  diffs: [{ path: "src/app.ts", status: "modified" }],
+  events: [
+    {
+      event_id: "evt-1",
+      type: "tool",
+      message: "listed files",
+      timestamp: "2026-05-25T12:00:00Z",
+    },
+  ],
+  command_results: [
+    {
+      command: ["pytest"],
+      exit_code: 0,
+      status: "ok",
+      stdout: "passed",
+      stderr: "",
+      timestamp: "2026-05-25T12:00:01Z",
+    },
+  ],
+  diffs: [
+    {
+      path: "src/app.ts",
+      status: "modified",
+      before: "before",
+      after: "after",
+      timestamp: "2026-05-25T12:00:02Z",
+    },
+  ],
 };
 
 describe("Inspector", () => {
@@ -167,7 +201,14 @@ describe("Inspector", () => {
         sessions={sessions}
         active={{
           ...active,
-          events: [{ type: "tool", message: "listed files", timestamp: "2026-05-23T11:55:00Z" }],
+          events: [
+            {
+              event_id: "evt-2",
+              type: "tool",
+              message: "listed files",
+              timestamp: "2026-05-23T11:55:00Z",
+            },
+          ],
         }}
         commands={commands}
         onSelectSession={() => undefined}
@@ -188,8 +229,8 @@ describe("Inspector", () => {
       <Inspector
         inspector="runs"
         sessions={[
-          { session_id: "sess-1", status: "idle", mode: "code", workspace_root: "." },
-          { session_id: "sess-2", status: "running", mode: "code", workspace_root: "." },
+          makeSession(),
+          makeSession({ session_id: "sess-2", status: "running" }),
         ]}
         active={active}
         commands={commands}

@@ -62,6 +62,8 @@ export function SessionUsage({ sessionId }: SessionUsageProps) {
     return <p className="panel-empty">No usage data yet.</p>;
   }
 
+  const breakdown = usage.breakdown ?? [];
+
   return (
     <div className="usage-panel">
       <div className="usage-summary">
@@ -78,7 +80,7 @@ export function SessionUsage({ sessionId }: SessionUsageProps) {
           <span className="usage-label">output</span>
         </div>
         <div className="usage-metric">
-          <span className="usage-value">{formatCost(usage.estimated_cost_usd)}</span>
+          <span className="usage-value">{formatCost(usage.estimated_cost_usd ?? null)}</span>
           <span className="usage-label">est. cost</span>
         </div>
         <div className="usage-metric">
@@ -87,18 +89,18 @@ export function SessionUsage({ sessionId }: SessionUsageProps) {
         </div>
       </div>
 
-      {usage.breakdown.length > 0 && (
+      {breakdown.length > 0 && (
         <details className="usage-breakdown">
-          <summary>Breakdown ({usage.breakdown.length} calls)</summary>
+          <summary>Breakdown ({breakdown.length} calls)</summary>
           <ul>
-            {usage.breakdown.map((item) => (
+            {breakdown.map((item) => (
               <li key={item.sequence}>
                 <span>{item.provider ?? "unknown"}</span>
                 <span>{item.model ?? "unknown"}</span>
                 <span>
                   {formatTokens(item.input_tokens)} → {formatTokens(item.output_tokens)}
                 </span>
-                <span>{formatCost(item.estimated_cost_usd)}</span>
+                <span>{formatCost(item.estimated_cost_usd ?? null)}</span>
               </li>
             ))}
           </ul>

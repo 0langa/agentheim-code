@@ -97,15 +97,16 @@ Last verified: 2026-05-25
 - `ruff check`: All checks passed
 - `ruff format --check`: 49 files already formatted
 - `mypy`: Success: no issues found in 21 source files
-- `pytest`: 271 passed, 3 deselected, 91.26% coverage
+- `pytest`: 272 passed, 3 deselected, 91.86% coverage
 - `npm --prefix apps/web run test -- --run`: 12 test files, 68 tests passed
 - `npm --prefix apps/web run build`: passed
-- `npm --prefix apps/web run e2e`: 5 passed (chromium)
+- `npm --prefix apps/web run e2e`: 7 passed (chromium)
 - `cargo test`: 1 passed
 - `python -m build --wheel`: agentheim_code-1.9.0-py3-none-any.whl
 - `scripts/package-beta.ps1`: passed; built `Agentheim Code_1.9.0_x64-setup.exe` and completed clean wheel smoke
+- `npm --prefix apps/web run docs:screenshots`: generated `workbench-overview.png`, `workbench-files.png`, and `workbench-usage.png`
 - `scripts/release.ps1 -Version 1.9.0`: not executed
-- manual browser smoke: `/api/health` returned `status=ok`, `version=1.9.0`; `/coder` loaded with title `Agentheim Code`; the page rendered `AGENTHEIM CODE`, `Coder Hub`, and the `New` action
+- manual browser smoke: `/api/health` returned `status=ok`, `version=1.9.0`; `/coder` loaded with title `Agentheim Code`; the page rendered `AGENTHEIM CODE`, `Coder Hub`, and the `New session` action
 - built desktop shell smoke: `apps/desktop/src-tauri/target/release/agentheim-code.exe` stayed alive after startup from the built release binary
 - wheel contents smoke: clean wheel build completed successfully for `1.9.0`
 
