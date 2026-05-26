@@ -111,8 +111,8 @@ export function ProviderManagementWorkspace({
       const availableNames = new Set(data.profiles.map((profile) => profile.name));
       const preferredProfile =
         (preferredSelection && availableNames.has(preferredSelection) ? preferredSelection : "") ||
-        (data.default_profile && availableNames.has(data.default_profile) ? data.default_profile : "") ||
         (selectedProfileName && availableNames.has(selectedProfileName) ? selectedProfileName : "") ||
+        (data.default_profile && availableNames.has(data.default_profile) ? data.default_profile : "") ||
         data.profiles[0]?.name ||
         "";
       if (preferredProfile !== selectedProfileName) {
@@ -154,18 +154,18 @@ export function ProviderManagementWorkspace({
   const submitProfileDialog = async () => {
     if (!profileDialog) return;
     try {
+      let nextSelection = selectedProfileName;
       if (profileDialog.mode === "create") {
-        await createManagementProfile(profileDialog.name);
+        const created = await createManagementProfile(profileDialog.name);
+        nextSelection = created.profile.name;
       } else if (profileDialog.mode === "duplicate") {
-        await duplicateManagementProfile(selectedProfileName, profileDialog.name);
+        const duplicated = await duplicateManagementProfile(selectedProfileName, profileDialog.name);
+        nextSelection = duplicated.profile.name;
       } else {
         const parsed = JSON.parse(profileDialog.payload);
-        await importManagementProfile(parsed, profileDialog.name || undefined);
+        const imported = await importManagementProfile(parsed, profileDialog.name || undefined);
+        nextSelection = imported.profile.name;
       }
-      const nextSelection =
-        profileDialog.mode === "import"
-          ? profileDialog.name || JSON.parse(profileDialog.payload).name || selectedProfileName
-          : profileDialog.name;
       clearTransientUi();
       await refresh(nextSelection);
       onProfilesChanged?.();

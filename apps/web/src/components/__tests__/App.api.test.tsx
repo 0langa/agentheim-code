@@ -184,10 +184,101 @@ describe("App API integration", () => {
         expect.objectContaining({ onToken: expect.any(Function) }),
         expect.any(AbortSignal),
         [],
+        ".",
       );
       expect(screen.getByText("streamed draft")).toBeInTheDocument();
       expect(mockApi).toHaveBeenLastCalledWith(
         "/coder/sessions/sess-3/view",
+        undefined,
+      );
+    });
+  });
+
+  it("keeps workspace_root on session-scoped follow-up calls", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          session_id: "sess-9",
+          status: "idle",
+          mode: "code",
+          workspace_root: "C:/workspace/test-app",
+        },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-9",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/workspace/test-app",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-9",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/workspace/test-app",
+          transcript: [{ role: "assistant", content: "ok" }],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      });
+    mockStreamSessionMessage.mockResolvedValue(undefined);
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-9"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-9/view?workspace_root=C%3A%2Fworkspace%2Ftest-app",
+        undefined,
+      );
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "hello there" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    await waitFor(() => {
+      expect(mockStreamSessionMessage).toHaveBeenCalledWith(
+        "sess-9",
+        "hello there",
+        expect.objectContaining({ onToken: expect.any(Function) }),
+        expect.any(AbortSignal),
+        [],
+        "C:/workspace/test-app",
+      );
+      expect(mockApi).toHaveBeenLastCalledWith(
+        "/coder/sessions/sess-9/view?workspace_root=C%3A%2Fworkspace%2Ftest-app",
         undefined,
       );
     });

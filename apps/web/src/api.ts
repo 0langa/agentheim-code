@@ -63,14 +63,27 @@ export class ApiError extends Error {
 function extractApiErrorMessage(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as {
-      detail?: string | { message?: string; code?: string };
+      detail?:
+        | string
+        | { message?: string; code?: string }
+        | Array<{ msg?: string; loc?: Array<string | number> }>;
       message?: string;
       error?: string;
     };
-    if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
-    if (parsed.detail && typeof parsed.detail === "object") {
-      const code = typeof parsed.detail.code === "string" ? parsed.detail.code : "";
-      const message = typeof parsed.detail.message === "string" ? parsed.detail.message : "";
+    const detail = parsed.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0];
+      if (typeof first?.msg === "string" && first.msg.trim()) {
+        const location = Array.isArray(first.loc) && first.loc.length > 0
+          ? ` (${first.loc.join(".")})`
+          : "";
+        return `${first.msg}${location}`;
+      }
+    }
+    if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+      const code = typeof detail.code === "string" ? detail.code : "";
+      const message = typeof detail.message === "string" ? detail.message : "";
       if (message) return code ? `${message} (${code})` : message;
     }
     if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
@@ -87,7 +100,17 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   const isIdempotent = isSafe || init.method === "POST" && url.endsWith("/cancel");
   const retries = isSafe ? 2 : isIdempotent ? 1 : 0;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(url, init);
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      if (attempt === retries) {
+        throw error;
+      }
+      const delay = Math.min(300 * 2 ** attempt, 2000);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
     if (response.ok) {
       return response;
     }
@@ -114,6 +137,12 @@ function mergeHeaders(init?: RequestInit, requestId?: string): Headers {
     headers.set("x-request-id", requestId);
   }
   return headers;
+}
+
+function withWorkspaceRoot(path: string, workspaceRoot?: string | null): string {
+  if (!workspaceRoot || workspaceRoot === ".") return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}workspace_root=${encodeURIComponent(workspaceRoot)}`;
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -170,23 +199,26 @@ export async function streamSessionMessage(
   handlers: StreamHandlers,
   signal?: AbortSignal,
   contextFiles: string[] = [],
+  workspaceRoot?: string | null,
 ): Promise<void> {
   const apiBase = await getApiBase();
+  const body = JSON.stringify({
+    prompt,
+    context_files: contextFiles,
+    use_context_bundle: true,
+  } satisfies CoderSessionMessageRequest);
   const response = await fetch(
-    `${apiBase}/coder/sessions/${sessionId}/messages/stream`,
+    `${apiBase}${withWorkspaceRoot(`/coder/sessions/${sessionId}/messages/stream`, workspaceRoot)}`,
     {
       method: "POST",
-      headers: mergeHeaders(undefined, newRequestId()),
-      body: JSON.stringify({
-        prompt,
-        context_files: contextFiles,
-        use_context_bundle: true,
-      } satisfies CoderSessionMessageRequest),
+      headers: mergeHeaders({ body }, newRequestId()),
+      body,
       signal,
     },
   );
   if (!response.ok) {
-    throw new ApiError(response.status, await response.text());
+    const text = await response.text();
+    throw new ApiError(response.status, extractApiErrorMessage(text));
   }
   if (!response.body) {
     throw new Error("Streaming response is not readable");
@@ -210,16 +242,22 @@ export async function streamSessionMessage(
   if (buffer.trim()) dispatchSseBlock(buffer, handlers);
 }
 
-export async function cancelSession(sessionId: string): Promise<Session> {
-  return api<Session>(`/coder/sessions/${sessionId}/cancel`, { method: "POST" });
+export async function cancelSession(
+  sessionId: string,
+  workspaceRoot?: string | null,
+): Promise<Session> {
+  return api<Session>(withWorkspaceRoot(`/coder/sessions/${sessionId}/cancel`, workspaceRoot), {
+    method: "POST",
+  });
 }
 
 export async function validateContext(
   sessionId: string,
   paths: string[],
+  workspaceRoot?: string | null,
 ): Promise<ContextValidationResult> {
   return api<ContextValidationResult>(
-    `/coder/sessions/${sessionId}/context/validate`,
+    withWorkspaceRoot(`/coder/sessions/${sessionId}/context/validate`, workspaceRoot),
     {
       method: "POST",
       body: JSON.stringify({ paths } satisfies ContextValidateRequest),

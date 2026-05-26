@@ -40,6 +40,8 @@ describe("streamSessionMessage", () => {
         body: JSON.stringify({ prompt: "hi", context_files: [], use_context_bundle: true }),
       }),
     );
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers as HeadersInit);
+    expect(headers.get("content-type")).toBe("application/json");
     expect(onToken).toHaveBeenNthCalledWith(1, "hello ");
     expect(onToken).toHaveBeenNthCalledWith(2, "world");
     expect(onDone).toHaveBeenCalledWith({ session_id: "sess-1" });
@@ -92,6 +94,51 @@ describe("streamSessionMessage", () => {
     expect(firstHeaders.get("x-request-id")).toBeTruthy();
     expect(secondHeaders.get("x-request-id")).toBeTruthy();
     expect(secondHeaders.get("x-request-id")).not.toBe(firstHeaders.get("x-request-id"));
+
+    fetchMock.mockRestore();
+  });
+
+  it("includes workspace_root for streamed prompts when provided", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(streamFromText('event: done\ndata: {"session_id":"sess-1"}\n\n'), {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+
+    await streamSessionMessage("sess-1", "hi", {}, undefined, [], "C:/workspace/demo");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/coder/sessions/sess-1/messages/stream?workspace_root=C%3A%2Fworkspace%2Fdemo",
+      expect.objectContaining({
+        body: JSON.stringify({ prompt: "hi", context_files: [], use_context_bundle: true }),
+      }),
+    );
+
+    fetchMock.mockRestore();
+  });
+
+  it("surfaces structured validation errors from stream failures", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          detail: [
+            {
+              loc: ["body"],
+              msg: "Input should be a valid dictionary",
+            },
+          ],
+        }),
+        {
+          status: 422,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    await expect(streamSessionMessage("sess-1", "hi", {})).rejects.toMatchObject({
+      message: "Input should be a valid dictionary (body)",
+    });
 
     fetchMock.mockRestore();
   });

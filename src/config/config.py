@@ -308,6 +308,47 @@ class ProfilesDocument(BaseModel):
     profiles: dict[str, TeamProfile] = Field(default_factory=dict)
 
 
+def _ordered_capabilities(capabilities: set[str]) -> list[str]:
+    preferred = [
+        ModelCapability.TEXT.value,
+        ModelCapability.JSON.value,
+        ModelCapability.VISION.value,
+        ModelCapability.TOOLS.value,
+        ModelCapability.STREAMING.value,
+        ModelCapability.EMBEDDINGS.value,
+        ModelCapability.RERANK.value,
+    ]
+    ordered = [cap for cap in preferred if cap in capabilities]
+    ordered.extend(sorted(cap for cap in capabilities if cap not in preferred))
+    return ordered
+
+
+def normalize_model_binding(binding: ModelBinding, profile: TeamProfile) -> ModelBinding:
+    capabilities = {cap.strip().lower() for cap in binding.capabilities if cap and cap.strip()}
+    provider = profile.providers.get(binding.provider)
+    template = PROVIDER_TEMPLATES.get(provider.kind) if provider else None
+
+    if not capabilities or capabilities == {ModelCapability.TEXT.value}:
+        if template:
+            capabilities.update(template.capabilities)
+        else:
+            capabilities.update({ModelCapability.TEXT.value, ModelCapability.JSON.value})
+
+    if binding.role in {ModelRole.PLANNER, ModelRole.EXECUTOR, ModelRole.VERIFIER}:
+        capabilities.update({ModelCapability.TEXT.value, ModelCapability.JSON.value})
+    if binding.supports_tools:
+        capabilities.add(ModelCapability.TOOLS.value)
+    if binding.supports_vision:
+        capabilities.add(ModelCapability.VISION.value)
+    if binding.supports_streaming:
+        capabilities.add(ModelCapability.STREAMING.value)
+
+    normalized = _ordered_capabilities(capabilities)
+    if normalized == binding.capabilities:
+        return binding
+    return cast(ModelBinding, binding.model_copy(update={"capabilities": normalized}))
+
+
 def _normalize_profiles_document(document: ProfilesDocument) -> tuple[ProfilesDocument, bool]:
     changed = False
     if document.profiles and document.default_profile not in document.profiles:
@@ -316,6 +357,21 @@ def _normalize_profiles_document(document: ProfilesDocument) -> tuple[ProfilesDo
             document.model_copy(update={"default_profile": next(iter(document.profiles))}),
         )
         changed = True
+    normalized_profiles: dict[str, TeamProfile] = {}
+    for name, profile in document.profiles.items():
+        normalized_models: dict[str, ModelBinding] = {}
+        profile_changed = False
+        for model_id, binding in profile.models.items():
+            normalized = normalize_model_binding(binding, profile)
+            normalized_models[model_id] = normalized
+            if normalized != binding:
+                profile_changed = True
+        if profile_changed:
+            profile = cast(TeamProfile, profile.model_copy(update={"models": normalized_models}))
+            changed = True
+        normalized_profiles[name] = profile
+    if changed:
+        document = cast(ProfilesDocument, document.model_copy(update={"profiles": normalized_profiles}))
     return document, changed
 
 

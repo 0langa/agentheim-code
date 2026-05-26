@@ -19,7 +19,7 @@ export function ModelBindingEditor({ model, providers, onClose, onSave }: ModelB
   const [provider, setProvider] = useState(model?.provider || (providers[0]?.id ?? ""));
   const [modelName, setModelName] = useState(model?.model || "");
   const [displayName, setDisplayName] = useState(model?.display_name || "");
-  const [capabilities, setCapabilities] = useState<string[]>(model?.capabilities || ["text"]);
+  const [capabilities, setCapabilities] = useState<string[]>(model?.capabilities || ["text", "json"]);
   const [contextWindow, setContextWindow] = useState(model?.context_window || "");
   const [maxOutputTokens, setMaxOutputTokens] = useState(model?.max_output_tokens || "");
   const [supportsTools, setSupportsTools] = useState(model?.supports_tools || false);

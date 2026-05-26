@@ -245,9 +245,11 @@ class TestModelCrud:
         account = ProviderAccount(id="a1", kind="openai_v1", endpoint="https://example.com/v1")
         add_account("p", account)
         model = ModelBinding(id="m1", role="planner", provider="a1", model="gpt-4")
-        add_model("p", model)
+        added = add_model("p", model)
+        assert "json" in added.capabilities
         data = get_profile("p")
         assert len(data["models"]) == 1
+        assert "json" in data["models"][0]["capabilities"]
 
     def test_add_model_unknown_provider_raises(self, empty_doc: Path) -> None:
         create_profile("p")
@@ -310,6 +312,7 @@ class TestModelCrud:
         assert len(imported) == 2
         data = get_profile("p")
         assert len(data["models"]) == 2
+        assert "json" in data["models"][0]["capabilities"]
 
     def test_assign_role_rejects_removed_roles(self, empty_doc: Path) -> None:
         create_profile("p")

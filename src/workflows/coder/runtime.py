@@ -396,6 +396,10 @@ def _offline_violations(plan: CoderTurnPlan, prompt: str) -> list[str]:
     return violations
 
 
+def _mode_allows_noop_plan(mode: CoderMode) -> bool:
+    return mode in {CoderMode.ASK, CoderMode.PLAN, CoderMode.REVIEW, CoderMode.DOCS}
+
+
 class _SessionLock:
     def __init__(self, workspace_root: Path, session_id: str) -> None:
         self.path = _session_paths(workspace_root, session_id)["lock"]
@@ -710,7 +714,7 @@ def _plan_turn(
         ledger=ledger,
     )
     plan = _sanitize_plan(plan)
-    if not plan.actions:
+    if not plan.actions and not _mode_allows_noop_plan(session.mode):
         raise ValueError("Model returned a valid plan with no actions.")
     needs_verification = _session_has_coding_context(session, prompt)
     write_issues = _write_file_content_issues(plan)

@@ -12,8 +12,10 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "agentheim-code"
 version = "2.0.0"
 dependencies = [
+ "serde",
  "tauri",
  "tauri-build",
+ "toml 0.8.2",
 ]
 
 [[package]]

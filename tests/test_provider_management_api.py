@@ -83,6 +83,48 @@ class TestManagementProfiles:
         assert resp.json()["default_profile"] == "Azure 5.4"
         assert '"default_profile": "Azure 5.4"' in profiles_path.read_text(encoding="utf-8")
 
+    def test_legacy_planner_capabilities_are_normalized_on_load(
+        self, client: TestClient, profiles_path: Path
+    ) -> None:
+        save_profiles_document(
+            ProfilesDocument(
+                version=1,
+                default_profile="Azure 5.4",
+                profiles={
+                    "Azure 5.4": {
+                        "name": "Azure 5.4",
+                        "providers": {
+                            "Azure-Foundry-Account": {
+                                "id": "Azure-Foundry-Account",
+                                "kind": "azure_foundry",
+                                "endpoint": "https://coding-eu-resource.openai.azure.com/openai/v1",
+                                "auth_mode": "api_key",
+                                "timeout_seconds": 60,
+                                "headers": {},
+                                "metadata": {"template": "azure_foundry", "deployment": "gpt-5.4"},
+                            }
+                        },
+                        "models": {
+                            "gpt-5.4": {
+                                "id": "gpt-5.4",
+                                "role": "planner",
+                                "provider": "Azure-Foundry-Account",
+                                "model": "gpt-5.4",
+                                "capabilities": ["text"],
+                            }
+                        },
+                        "privacy_mode": "standard",
+                    }
+                },
+            ),
+            path=profiles_path,
+        )
+        resp = client.get("/api/provider-management/profiles/Azure%205.4")
+        assert resp.status_code == 200
+        model = resp.json()["profile"]["models"][0]
+        assert "json" in model["capabilities"]
+        assert '"json"' in profiles_path.read_text(encoding="utf-8")
+
     def test_duplicate_profile(self, client: TestClient, profiles_path: Path) -> None:
         client.post("/api/provider-management/profiles", json={"name": "orig"})
         resp = client.post(

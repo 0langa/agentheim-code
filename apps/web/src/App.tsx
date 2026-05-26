@@ -65,6 +65,13 @@ export function App() {
     [mergeSession],
   );
 
+  const sessionPath = React.useCallback((sessionId: string, suffix = "", workspaceRoot?: string) => {
+    const base = `/coder/sessions/${sessionId}${suffix}`;
+    if (!workspaceRoot || workspaceRoot === ".") return base;
+    const separator = base.includes("?") ? "&" : "?";
+    return `${base}${separator}workspace_root=${encodeURIComponent(workspaceRoot)}`;
+  }, []);
+
   useEffect(() => {
     api<UiConfig>("/config")
       .then(setUiConfig)
@@ -138,7 +145,7 @@ export function App() {
       });
       setSessions((current) => [session, ...current]);
       const view = await api<SessionView>(
-        `/coder/sessions/${session.session_id}/view`,
+        sessionPath(session.session_id, "/view", session.workspace_root),
       );
       applySessionView(view);
     } catch (err) {
@@ -244,9 +251,10 @@ export function App() {
         },
         controller.signal,
         selectedContextFiles,
+        active.session.workspace_root,
       );
       const view = await api<SessionView>(
-        `/coder/sessions/${sessionId}/view`,
+        sessionPath(sessionId, "/view", active.session.workspace_root),
       );
       applySessionView(view);
     } catch (err) {
@@ -265,9 +273,9 @@ export function App() {
     streamAbort?.abort();
     if (active) {
       try {
-        await cancelSession(active.session.session_id);
+        await cancelSession(active.session.session_id, active.session.workspace_root);
         const view = await api<SessionView>(
-          `/coder/sessions/${active.session.session_id}/view`,
+          sessionPath(active.session.session_id, "/view", active.session.workspace_root),
         );
         applySessionView(view);
       } catch {
@@ -300,7 +308,11 @@ export function App() {
     setPrompt((current) => current.replace(/(?:^|\s)@[^\s@]*$/, "").trimStart());
     if (active) {
       try {
-        const result = await validateContext(active.session.session_id, next);
+        const result = await validateContext(
+          active.session.session_id,
+          next,
+          active.session.workspace_root,
+        );
         setContextPreviews(result.items ?? []);
       } catch {
         setContextPreviews([]);
@@ -321,10 +333,16 @@ export function App() {
     try {
       const action = grant ? "grant" : "deny";
       const session = await api<Session>(
-        `/coder/sessions/${active.session.session_id}/approvals/${requestId}/${action}`,
+        sessionPath(
+          active.session.session_id,
+          `/approvals/${requestId}/${action}`,
+          active.session.workspace_root,
+        ),
         { method: "POST" },
       );
-      const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
+      const view = await api<SessionView>(
+        sessionPath(session.session_id, "/view", active.session.workspace_root),
+      );
       applySessionView(view);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -351,7 +369,10 @@ export function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const view = await api<SessionView>(`/coder/sessions/${sessionId}/view`);
+      const workspaceRoot =
+        sessions.find((session) => session.session_id === sessionId)?.workspace_root ??
+        active?.session.workspace_root;
+      const view = await api<SessionView>(sessionPath(sessionId, "/view", workspaceRoot));
       applySessionView(view);
       setSelectedMode(view.session.mode ?? "code");
       setSelectedTrustMode(view.session.trust_mode ?? "ask");
@@ -428,7 +449,7 @@ export function App() {
   const updateActiveModel = async (profile: string, model: string) => {
     if (!active) return;
     const session = await api<Session>(
-      `/coder/sessions/${active.session.session_id}/model`,
+      sessionPath(active.session.session_id, "/model", active.session.workspace_root),
       {
         method: "PATCH",
         body: JSON.stringify({
@@ -437,7 +458,9 @@ export function App() {
         }),
       },
     );
-    const view = await api<SessionView>(`/coder/sessions/${session.session_id}/view`);
+    const view = await api<SessionView>(
+      sessionPath(session.session_id, "/view", active.session.workspace_root),
+    );
     applySessionView(view);
   };
 

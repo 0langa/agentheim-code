@@ -8,6 +8,7 @@ from core.ledger import RunLedger
 from workflows.coder import runtime
 from workflows.coder.models import (
     CoderAction,
+    CoderMode,
     CoderSession,
     CoderTurnPlan,
     SessionStatus,
@@ -56,6 +57,16 @@ def test_coder_action_accepts_provider_aliases() -> None:
 
     assert action.kind == "write_file"
     assert action.path == "todo.py"
+
+
+def test_mode_allows_noop_plan_for_non_coding_modes() -> None:
+    assert runtime._mode_allows_noop_plan(CoderMode.ASK) is True
+    assert runtime._mode_allows_noop_plan(CoderMode.PLAN) is True
+    assert runtime._mode_allows_noop_plan(CoderMode.REVIEW) is True
+    assert runtime._mode_allows_noop_plan(CoderMode.DOCS) is True
+    assert runtime._mode_allows_noop_plan(CoderMode.CODE) is False
+    assert runtime._mode_allows_noop_plan(CoderMode.FIX) is False
+    assert runtime._mode_allows_noop_plan(CoderMode.TEST) is False
 
 
 def test_repair_uses_prior_coding_context(

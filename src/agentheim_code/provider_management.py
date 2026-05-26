@@ -20,6 +20,7 @@ from config.config import (
     get_secret_store,
     load_profiles_document,
     make_secret_ref,
+    normalize_model_binding,
     save_profiles_document,
 )
 from config.config import list_provider_templates as _list_templates
@@ -298,10 +299,17 @@ def import_profile(data: dict[str, Any], name: str | None = None) -> TeamProfile
             metadata=dict(rm.get("metadata", {})),
         )
 
+    normalized_models = {
+        mid: normalize_model_binding(
+            binding,
+            TeamProfile(name=profile_name, providers=providers, models={}),
+        )
+        for mid, binding in models.items()
+    }
     profile = TeamProfile(
         name=profile_name,
         providers=providers,
-        models=models,
+        models=normalized_models,
         privacy_mode=str(data.get("privacy_mode", "standard")),
     )
     # Validate refs
@@ -501,6 +509,7 @@ def add_model(profile_name: str, binding: ModelBinding) -> ModelBinding:
     doc = _ensure_doc()
     profile = _profile_or_raise(doc, profile_name)
     _validate_model_binding(binding, profile)
+    binding = normalize_model_binding(binding, profile)
     if binding.id in profile.models:
         raise ValidationError(
             "duplicate_binding", f"Model binding '{binding.id}' already exists.", "id"
@@ -542,6 +551,7 @@ def update_model(profile_name: str, binding_id: str, updates: dict[str, Any]) ->
     changed = {k: v for k, v in updates.items() if k in allowed}
     updated = cast(ModelBinding, current.model_copy(update=changed))
     _validate_model_binding(updated, profile)
+    updated = normalize_model_binding(updated, profile)
     # Handle default switch
     if updated.is_default and not current.is_default:
         for m in profile.models.values():
@@ -643,6 +653,7 @@ def import_discovered_models(
             supports_vision=raw.get("supports_vision"),
             supports_streaming=raw.get("supports_streaming"),
         )
+        binding = normalize_model_binding(binding, profile)
         profile.models[binding_id] = binding
         created.append(binding)
     doc.profiles[profile_name] = profile
