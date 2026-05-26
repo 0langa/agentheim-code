@@ -73,6 +73,24 @@ def _utcnow() -> str:
     return datetime.now(tz=UTC).isoformat()
 
 
+def _planner_command_guidance(os_name: str | None = None) -> str:
+    current_os = os_name or os.name
+    allowlist = ", ".join(SAFE_COMMANDS)
+    if current_os == "nt":
+        return (
+            "Current OS is Windows and run_command only allows these executable roots: "
+            f"{allowlist}. "
+            "Use argv command arrays only. "
+            "Do not use sh, bash, cmd, powershell, shell pipelines, or Unix utilities like test, sed, find, ls, cat, grep, or tr. "
+            "For file checks or smoke checks, prefer python -c one-liners or framework-native commands that start with an allowed executable."
+        )
+    return (
+        "run_command only allows these executable roots: "
+        f"{allowlist}. "
+        "Use argv command arrays only and keep verification local."
+    )
+
+
 def _session_paths(workspace_root: Path, session_id: str) -> dict[str, Path]:
     run_dir = workspace_root / ".ai-team" / "runs" / safe_run_id(session_id)
     return {
@@ -695,7 +713,8 @@ def _plan_turn(
         "Prefer small, justified dependency footprints. If dependencies are needed, add the proper manifest/config files and use normal local setup/test commands for that ecosystem. "
         "For build, fix, refactor, test, or project-creation tasks, include at least one run_command action that verifies the result locally. "
         "Never claim tests, builds, or smoke checks passed unless a run_command action actually runs them. "
-        "Respect explicit offline/local-first requirements. Only use package installs, network actions, external URLs, CDNs, remote assets, or generated dependency downloads when the user request or selected stack makes them necessary and policy allows it."
+        "Respect explicit offline/local-first requirements. Only use package installs, network actions, external URLs, CDNs, remote assets, or generated dependency downloads when the user request or selected stack makes them necessary and policy allows it. "
+        f"{_planner_command_guidance()}"
     )
     user_prompt = (
         f"Workspace summary: {json.dumps(workspace_summary)}\n"

@@ -188,9 +188,12 @@ class ShellSandbox:
         if first in self.config.validate_args:
             self._validate_args(command)
 
-        # Check for shell injection attempts in arguments
-        for arg in command[1:]:
-            self._validate_arg(arg)
+        # Shell metacharacters are only dangerous when invoking a real shell.
+        # For direct argv execution (subprocess shell=False), strings like
+        # "python -c 'a; b'" are legitimate arguments and must not be blocked.
+        if first in {"sh", "bash", "cmd", "powershell", "pwsh"}:
+            for arg in command[1:]:
+                self._validate_arg(arg)
 
     def _validate_args(self, command: list[str]) -> None:
         """Validate arguments for sensitive commands like git."""

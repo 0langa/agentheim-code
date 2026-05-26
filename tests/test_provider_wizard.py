@@ -165,6 +165,28 @@ class TestCreateProfile:
         # Should fall back to template endpoint
         assert profile.providers["p1"].endpoint != ""
 
+    def test_azure_foundry_uses_longer_default_timeout(self, tmp_path: Any, monkeypatch: Any) -> None:
+        profile_path = tmp_path / "profiles.json"
+        doc = ProfilesDocument(version=1, default_profile="default", profiles={})
+        save_profiles_document(doc, path=profile_path)
+
+        def _mock_path() -> Any:
+            return profile_path
+
+        monkeypatch.setattr("agentheim_code.provider_wizard._profiles_path", _mock_path)
+        monkeypatch.setattr("config.config.get_profiles_path", _mock_path)
+
+        with patch("agentheim_code.provider_wizard.get_secret_store", return_value=MagicMock()):
+            profile = create_profile(
+                name="azure-test",
+                provider_kind="azure_foundry",
+                provider_id="azure-1",
+                model_id="gpt-5.4",
+                fields={"api_key": "azure-secret", "endpoint": "https://example.openai.azure.com"},
+            )
+
+        assert profile.providers["azure-1"].timeout_seconds == 180
+
     def test_aws_bedrock_profile(self, tmp_path: Any, monkeypatch: Any) -> None:
         profile_path = tmp_path / "profiles.json"
         doc = ProfilesDocument(version=1, default_profile="default", profiles={})

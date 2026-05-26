@@ -69,6 +69,14 @@ def test_mode_allows_noop_plan_for_non_coding_modes() -> None:
     assert runtime._mode_allows_noop_plan(CoderMode.TEST) is False
 
 
+def test_planner_command_guidance_for_windows_avoids_shell_wrappers() -> None:
+    guidance = runtime._planner_command_guidance("nt")
+
+    assert "python, pytest, git, npm, node, pip, poetry, cargo, go, dotnet" in guidance
+    assert "Do not use sh, bash, cmd, powershell" in guidance
+    assert "python -c" in guidance
+
+
 def test_repair_uses_prior_coding_context(
     tmp_path: Path,
     monkeypatch: Any,

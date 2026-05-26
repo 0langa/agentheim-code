@@ -92,6 +92,7 @@ export type ProviderTemplate = {
   capabilities: string[];
   docs_url: string;
   support_state: string;
+  default_timeout_seconds?: number;
   wizard_fields: WizardField[];
   capabilities_meta?: {
     supports_connection_test: boolean;

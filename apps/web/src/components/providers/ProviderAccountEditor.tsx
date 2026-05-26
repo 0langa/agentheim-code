@@ -27,6 +27,8 @@ export function ProviderAccountEditor({
   onSave,
   onTestDraft,
 }: ProviderAccountEditorProps) {
+  const timeoutForTemplate = (templateKind: string) =>
+    templates.find((t) => t.kind === templateKind)?.default_timeout_seconds || 60;
   const isEdit = Boolean(account);
   const [templateId, setTemplateId] = useState((account?.metadata?.template as string) || "openai_compatible");
   const [id, setId] = useState(account?.id || "");
@@ -34,7 +36,7 @@ export function ProviderAccountEditor({
   const [endpoint, setEndpoint] = useState(account?.endpoint || "");
   const [authMode, setAuthMode] = useState(account?.auth_mode || "api_key");
   const [secretValue, setSecretValue] = useState("");
-  const [timeout, setTimeout] = useState(account?.timeout_seconds || 60);
+  const [timeout, setTimeout] = useState(account?.timeout_seconds || timeoutForTemplate(templateId));
   const [notes, setNotes] = useState(account?.notes || "");
   const [disabled, setDisabled] = useState(account?.disabled || false);
   const [headers, setHeaders] = useState<Record<string, string>>(account?.headers || {});
@@ -54,6 +56,7 @@ export function ProviderAccountEditor({
     if (selectedTemplate && !isEdit) {
       setEndpoint(selectedTemplate.endpoint);
       setAuthMode(selectedTemplate.auth_mode);
+      setTimeout(selectedTemplate.default_timeout_seconds || 60);
     }
   }, [selectedTemplate, isEdit]);
 

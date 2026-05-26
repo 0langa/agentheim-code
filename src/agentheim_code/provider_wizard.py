@@ -152,7 +152,7 @@ def create_profile(
         endpoint=endpoint,
         auth_mode=template.get("auth_mode", "api_key"),
         secret_ref=None,
-        timeout_seconds=60,
+        timeout_seconds=int(template.get("default_timeout_seconds", 60)),
         headers={},
         metadata={"template": provider_kind, "capabilities": template.get("capabilities", [])},
     )
@@ -292,7 +292,7 @@ def verify_provider_connection(
         api_key=api_key or "-",
         auth_mode=template.get("auth_mode", "api_key"),
         model=test_model,
-        timeout_seconds=30,
+        timeout_seconds=int(template.get("default_timeout_seconds", 60)),
         headers=headers,
         metadata=metadata,
     )

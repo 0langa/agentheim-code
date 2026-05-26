@@ -14,6 +14,7 @@ const templates = [
     capabilities: ["text", "json"],
     docs_url: "https://learn.microsoft.com/",
     support_state: "beta",
+    default_timeout_seconds: 180,
     wizard_fields: [],
     capabilities_meta: {
       supports_connection_test: true,
@@ -35,6 +36,7 @@ const templates = [
     capabilities: ["text", "json", "streaming"],
     docs_url: "https://platform.openai.com/docs",
     support_state: "beta",
+    default_timeout_seconds: 60,
     wizard_fields: [],
     capabilities_meta: {
       supports_connection_test: true,
@@ -161,6 +163,7 @@ describe("ProviderAccountEditor", () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "azure-main",
+        timeout_seconds: 180,
         metadata: expect.objectContaining({
           template: "azure_foundry",
           deployment: "gpt-4o-deploy",

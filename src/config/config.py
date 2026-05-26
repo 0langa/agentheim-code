@@ -388,6 +388,7 @@ class ProviderTemplate(BaseModel):
     headers: dict[str, str] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     support_state: str = "unknown"
+    default_timeout_seconds: int = 60
 
 
 PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
@@ -420,6 +421,7 @@ PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
         capabilities=["text", "json", "vision", "tools"],
         docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference",
         support_state="beta",
+        default_timeout_seconds=180,
     ),
     "aws_bedrock": ProviderTemplate(
         kind="aws_bedrock",
@@ -755,7 +757,7 @@ def provider_account_from_template(
         endpoint=endpoint or template.endpoint,
         auth_mode=auth_mode or template.auth_mode,
         secret_ref=secret_ref,
-        timeout_seconds=timeout_seconds or 60,
+        timeout_seconds=timeout_seconds or template.default_timeout_seconds,
         headers={**template.headers, **(headers or {})},
         metadata={"template": template_id, **template.metadata, **(metadata or {})},
     )
