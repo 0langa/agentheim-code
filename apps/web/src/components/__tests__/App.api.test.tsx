@@ -194,6 +194,112 @@ describe("App API integration", () => {
     });
   });
 
+  it("auto-creates a session on first send when none is active", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session_id: "sess-auto",
+        status: "idle",
+        mode: "code",
+        workspace_root: ".",
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-auto",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-auto",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+          transcript: [{ role: "assistant", content: "ok" }],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      });
+    mockStreamSessionMessage.mockResolvedValue(undefined);
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "hello" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(mockStreamSessionMessage).toHaveBeenCalledWith(
+        "sess-auto",
+        "hello",
+        expect.objectContaining({ onToken: expect.any(Function) }),
+        expect.any(AbortSignal),
+        [],
+        ".",
+      );
+    });
+  });
+
+  it("shows clear session error when auto-create fails", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockRejectedValueOnce(new Error("Backend unavailable"));
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "hello" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    expect(await screen.findByText(/Backend unavailable/)).toBeInTheDocument();
+    expect(mockStreamSessionMessage).not.toHaveBeenCalled();
+  });
+
   it("keeps workspace_root on session-scoped follow-up calls", async () => {
     mockApi
       .mockResolvedValueOnce({

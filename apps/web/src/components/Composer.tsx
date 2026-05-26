@@ -15,6 +15,8 @@ interface ComposerProps {
   onProfileChange: (profile: string) => void;
   onModelChange: (model: string) => void;
   onSend: () => void;
+  canSend?: boolean;
+  sendDisabledReason?: string | null;
   onCancel?: () => void;
   onRetry?: () => void;
   canRetry?: boolean;
@@ -48,6 +50,8 @@ export function Composer({
   onProfileChange,
   onModelChange,
   onSend,
+  canSend = true,
+  sendDisabledReason = null,
   onCancel,
   onRetry,
   canRetry = false,
@@ -241,12 +245,32 @@ export function Composer({
               Stop
             </button>
           ) : (
-            <button className="primary" onClick={onSend} disabled={!prompt.trim()}>
+            <button
+              className="primary"
+              onClick={onSend}
+              disabled={!prompt.trim() || !canSend}
+              title={
+                !prompt.trim()
+                  ? "Enter a prompt to send"
+                  : !canSend
+                    ? (sendDisabledReason ?? "Create or select a session first")
+                    : undefined
+              }
+            >
               <Play size={16} /> Send
             </button>
           )}
         </div>
       </div>
+      {!canSend && prompt.trim() && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ fontSize: "12px", color: "var(--warning)", marginTop: "6px" }}
+        >
+          {sendDisabledReason ?? "Create or select a session first before sending."}
+        </div>
+      )}
     </footer>
   );
 }

@@ -44,6 +44,7 @@ export function App() {
   const [fileMatches, setFileMatches] = useState<FileEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [structuredError, setStructuredError] = useState<StructuredError | null>(null);
+  const [sessionBootstrapError, setSessionBootstrapError] = useState<string | null>(null);
   const [contextPreviews, setContextPreviews] = useState<ContextPreviewItem[]>([]);
   const [sessionFilter, setSessionFilter] = useState("");
   const errorRef = React.useRef<HTMLDivElement | null>(null);
@@ -133,6 +134,7 @@ export function App() {
   const createSession = async () => {
     setIsLoading(true);
     setError(null);
+    setSessionBootstrapError(null);
     try {
       const session = await api<Session>("/coder/sessions", {
         method: "POST",
@@ -148,8 +150,12 @@ export function App() {
         sessionPath(session.session_id, "/view", session.workspace_root),
       );
       applySessionView(view);
+      return view;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setSessionBootstrapError(message);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -184,13 +190,22 @@ export function App() {
 
   const sendPrompt = async (overridePrompt?: string) => {
     const promptText = overridePrompt ?? prompt;
-    if (!active || !promptText.trim()) return;
-    const sessionId = active.session.session_id;
+    if (!promptText.trim()) return;
+    let activeView = active;
+    if (!activeView) {
+      activeView = await createSession();
+      if (!activeView) {
+        setError((current) => current ?? "Unable to create a session. Start a new session and try again.");
+        return;
+      }
+    }
+    const sessionId = activeView.session.session_id;
     const controller = new AbortController();
     setIsLoading(true);
     setStreamAbort(controller);
     setError(null);
     setStructuredError(null);
+    setSessionBootstrapError(null);
     setLastPrompt(promptText);
     setPrompt("");
     const optimisticTimestamp = new Date().toISOString();
@@ -251,10 +266,10 @@ export function App() {
         },
         controller.signal,
         selectedContextFiles,
-        active.session.workspace_root,
+        activeView.session.workspace_root,
       );
       const view = await api<SessionView>(
-        sessionPath(sessionId, "/view", active.session.workspace_root),
+        sessionPath(sessionId, "/view", activeView.session.workspace_root),
       );
       applySessionView(view);
     } catch (err) {
@@ -325,6 +340,12 @@ export function App() {
     setSelectedContextFiles(next);
     setContextPreviews((current) => current.filter((item) => item.path !== path));
   };
+
+  const sendDisabledReason = !active
+    ? sessionBootstrapError
+      ? `No active session. Last session creation attempt failed: ${sessionBootstrapError}`
+      : "No active session. Send will create one automatically, or use New session first."
+    : null;
 
   const handleApproval = async (requestId: string, grant: boolean) => {
     if (!active) return;
@@ -567,6 +588,8 @@ export function App() {
             onProfileChange={changeProfile}
             onModelChange={changeModel}
             onSend={() => void sendPrompt()}
+            canSend={!isLoading || Boolean(active)}
+            sendDisabledReason={sendDisabledReason}
             onCancel={stopPrompt}
             onRetry={retryPrompt}
             canRetry={Boolean(lastPrompt)}
