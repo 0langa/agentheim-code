@@ -350,7 +350,7 @@ export function ProviderManagementWorkspace({
       <div
         ref={dialogRef}
         className="modal-content"
-        style={{ maxWidth: 900, height: "80vh", display: "flex", flexDirection: "column" }}
+        style={{ maxWidth: 1180, height: "86vh", display: "flex", flexDirection: "column" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -380,7 +380,7 @@ export function ProviderManagementWorkspace({
           </div>
         )}
 
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "center" }}>
+        <div className="workspace-toolbar">
           <select
             aria-label="Profile"
             value={selectedProfileName}
@@ -413,30 +413,25 @@ export function ProviderManagementWorkspace({
           </button>
         </div>
 
-        <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
+        <div className="workspace-tabs">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
               type="button"
-              style={{
-                padding: "10px 16px",
-                background: activeTab === t.key ? "var(--surface)" : "transparent",
-                borderBottom: activeTab === t.key ? "2px solid var(--ai)" : "2px solid transparent",
-                fontWeight: activeTab === t.key ? 600 : 400,
-              }}
+              className={`workspace-tab${activeTab === t.key ? " is-active" : ""}`}
             >
               {t.label}
             </button>
           ))}
         </div>
 
-        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        <div className="workspace-body">
           {loading && <p style={{ color: "var(--muted)" }}>Loading…</p>}
 
           {!loading && activeTab === "accounts" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <div className="workspace-section-header">
                 <strong>Provider Accounts</strong>
                 <button
                   className="primary small"
@@ -453,17 +448,8 @@ export function ProviderManagementWorkspace({
                 <p className="panel-empty">No accounts yet. Add a provider account to get started.</p>
               )}
               {selectedProfile?.providers?.map((account) => (
-                <div
-                  key={account.id}
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                    opacity: account.disabled ? 0.6 : 1,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={account.id} className="workspace-card" style={{ opacity: account.disabled ? 0.6 : 1 }}>
+                  <div className="workspace-card-header">
                     <div>
                       <strong>{account.display_name || account.id}</strong>
                       <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
@@ -471,7 +457,7 @@ export function ProviderManagementWorkspace({
                       </span>
                       {account.disabled && <span className="badge">disabled</span>}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div className="workspace-actions">
                       <button
                         className="secondary small"
                         onClick={() => {
@@ -543,7 +529,7 @@ export function ProviderManagementWorkspace({
 
           {!loading && activeTab === "models" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+              <div className="workspace-section-header">
                 <strong>Model Bindings</strong>
                 <button
                   className="primary small"
@@ -559,26 +545,28 @@ export function ProviderManagementWorkspace({
               {!selectedProfile?.models?.length && (
                 <p className="panel-empty">No model bindings yet.</p>
               )}
-              <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+              <div className="workspace-table-wrap">
+              <table className="workspace-table">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                    <th style={{ padding: "6px 8px" }}>ID</th>
-                    <th style={{ padding: "6px 8px" }}>Provider</th>
-                    <th style={{ padding: "6px 8px" }}>Model</th>
-                    <th style={{ padding: "6px 8px" }}>Role</th>
-                    <th style={{ padding: "6px 8px" }}>Default</th>
-                    <th style={{ padding: "6px 8px" }}>Actions</th>
+                  <tr>
+                    <th>ID</th>
+                    <th>Provider</th>
+                    <th>Model</th>
+                    <th>Role</th>
+                    <th>Default</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedProfile?.models?.map((m) => (
-                    <tr key={m.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td style={{ padding: "6px 8px" }}>{m.display_name || m.id}</td>
-                      <td style={{ padding: "6px 8px" }}>{m.provider}</td>
-                      <td style={{ padding: "6px 8px" }}>{m.model}</td>
-                      <td style={{ padding: "6px 8px" }}>{m.role}</td>
-                      <td style={{ padding: "6px 8px" }}>{m.is_default ? "★" : ""}</td>
-                      <td style={{ padding: "6px 8px", display: "flex", gap: 6 }}>
+                    <tr key={m.id}>
+                      <td>{m.display_name || m.id}</td>
+                      <td>{m.provider}</td>
+                      <td>{m.model}</td>
+                      <td>{m.role}</td>
+                      <td>{m.is_default ? "★" : ""}</td>
+                      <td>
+                        <div className="workspace-actions">
                         <button
                           className="secondary small"
                           onClick={() => {
@@ -605,11 +593,13 @@ export function ProviderManagementWorkspace({
                         >
                           Delete
                         </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 

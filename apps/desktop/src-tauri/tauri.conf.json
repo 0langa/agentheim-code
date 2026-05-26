@@ -13,10 +13,11 @@
     "windows": [
       {
         "title": "Agentheim Code",
-        "width": 1320,
-        "height": 860,
-        "minWidth": 960,
-        "minHeight": 680
+        "width": 1480,
+        "height": 940,
+        "minWidth": 1100,
+        "minHeight": 760,
+        "center": true
       }
     ],
     "security": {
