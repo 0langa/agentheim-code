@@ -857,7 +857,7 @@ test.describe("Agentheim Code Web", () => {
     // Verify tabs are present
     await expect(page.getByRole("button", { name: "Accounts" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Models" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Defaults & Roles" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Defaults" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Diagnostics" })).toBeVisible();
   });
 

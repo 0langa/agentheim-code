@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import type { ManagementModelBinding, ManagementProviderAccount } from "../../types";
+import type { ManagementModelBinding, ManagementProviderAccount, ModelRole } from "../../types";
 import { useModalA11y } from "../../hooks/useModalA11y";
 
 interface ModelBindingEditorProps {
@@ -12,11 +12,13 @@ interface ModelBindingEditorProps {
 
 export function ModelBindingEditor({ model, providers, onClose, onSave }: ModelBindingEditorProps) {
   const isEdit = Boolean(model);
+  const preservedRole: ModelRole = model?.role === "executor" || model?.role === "verifier" ? model.role : "planner";
+  const plannerRole: ModelRole = "planner";
+  const editingInternalRole = preservedRole !== "planner";
   const [id, setId] = useState(model?.id || "");
   const [provider, setProvider] = useState(model?.provider || (providers[0]?.id ?? ""));
   const [modelName, setModelName] = useState(model?.model || "");
   const [displayName, setDisplayName] = useState(model?.display_name || "");
-  const [role, setRole] = useState(model?.role || "planner");
   const [capabilities, setCapabilities] = useState<string[]>(model?.capabilities || ["text"]);
   const [contextWindow, setContextWindow] = useState(model?.context_window || "");
   const [maxOutputTokens, setMaxOutputTokens] = useState(model?.max_output_tokens || "");
@@ -45,7 +47,7 @@ export function ModelBindingEditor({ model, providers, onClose, onSave }: ModelB
       id: id.trim(),
       provider: provider.trim(),
       model: modelName.trim(),
-      role,
+      role: editingInternalRole ? preservedRole : plannerRole,
       display_name: displayName.trim() || undefined,
       capabilities: capabilities.length ? capabilities : ["text"],
       context_window: contextWindow ? Number(contextWindow) : undefined,
@@ -114,23 +116,22 @@ export function ModelBindingEditor({ model, providers, onClose, onSave }: ModelB
         </div>
 
         <div className="form-group">
-          <label htmlFor="mb-role">Role</label>
-          <select id="mb-role" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="planner">Planner</option>
-            <option value="generator">Generator</option>
-            <option value="reviewer">Reviewer</option>
-            <option value="verifier">Verifier</option>
-            <option value="executor">Executor</option>
-            <option value="tester">Tester</option>
-            <option value="indexer">Indexer</option>
-            <option value="retriever">Retriever</option>
-            <option value="answerer">Answerer</option>
-            <option value="gatherer">Gatherer</option>
-            <option value="summarizer">Summarizer</option>
-            <option value="reporter">Reporter</option>
-            <option value="orchestrator">Orchestrator</option>
-            <option value="context">Context</option>
-          </select>
+          <label>Role</label>
+          <div
+            style={{
+              padding: "0.65rem 0.8rem",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              background: "var(--surface-elevated)",
+            }}
+          >
+            <strong>{editingInternalRole ? preservedRole : "planner"}</strong>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+              {editingInternalRole
+                ? "Legacy internal binding preserved for compatibility. New UI-created models use planner."
+                : "Agentheim Code uses planner models for user-facing sessions."}
+            </div>
+          </div>
         </div>
 
         <div className="form-group">

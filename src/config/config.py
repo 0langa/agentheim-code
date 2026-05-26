@@ -15,7 +15,7 @@ import os
 import re
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
@@ -33,19 +33,8 @@ PROJECT_POINTER = Path(".ai-team") / "provider-profile.json"
 
 class ModelRole(StrEnum):
     PLANNER = "planner"
-    GENERATOR = "generator"
-    REVIEWER = "reviewer"
-    TESTER = "tester"
     EXECUTOR = "executor"
     VERIFIER = "verifier"
-    INDEXER = "indexer"
-    RETRIEVER = "retriever"
-    ANSWERER = "answerer"
-    GATHERER = "gatherer"
-    SUMMARIZER = "summarizer"
-    REPORTER = "reporter"
-    ORCHESTRATOR = "orchestrator"
-    CONTEXT = "context"
 
 
 class ModelCapability(StrEnum):
@@ -201,14 +190,21 @@ class TeamConfig(BaseModel):
 
     def dump(self, redacted: bool = True) -> dict[str, Any]:
         providers = {
-            pid: (provider.redacted_dict() if redacted else provider.model_dump(exclude={"api_key"}))
+            pid: (
+                provider.redacted_dict() if redacted else provider.model_dump(exclude={"api_key"})
+            )
             for pid, provider in self.providers.items()
         }
         models = {
             mid: (model.redacted_dict() if redacted else model.model_dump())
             for mid, model in self.models.items()
         }
-        return {"profile_name": self.profile_name, "privacy_mode": self.privacy_mode, "providers": providers, "models": models}
+        return {
+            "profile_name": self.profile_name,
+            "privacy_mode": self.privacy_mode,
+            "providers": providers,
+            "models": models,
+        }
 
 
 class ProviderAccount(BaseModel):
@@ -266,7 +262,9 @@ class TeamProfile(BaseModel):
     def _validate_refs(self) -> TeamProfile:
         for model in self.models.values():
             if model.provider not in self.providers:
-                raise ValueError(f"Model '{model.id}' references unknown provider '{model.provider}'.")
+                raise ValueError(
+                    f"Model '{model.id}' references unknown provider '{model.provider}'."
+                )
         return self
 
     def to_team_config(self) -> TeamConfig:
@@ -294,7 +292,12 @@ class TeamProfile(BaseModel):
             )
             for mid, model in self.models.items()
         }
-        return TeamConfig(providers=providers, models=models, profile_name=self.name, privacy_mode=self.privacy_mode)
+        return TeamConfig(
+            providers=providers,
+            models=models,
+            profile_name=self.name,
+            privacy_mode=self.privacy_mode,
+        )
 
 
 class ProfilesDocument(BaseModel):
@@ -321,29 +324,237 @@ class ProviderTemplate(BaseModel):
 
 
 PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
-    "openai_v1": ProviderTemplate(kind="openai_v1", display_name="OpenAI", endpoint="https://api.openai.com/v1", auth_mode="bearer", provider_type="openai_v1", capabilities=["text", "json", "vision", "tools", "streaming"], docs_url="https://platform.openai.com/docs/api-reference/authentication?api-mode=responses", support_state="beta"),
-    "openai_compatible": ProviderTemplate(kind="openai_compatible", display_name="OpenAI-compatible", endpoint="https://example.com/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "streaming"], docs_url="https://platform.openai.com/docs/api-reference/authentication?api-mode=responses", support_state="beta"),
-    "azure_foundry": ProviderTemplate(kind="azure_foundry", display_name="Azure OpenAI / Foundry", endpoint="https://YOUR-RESOURCE.openai.azure.com", auth_mode="api_key", provider_type="azure_foundry", capabilities=["text", "json", "vision", "tools"], docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference", support_state="beta"),
-    "aws_bedrock": ProviderTemplate(kind="aws_bedrock", display_name="AWS Bedrock", endpoint="-", auth_mode="aws_chain", provider_type="aws_bedrock", capabilities=["text", "json", "vision"], docs_url="https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html", metadata={"region": "eu-central-1"}, support_state="experimental"),
-    "oci_genai": ProviderTemplate(kind="oci_genai", display_name="OCI Generative AI", endpoint="-", auth_mode="oci_config", provider_type="oci_genai", capabilities=["text", "json"], docs_url="https://docs.oracle.com/en-us/iaas/tools/python/latest/api/generative_ai_inference/client/oci.generative_ai_inference.GenerativeAiInferenceClient.html", support_state="experimental"),
-    "xai_grok": ProviderTemplate(kind="xai_grok", display_name="xAI Grok", endpoint="https://api.x.ai/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "vision", "tools"], docs_url="https://docs.x.ai/docs/grpc-reference", support_state="experimental"),
-    "gemini": ProviderTemplate(kind="gemini", display_name="Google Gemini API", endpoint="https://generativelanguage.googleapis.com", auth_mode="api_key", provider_type="gemini", capabilities=["text", "json", "vision", "tools", "streaming"], docs_url="https://ai.google.dev/gemini-api/docs/api-key", support_state="beta"),
-    "vertex_ai": ProviderTemplate(kind="vertex_ai", display_name="Google Vertex AI", endpoint="-", auth_mode="google_adc", provider_type="vertex_ai", capabilities=["text", "json", "vision", "tools"], docs_url="https://cloud.google.com/vertex-ai/docs/authentication", support_state="beta"),
-    "anthropic": ProviderTemplate(kind="anthropic", display_name="Anthropic Claude", endpoint="https://api.anthropic.com", auth_mode="x_api_key", provider_type="anthropic", capabilities=["text", "json", "vision", "tools", "streaming"], docs_url="https://platform.claude.com/docs/en/api/authentication/overview", support_state="experimental"),
-    "kimi_moonshot": ProviderTemplate(kind="kimi_moonshot", display_name="Kimi / Moonshot AI", endpoint="https://api.moonshot.ai/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "vision", "tools"], docs_url="https://platform.kimi.ai/docs/api/overview", support_state="experimental"),
-    "mistral": ProviderTemplate(kind="mistral", display_name="Mistral AI", endpoint="https://api.mistral.ai/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "tools", "streaming"], docs_url="https://docs.mistral.ai/admin/security-access/api-keys", support_state="experimental"),
-    "groq": ProviderTemplate(kind="groq", display_name="Groq", endpoint="https://api.groq.com/openai/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "tools", "streaming"], docs_url="https://console.groq.com/docs/api-reference", support_state="experimental"),
-    "deepseek": ProviderTemplate(kind="deepseek", display_name="DeepSeek", endpoint="https://api.deepseek.com", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "tools"], docs_url="https://api-docs.deepseek.com/api/deepseek-api", support_state="experimental"),
-    "openrouter": ProviderTemplate(kind="openrouter", display_name="OpenRouter", endpoint="https://openrouter.ai/api/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "vision", "tools"], docs_url="https://openrouter.ai/docs/api-keys", support_state="experimental"),
-    "together": ProviderTemplate(kind="together", display_name="Together AI", endpoint="https://api.together.xyz/v1", auth_mode="bearer", provider_type="openai_compatible", capabilities=["text", "json", "vision"], docs_url="https://docs.together.ai/docs/api-keys-authentication", support_state="experimental"),
-    "cohere": ProviderTemplate(kind="cohere", display_name="Cohere", endpoint="https://api.cohere.com", auth_mode="bearer", provider_type="cohere", capabilities=["text", "json", "tools", "rerank", "embeddings"], docs_url="https://docs.cohere.com/reference/check-api-key", support_state="experimental"),
-    "perplexity": ProviderTemplate(kind="perplexity", display_name="Perplexity", endpoint="https://api.perplexity.ai", auth_mode="bearer", provider_type="perplexity", capabilities=["text", "json", "tools"], docs_url="https://docs.perplexity.ai/docs/admin/api-key-management", support_state="experimental"),
-    "ollama": ProviderTemplate(kind="ollama", display_name="Ollama Local", endpoint="http://localhost:11434/v1", auth_mode="none", provider_type="openai_compatible", capabilities=["text", "json", "vision"], docs_url="https://docs.ollama.com/api/authentication", support_state="beta"),
-    "ollama_cloud": ProviderTemplate(kind="ollama_cloud", display_name="Ollama Cloud", endpoint="https://ollama.com/api", auth_mode="bearer", provider_type="ollama_cloud", capabilities=["text", "json"], docs_url="https://docs.ollama.com/api/authentication", support_state="experimental"),
-    "lm_studio": ProviderTemplate(kind="lm_studio", display_name="LM Studio", endpoint="http://localhost:1234/v1", auth_mode="none", provider_type="openai_compatible", capabilities=["text", "json", "vision"], docs_url="https://lmstudio.ai/docs/local-server", support_state="beta"),
-    "vllm": ProviderTemplate(kind="vllm", display_name="vLLM", endpoint="http://localhost:8000/v1", auth_mode="none", provider_type="openai_compatible", capabilities=["text", "json", "vision"], docs_url="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html", support_state="beta"),
-    "tgi": ProviderTemplate(kind="tgi", display_name="HuggingFace TGI", endpoint="http://localhost:8080/v1", auth_mode="none", provider_type="openai_compatible", capabilities=["text", "json"], docs_url="https://huggingface.co/docs/text-generation-inference/basic_tutorials/consuming_tgi", support_state="beta"),
-    "llama_cpp": ProviderTemplate(kind="llama_cpp", display_name="llama.cpp Server", endpoint="http://localhost:8080/v1", auth_mode="none", provider_type="openai_compatible", capabilities=["text", "json", "vision"], docs_url="https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md", support_state="beta"),
+    "openai_v1": ProviderTemplate(
+        kind="openai_v1",
+        display_name="OpenAI",
+        endpoint="https://api.openai.com/v1",
+        auth_mode="bearer",
+        provider_type="openai_v1",
+        capabilities=["text", "json", "vision", "tools", "streaming"],
+        docs_url="https://platform.openai.com/docs/api-reference/authentication?api-mode=responses",
+        support_state="beta",
+    ),
+    "openai_compatible": ProviderTemplate(
+        kind="openai_compatible",
+        display_name="OpenAI-compatible",
+        endpoint="https://example.com/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "streaming"],
+        docs_url="https://platform.openai.com/docs/api-reference/authentication?api-mode=responses",
+        support_state="beta",
+    ),
+    "azure_foundry": ProviderTemplate(
+        kind="azure_foundry",
+        display_name="Azure OpenAI / Foundry",
+        endpoint="https://YOUR-RESOURCE.openai.azure.com",
+        auth_mode="api_key",
+        provider_type="azure_foundry",
+        capabilities=["text", "json", "vision", "tools"],
+        docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/reference",
+        support_state="beta",
+    ),
+    "aws_bedrock": ProviderTemplate(
+        kind="aws_bedrock",
+        display_name="AWS Bedrock",
+        endpoint="-",
+        auth_mode="aws_chain",
+        provider_type="aws_bedrock",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html",
+        metadata={"region": "eu-central-1"},
+        support_state="experimental",
+    ),
+    "oci_genai": ProviderTemplate(
+        kind="oci_genai",
+        display_name="OCI Generative AI",
+        endpoint="-",
+        auth_mode="oci_config",
+        provider_type="oci_genai",
+        capabilities=["text", "json"],
+        docs_url="https://docs.oracle.com/en-us/iaas/tools/python/latest/api/generative_ai_inference/client/oci.generative_ai_inference.GenerativeAiInferenceClient.html",
+        support_state="experimental",
+    ),
+    "xai_grok": ProviderTemplate(
+        kind="xai_grok",
+        display_name="xAI Grok",
+        endpoint="https://api.x.ai/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision", "tools"],
+        docs_url="https://docs.x.ai/docs/grpc-reference",
+        support_state="experimental",
+    ),
+    "gemini": ProviderTemplate(
+        kind="gemini",
+        display_name="Google Gemini API",
+        endpoint="https://generativelanguage.googleapis.com",
+        auth_mode="api_key",
+        provider_type="gemini",
+        capabilities=["text", "json", "vision", "tools", "streaming"],
+        docs_url="https://ai.google.dev/gemini-api/docs/api-key",
+        support_state="beta",
+    ),
+    "vertex_ai": ProviderTemplate(
+        kind="vertex_ai",
+        display_name="Google Vertex AI",
+        endpoint="-",
+        auth_mode="google_adc",
+        provider_type="vertex_ai",
+        capabilities=["text", "json", "vision", "tools"],
+        docs_url="https://cloud.google.com/vertex-ai/docs/authentication",
+        support_state="beta",
+    ),
+    "anthropic": ProviderTemplate(
+        kind="anthropic",
+        display_name="Anthropic Claude",
+        endpoint="https://api.anthropic.com",
+        auth_mode="x_api_key",
+        provider_type="anthropic",
+        capabilities=["text", "json", "vision", "tools", "streaming"],
+        docs_url="https://platform.claude.com/docs/en/api/authentication/overview",
+        support_state="experimental",
+    ),
+    "kimi_moonshot": ProviderTemplate(
+        kind="kimi_moonshot",
+        display_name="Kimi / Moonshot AI",
+        endpoint="https://api.moonshot.ai/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision", "tools"],
+        docs_url="https://platform.kimi.ai/docs/api/overview",
+        support_state="experimental",
+    ),
+    "mistral": ProviderTemplate(
+        kind="mistral",
+        display_name="Mistral AI",
+        endpoint="https://api.mistral.ai/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "tools", "streaming"],
+        docs_url="https://docs.mistral.ai/admin/security-access/api-keys",
+        support_state="experimental",
+    ),
+    "groq": ProviderTemplate(
+        kind="groq",
+        display_name="Groq",
+        endpoint="https://api.groq.com/openai/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "tools", "streaming"],
+        docs_url="https://console.groq.com/docs/api-reference",
+        support_state="experimental",
+    ),
+    "deepseek": ProviderTemplate(
+        kind="deepseek",
+        display_name="DeepSeek",
+        endpoint="https://api.deepseek.com",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "tools"],
+        docs_url="https://api-docs.deepseek.com/api/deepseek-api",
+        support_state="experimental",
+    ),
+    "openrouter": ProviderTemplate(
+        kind="openrouter",
+        display_name="OpenRouter",
+        endpoint="https://openrouter.ai/api/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision", "tools"],
+        docs_url="https://openrouter.ai/docs/api-keys",
+        support_state="experimental",
+    ),
+    "together": ProviderTemplate(
+        kind="together",
+        display_name="Together AI",
+        endpoint="https://api.together.xyz/v1",
+        auth_mode="bearer",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://docs.together.ai/docs/api-keys-authentication",
+        support_state="experimental",
+    ),
+    "cohere": ProviderTemplate(
+        kind="cohere",
+        display_name="Cohere",
+        endpoint="https://api.cohere.com",
+        auth_mode="bearer",
+        provider_type="cohere",
+        capabilities=["text", "json", "tools", "rerank", "embeddings"],
+        docs_url="https://docs.cohere.com/reference/check-api-key",
+        support_state="experimental",
+    ),
+    "perplexity": ProviderTemplate(
+        kind="perplexity",
+        display_name="Perplexity",
+        endpoint="https://api.perplexity.ai",
+        auth_mode="bearer",
+        provider_type="perplexity",
+        capabilities=["text", "json", "tools"],
+        docs_url="https://docs.perplexity.ai/docs/admin/api-key-management",
+        support_state="experimental",
+    ),
+    "ollama": ProviderTemplate(
+        kind="ollama",
+        display_name="Ollama Local",
+        endpoint="http://localhost:11434/v1",
+        auth_mode="none",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://docs.ollama.com/api/authentication",
+        support_state="beta",
+    ),
+    "ollama_cloud": ProviderTemplate(
+        kind="ollama_cloud",
+        display_name="Ollama Cloud",
+        endpoint="https://ollama.com/api",
+        auth_mode="bearer",
+        provider_type="ollama_cloud",
+        capabilities=["text", "json"],
+        docs_url="https://docs.ollama.com/api/authentication",
+        support_state="experimental",
+    ),
+    "lm_studio": ProviderTemplate(
+        kind="lm_studio",
+        display_name="LM Studio",
+        endpoint="http://localhost:1234/v1",
+        auth_mode="none",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://lmstudio.ai/docs/local-server",
+        support_state="beta",
+    ),
+    "vllm": ProviderTemplate(
+        kind="vllm",
+        display_name="vLLM",
+        endpoint="http://localhost:8000/v1",
+        auth_mode="none",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html",
+        support_state="beta",
+    ),
+    "tgi": ProviderTemplate(
+        kind="tgi",
+        display_name="HuggingFace TGI",
+        endpoint="http://localhost:8080/v1",
+        auth_mode="none",
+        provider_type="openai_compatible",
+        capabilities=["text", "json"],
+        docs_url="https://huggingface.co/docs/text-generation-inference/basic_tutorials/consuming_tgi",
+        support_state="beta",
+    ),
+    "llama_cpp": ProviderTemplate(
+        kind="llama_cpp",
+        display_name="llama.cpp Server",
+        endpoint="http://localhost:8080/v1",
+        auth_mode="none",
+        provider_type="openai_compatible",
+        capabilities=["text", "json", "vision"],
+        docs_url="https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md",
+        support_state="beta",
+    ),
 }
 
 
@@ -398,7 +609,7 @@ def load_profiles_document(path: Path | None = None) -> ProfilesDocument:
         )
     try:
         raw = json.loads(profile_path.read_text(encoding="utf-8"))
-        return ProfilesDocument.model_validate(raw)
+        return cast(ProfilesDocument, ProfilesDocument.model_validate(raw))
     except ConfigError:
         raise
     except Exception as exc:
@@ -408,7 +619,9 @@ def load_profiles_document(path: Path | None = None) -> ProfilesDocument:
 def save_profiles_document(document: ProfilesDocument, path: Path | None = None) -> Path:
     profile_path = path or get_profiles_path()
     profile_path.parent.mkdir(parents=True, exist_ok=True)
-    profile_path.write_text(json.dumps(document.model_dump(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    profile_path.write_text(
+        json.dumps(document.model_dump(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return profile_path
 
 
@@ -424,7 +637,9 @@ def resolve_profile_name(profile: str | None = None, project_root: Path | None =
             if pointed:
                 return pointed
         except Exception as exc:
-            raise ConfigError(f"Invalid project provider profile pointer at {pointer_path}: {exc}") from exc
+            raise ConfigError(
+                f"Invalid project provider profile pointer at {pointer_path}: {exc}"
+            ) from exc
     return load_profiles_document().default_profile
 
 
@@ -442,7 +657,9 @@ def load_team_config(profile: str | None = None, project_root: Path | None = Non
     team_profile = document.profiles.get(profile_name)
     if team_profile is None:
         available = ", ".join(sorted(document.profiles)) or "none"
-        raise ConfigError(f"Provider profile '{profile_name}' not found. Available profiles: {available}.")
+        raise ConfigError(
+            f"Provider profile '{profile_name}' not found. Available profiles: {available}."
+        )
     return team_profile.to_team_config()
 
 
@@ -501,7 +718,7 @@ class KeyringSecretStore(SecretStore):
         value = self._keyring.get_password(self.service_name, ref)
         if value is None:
             raise ConfigError(f"Secret '{ref}' not found in OS keychain.")
-        return value
+        return cast(str, value)
 
     def delete(self, ref: str) -> None:
         with contextlib.suppress(Exception):
@@ -580,7 +797,10 @@ def get_secret_store(prefer_keyring: bool = True) -> SecretStore:
         try:
             return KeyringSecretStore()
         except Exception as exc:
-            logger.warning("OS keychain unavailable (%s); falling back to encrypted file vault. Set AGENTHEIM_SECRET_BACKEND=file to silence this warning.", exc)
+            logger.warning(
+                "OS keychain unavailable (%s); falling back to encrypted file vault. Set AGENTHEIM_SECRET_BACKEND=file to silence this warning.",
+                exc,
+            )
     return EncryptedFileSecretStore()
 
 

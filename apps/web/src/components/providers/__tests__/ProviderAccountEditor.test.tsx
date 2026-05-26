@@ -6,6 +6,27 @@ import { ProviderAccountEditor } from "../ProviderAccountEditor";
 
 const templates = [
   {
+    kind: "azure_foundry",
+    display_name: "Azure OpenAI / Foundry",
+    endpoint: "https://example.openai.azure.com",
+    auth_mode: "api_key",
+    provider_type: "azure_foundry",
+    capabilities: ["text", "json"],
+    docs_url: "https://learn.microsoft.com/",
+    support_state: "beta",
+    wizard_fields: [],
+    capabilities_meta: {
+      supports_connection_test: true,
+      supports_remote_model_listing: true,
+      supports_manual_model_entry: true,
+      supports_endpoint_edit: true,
+      supports_secret_rotation: true,
+      discovery_mode: "remote_list_with_manual_fallback",
+      docs_url: "https://learn.microsoft.com/",
+      notes: "Azure OpenAI / Foundry.",
+    },
+  },
+  {
     kind: "openai_compatible",
     display_name: "OpenAI-compatible",
     endpoint: "https://api.openai.com/v1",
@@ -103,6 +124,49 @@ describe("ProviderAccountEditor", () => {
         endpoint: "https://api.openai.com/v1",
       }),
       "example-save-secret",
+    );
+  });
+
+  it("captures Azure deployment name in metadata", () => {
+    const onSave = vi.fn();
+
+    render(
+      <ProviderAccountEditor
+        templates={templates}
+        account={null}
+        existingAccounts={[]}
+        onClose={() => {}}
+        onSave={onSave}
+        onTestDraft={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Template"), {
+      target: { value: "azure_foundry" },
+    });
+    fireEvent.change(screen.getByLabelText("Account ID"), {
+      target: { value: "azure-main" },
+    });
+    fireEvent.change(screen.getByLabelText("Endpoint"), {
+      target: { value: "https://coding-eu-resource.openai.azure.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Deployment Name"), {
+      target: { value: "gpt-4o-deploy" },
+    });
+    fireEvent.change(screen.getByLabelText("Secret"), {
+      target: { value: "example-azure-secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Account" }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "azure-main",
+        metadata: expect.objectContaining({
+          template: "azure_foundry",
+          deployment: "gpt-4o-deploy",
+        }),
+      }),
+      "example-azure-secret",
     );
   });
 });

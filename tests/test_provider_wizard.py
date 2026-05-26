@@ -70,7 +70,10 @@ class TestCreateProfile:
                 provider_kind="openai_v1",
                 provider_id="my-openai",
                 model_id="gpt-4o",
-                fields={"api_key": "example-openai-secret-123", "endpoint": "https://api.openai.com/v1"},
+                fields={
+                    "api_key": "example-openai-secret-123",
+                    "endpoint": "https://api.openai.com/v1",
+                },
                 set_as_default=True,
             )
 

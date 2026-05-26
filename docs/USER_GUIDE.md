@@ -173,10 +173,10 @@ The **Providers & Models** workspace supports:
 
 - **Profiles** — create, duplicate, import, export, delete, and set the default profile
 - **Accounts** — add, edit, test drafts before save, test saved accounts, discover models, and rotate secrets
-- **Models** — bind discovered or manually added models to roles and set defaults
+- **Models** — bind discovered or manually added models for the planner path and set defaults
 - Discovery fallback — providers without remote listing support show an explicit manual-entry path instead of a fake empty success state
 - Onboarding reuse — the first-run provider step opens the same underlying management surface instead of a separate provider form stack
-- **Defaults & Roles** — review the default coding model for the selected profile
+- **Defaults** — review the default coding model for the selected profile
 - **Diagnostics** — view connection health and last sync timestamps
 
 ## Keyboard Shortcuts

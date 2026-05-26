@@ -17,6 +17,7 @@ from agentheim_code.provider_management import (
     ValidationError,
     add_account,
     add_model,
+    assign_role,
     create_profile,
     delete_account,
     delete_model,
@@ -89,6 +90,7 @@ class TestProfileCrud:
         result = list_profiles()
         assert result["configured"] is True
         assert any(p["name"] == "my-profile" for p in result["profiles"])
+        assert result["default_profile"] == "my-profile"
 
     def test_create_duplicate_raises(self, empty_doc: Path) -> None:
         create_profile("my-profile")
@@ -222,6 +224,20 @@ class TestAccountCrud:
         assert verify.call_args.kwargs["fields"]["api_key"] == "example-existing-secret"
         assert verify.call_args.kwargs["fields"]["endpoint"] == "https://draft.example/v1"
 
+    def test_test_account_draft_uses_deployment_as_sample_model(self, empty_doc: Path) -> None:
+        create_profile("p")
+        account = ProviderAccount(
+            id="azure",
+            kind="azure_foundry",
+            endpoint="https://example.openai.azure.com",
+            auth_mode="api_key",
+            metadata={"template": "azure_foundry", "deployment": "gpt-4o-deploy"},
+        )
+        with patch("agentheim_code.provider_wizard.verify_provider_connection") as verify:
+            verify.return_value = {"ok": False, "error": "bad deployment"}
+            validate_account_draft(account, secret_value="example-secret")
+        assert verify.call_args.kwargs["model_id"] == "gpt-4o-deploy"
+
 
 class TestModelCrud:
     def test_add_model(self, empty_doc: Path) -> None:
@@ -294,6 +310,15 @@ class TestModelCrud:
         assert len(imported) == 2
         data = get_profile("p")
         assert len(data["models"]) == 2
+
+    def test_assign_role_rejects_removed_roles(self, empty_doc: Path) -> None:
+        create_profile("p")
+        account = ProviderAccount(id="a1", kind="openai_v1", endpoint="https://example.com/v1")
+        add_account("p", account)
+        model = ModelBinding(id="m1", role="planner", provider="a1", model="gpt-4")
+        add_model("p", model)
+        with pytest.raises(ValidationError, match="Unknown model role 'reviewer'"):
+            assign_role("p", "m1", "reviewer")
 
 
 class TestDiscoveryAdapter:

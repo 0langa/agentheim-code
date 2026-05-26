@@ -124,9 +124,11 @@ export type ManagementProviderAccount = {
   last_model_sync_at?: string;
 };
 
+export type ModelRole = "planner" | "executor" | "verifier";
+
 export type ManagementModelBinding = {
   id: string;
-  role: string;
+  role: ModelRole;
   provider: string;
   model: string;
   display_name?: string;

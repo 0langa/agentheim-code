@@ -60,6 +60,27 @@ export class ApiError extends Error {
   }
 }
 
+function extractApiErrorMessage(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as {
+      detail?: string | { message?: string; code?: string };
+      message?: string;
+      error?: string;
+    };
+    if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
+    if (parsed.detail && typeof parsed.detail === "object") {
+      const code = typeof parsed.detail.code === "string" ? parsed.detail.code : "";
+      const message = typeof parsed.detail.message === "string" ? parsed.detail.message : "";
+      if (message) return code ? `${message} (${code})` : message;
+    }
+    if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
+    if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+  } catch {
+    // Fall back to raw body text below.
+  }
+  return raw;
+}
+
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
   const isSafe = !init.method || init.method === "GET" || init.method === "HEAD";
   // Also retry idempotent mutations (PATCH config, POST cancel) on transient failures
@@ -104,7 +125,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(response.status, text, response.headers.get("x-request-id") ?? requestId);
+    throw new ApiError(
+      response.status,
+      extractApiErrorMessage(text),
+      response.headers.get("x-request-id") ?? requestId,
+    );
   }
   return response.json() as Promise<T>;
 }

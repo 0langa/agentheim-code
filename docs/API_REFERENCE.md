@@ -543,7 +543,7 @@ Re-runs discovery without persisting; useful for UI refresh.
 
 #### `POST /api/provider-management/profiles/{name}/models`
 
-Adds a model binding. Body:
+Adds a model binding. The normal user-facing role is `planner`. Body:
 
 ```json
 {
@@ -568,11 +568,12 @@ Removes the binding.
 
 #### `POST /api/provider-management/profiles/{name}/models/{binding_id}/set-default`
 
-Sets this binding as the default for its role.
+Sets this binding as the default coding model for the profile.
 
 #### `POST /api/provider-management/profiles/{name}/models/{binding_id}/assign-role`
 
-Changes the role of an existing binding.
+Compatibility endpoint for internal role reassignment. The user-facing product
+only configures `planner` through the main UI.
 
 #### `POST /api/provider-management/profiles/{name}/models/import-discovered`
 

@@ -13,6 +13,7 @@ from typing import Any, cast
 
 from config.config import (
     ModelBinding,
+    ModelRole,
     ProfilesDocument,
     ProviderAccount,
     TeamProfile,
@@ -118,9 +119,12 @@ def _validate_model_binding(binding: ModelBinding, profile: TeamProfile) -> None
 
 def list_profiles() -> dict[str, Any]:
     doc = _ensure_doc()
+    default_profile = doc.default_profile
+    if doc.profiles and default_profile not in doc.profiles:
+        default_profile = next(iter(doc.profiles))
     return {
         "configured": bool(doc.profiles),
-        "default_profile": doc.default_profile,
+        "default_profile": default_profile,
         "profiles": [
             {
                 "name": p.name,
@@ -150,7 +154,7 @@ def create_profile(name: str, set_as_default: bool = False) -> TeamProfile:
         raise ValidationError("duplicate_profile", f"Profile '{name}' already exists.", "name")
     profile = TeamProfile(name=name)
     doc.profiles[name] = profile
-    if set_as_default or not doc.default_profile:
+    if set_as_default or not doc.default_profile or doc.default_profile not in doc.profiles:
         doc.default_profile = name
     _save(doc)
     logger.info("Created profile '%s'", name)
@@ -353,7 +357,7 @@ def update_account(profile_name: str, account_id: str, updates: dict[str, Any]) 
         "disabled",
     }
     changed = {k: v for k, v in updates.items() if k in allowed}
-    updated = current.model_copy(update=changed)
+    updated = cast(ProviderAccount, current.model_copy(update=changed))
     _validate_provider_account(updated)
     profile.providers[account_id] = updated
     # If provider id changed inside metadata or kind, update model bindings that reference it
@@ -439,7 +443,7 @@ def test_account(profile_name: str, account_id: str, sample_model: str = "") -> 
     result = verify_provider_connection(
         provider_kind=account.kind,
         fields=fields,
-        model_id=sample_model or "",
+        model_id=sample_model or str(account.metadata.get("deployment", "")).strip(),
     )
     # Persist verification result
     status = "ok" if result.get("ok") else "failed"
@@ -484,7 +488,7 @@ def validate_account_draft(
     return verify_provider_connection(
         provider_kind=account.kind,
         fields=fields,
-        model_id=sample_model or "",
+        model_id=sample_model or str(account.metadata.get("deployment", "")).strip(),
     )
 
 
@@ -536,7 +540,7 @@ def update_model(profile_name: str, binding_id: str, updates: dict[str, Any]) ->
         "metadata",
     }
     changed = {k: v for k, v in updates.items() if k in allowed}
-    updated = current.model_copy(update=changed)
+    updated = cast(ModelBinding, current.model_copy(update=changed))
     _validate_model_binding(updated, profile)
     # Handle default switch
     if updated.is_default and not current.is_default:
@@ -569,7 +573,7 @@ def set_default_model(profile_name: str, binding_id: str) -> ModelBinding:
     for m in profile.models.values():
         if m.is_default:
             profile.models[m.id] = m.model_copy(update={"is_default": False})
-    updated = profile.models[binding_id].model_copy(update={"is_default": True})
+    updated = cast(ModelBinding, profile.models[binding_id].model_copy(update={"is_default": True}))
     profile.models[binding_id] = updated
     doc.profiles[profile_name] = profile
     _save(doc)
@@ -582,11 +586,27 @@ def assign_role(profile_name: str, binding_id: str, role: str) -> ModelBinding:
     profile = _profile_or_raise(doc, profile_name)
     if binding_id not in profile.models:
         raise ValidationError("binding_not_found", f"Model binding '{binding_id}' not found.", "id")
-    updated = profile.models[binding_id].model_copy(update={"role": role})
+    try:
+        validated_role = ModelRole(role)
+    except ValueError as exc:
+        allowed = ", ".join(member.value for member in ModelRole)
+        raise ValidationError(
+            "invalid_role",
+            f"Unknown model role '{role}'. Allowed roles: {allowed}.",
+            "role",
+        ) from exc
+    updated = cast(
+        ModelBinding, profile.models[binding_id].model_copy(update={"role": validated_role})
+    )
     profile.models[binding_id] = updated
     doc.profiles[profile_name] = profile
     _save(doc)
-    logger.info("Assigned role '%s' to model '%s' in profile '%s'", role, binding_id, profile_name)
+    logger.info(
+        "Assigned role '%s' to model '%s' in profile '%s'",
+        validated_role.value,
+        binding_id,
+        profile_name,
+    )
     return updated
 
 

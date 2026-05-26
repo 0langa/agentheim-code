@@ -54,6 +54,12 @@ class TestManagementProfiles:
         assert data["ok"] is True
         assert data["profile"]["name"] == "dev"
 
+    def test_first_created_profile_becomes_default(self, client: TestClient, profiles_path: Path) -> None:
+        client.post("/api/provider-management/profiles", json={"name": "dev"})
+        resp = client.get("/api/provider-management/profiles")
+        assert resp.status_code == 200
+        assert resp.json()["default_profile"] == "dev"
+
     def test_duplicate_profile(self, client: TestClient, profiles_path: Path) -> None:
         client.post("/api/provider-management/profiles", json={"name": "orig"})
         resp = client.post(

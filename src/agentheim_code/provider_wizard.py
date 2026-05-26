@@ -210,7 +210,10 @@ def create_profile(
     new_providers[provider_id] = provider_account
     new_models = dict(profile.models)
     new_models["planner"] = model_binding
-    profile = profile.model_copy(update={"providers": new_providers, "models": new_models})
+    profile = cast(
+        TeamProfile,
+        profile.model_copy(update={"providers": new_providers, "models": new_models}),
+    )
 
     doc.profiles[name] = profile
     if set_as_default or not doc.default_profile:

@@ -15,7 +15,7 @@ A profile contains:
 - one or more model bindings
 - a default profile name at the document level
 
-The frontend currently focuses on a planner model for the active session.
+The frontend currently uses a planner model for the active session.
 
 ## Fastest Path
 
@@ -39,7 +39,7 @@ Open **Providers & Models** from Settings or the command palette (`Ctrl/Cmd+K`, 
 - creating and switching profiles
 - exporting and importing profiles
 - adding provider accounts per profile
-- binding models to roles (planner, coder, reviewer, etc.)
+- binding models for the planner path used by the product
 - testing draft accounts before save and retesting saved accounts later
 - discovering available models from supported providers
 - importing discovered models in bulk
@@ -147,6 +147,7 @@ not support remote discovery; add models manually instead.
 
 - the profile selector chooses the saved profile bundle
 - the model selector chooses the planner model within that profile
+- executor and verifier remain internal compatibility roles only; they are not part of the user-facing setup flow
 - `Auto` keeps runtime defaults
 - `/api/coder/models` enriches model entries with persisted provider health when available
 - provider accounts now show a health badge (`verified`, `failed`, `unknown`) in the workspace

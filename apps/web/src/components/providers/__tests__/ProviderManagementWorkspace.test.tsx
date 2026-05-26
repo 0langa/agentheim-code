@@ -113,6 +113,17 @@ describe("ProviderManagementWorkspace", () => {
     await waitFor(() => expect(screen.getByText("Model Bindings")).toBeInTheDocument());
   });
 
+  it("shows planner-only defaults copy", async () => {
+    render(<ProviderManagementWorkspace onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Provider Accounts")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Default coding model is used for new sessions when no explicit model is selected."),
+      ).toBeInTheDocument(),
+    );
+  });
+
   it("opens import and export actions from the header", async () => {
     render(<ProviderManagementWorkspace onClose={() => {}} />);
     await waitFor(() => expect(screen.getByText("Providers & Models")).toBeInTheDocument());

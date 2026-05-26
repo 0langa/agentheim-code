@@ -45,7 +45,7 @@ type TabKey = "accounts" | "models" | "defaults" | "diagnostics";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "accounts", label: "Accounts" },
   { key: "models", label: "Models" },
-  { key: "defaults", label: "Defaults & Roles" },
+  { key: "defaults", label: "Defaults" },
   { key: "diagnostics", label: "Diagnostics" },
 ];
 
@@ -96,16 +96,27 @@ export function ProviderManagementWorkspace({
     () => profiles.find((p) => p.name === selectedProfileName) || null,
     [profiles, selectedProfileName]
   );
+  const internalRoleModels = useMemo(
+    () => selectedProfile?.models.filter((model) => model.role !== "planner") ?? [],
+    [selectedProfile]
+  );
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (preferredSelection?: string) => {
     setLoading(true);
     setError(null);
     try {
       const data = await listManagementProfiles();
       setProfiles(data.profiles);
       setDefaultProfile(data.default_profile || "");
-      if (!selectedProfileName && data.profiles.length > 0) {
-        setSelectedProfileName(data.default_profile || data.profiles[0].name);
+      const availableNames = new Set(data.profiles.map((profile) => profile.name));
+      const preferredProfile =
+        (preferredSelection && availableNames.has(preferredSelection) ? preferredSelection : "") ||
+        (data.default_profile && availableNames.has(data.default_profile) ? data.default_profile : "") ||
+        (selectedProfileName && availableNames.has(selectedProfileName) ? selectedProfileName : "") ||
+        data.profiles[0]?.name ||
+        "";
+      if (preferredProfile !== selectedProfileName) {
+        setSelectedProfileName(preferredProfile);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -145,17 +156,18 @@ export function ProviderManagementWorkspace({
     try {
       if (profileDialog.mode === "create") {
         await createManagementProfile(profileDialog.name);
-        setSelectedProfileName(profileDialog.name);
       } else if (profileDialog.mode === "duplicate") {
         await duplicateManagementProfile(selectedProfileName, profileDialog.name);
-        setSelectedProfileName(profileDialog.name);
       } else {
         const parsed = JSON.parse(profileDialog.payload);
         await importManagementProfile(parsed, profileDialog.name || undefined);
-        setSelectedProfileName(profileDialog.name || parsed.name || selectedProfileName);
       }
+      const nextSelection =
+        profileDialog.mode === "import"
+          ? profileDialog.name || JSON.parse(profileDialog.payload).name || selectedProfileName
+          : profileDialog.name;
       clearTransientUi();
-      await refresh();
+      await refresh(nextSelection);
       onProfilesChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -619,6 +631,21 @@ export function ProviderManagementWorkspace({
                 ))}
               {!selectedProfile?.models?.some((m) => m.is_default) && (
                 <p className="panel-empty">No default model set. Go to the Models tab and set one.</p>
+              )}
+              {internalRoleModels.length > 0 && (
+                <div style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: 8 }}>
+                  <strong>Legacy internal bindings</strong>
+                  <p style={{ color: "var(--muted)", margin: "8px 0 0" }}>
+                    Planner is the only user-facing role. Internal compatibility bindings remain visible here but are not part of normal setup.
+                  </p>
+                  <ul style={{ margin: "8px 0 0 18px" }}>
+                    {internalRoleModels.map((model) => (
+                      <li key={model.id}>
+                        {model.id} — {model.role}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}

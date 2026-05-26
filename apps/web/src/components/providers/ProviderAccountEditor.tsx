@@ -277,6 +277,20 @@ export function ProviderAccountEditor({
           </>
         )}
 
+        {selectedTemplate?.kind === "azure_foundry" && (
+          <div className="form-group">
+            <label htmlFor="meta-deployment">Deployment Name</label>
+            <input
+              id="meta-deployment"
+              type="text"
+              value={(metadata["deployment"] as string) || ""}
+              onChange={(e) => setMetadata((m) => ({ ...m, deployment: e.target.value }))}
+              placeholder="gpt-4o-deploy"
+            />
+            <small>Used for connection tests and should match your Azure deployment name exactly.</small>
+          </div>
+        )}
+
         {selectedTemplate?.kind === "oci_genai" && (
           <>
             <div className="form-group">
