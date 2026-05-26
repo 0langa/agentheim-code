@@ -1,6 +1,14 @@
 import React, { startTransition, useEffect, useState } from "react";
 
-import { api, cancelSession, streamSessionMessage, validateContext } from "./api";
+import {
+  api,
+  cancelSession,
+  getDesktopBackendLaunchError,
+  isDesktopApp,
+  pickDesktopWorkspace,
+  streamSessionMessage,
+  validateContext,
+} from "./api";
 import { Chat } from "./components/Chat";
 import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
@@ -47,7 +55,17 @@ export function App() {
   const [sessionBootstrapError, setSessionBootstrapError] = useState<string | null>(null);
   const [contextPreviews, setContextPreviews] = useState<ContextPreviewItem[]>([]);
   const [sessionFilter, setSessionFilter] = useState("");
+  const [workspaceDraft, setWorkspaceDraft] = useState("");
+  const [workspaceSaveState, setWorkspaceSaveState] = useState<"idle" | "saving">("idle");
   const errorRef = React.useRef<HTMLDivElement | null>(null);
+
+  const effectiveWorkspaceRoot = React.useMemo(() => {
+    const activeRoot = active?.session.workspace_root?.trim();
+    if (activeRoot && activeRoot !== ".") return activeRoot;
+    const configuredRoot = uiConfig?.default_workspace?.trim();
+    if (configuredRoot) return configuredRoot;
+    return undefined;
+  }, [active?.session.workspace_root, uiConfig?.default_workspace]);
 
   const mergeSession = React.useCallback((session: Session) => {
     setSessions((current) => {
@@ -101,6 +119,10 @@ export function App() {
   }, [uiConfig?.theme]);
 
   useEffect(() => {
+    setWorkspaceDraft(uiConfig?.default_workspace ?? ".");
+  }, [uiConfig?.default_workspace]);
+
+  useEffect(() => {
     if ((error || structuredError) && errorRef.current) {
       errorRef.current.focus();
     }
@@ -131,14 +153,38 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const ensureWorkspaceRoot = async () => {
+    const activeRoot = active?.session.workspace_root?.trim();
+    if (activeRoot) return activeRoot;
+    const configuredRoot = workspaceDraft.trim() || uiConfig?.default_workspace?.trim();
+    if (configuredRoot) return configuredRoot;
+    if (isDesktopApp()) {
+      const picked = await pickDesktopWorkspace();
+      if (!picked) return null;
+      setWorkspaceDraft(picked);
+      await saveDefaultWorkspace(picked);
+      return picked;
+    }
+    return null;
+  };
+
   const createSession = async () => {
     setIsLoading(true);
     setError(null);
     setSessionBootstrapError(null);
     try {
+      const workspaceRoot = await ensureWorkspaceRoot();
+      if (!workspaceRoot) {
+        throw new Error(
+          isDesktopApp()
+            ? "Choose a workspace before starting a session."
+            : "Set a default workspace in Settings before starting a session.",
+        );
+      }
       const session = await api<Session>("/coder/sessions", {
         method: "POST",
         body: JSON.stringify({
+          workspace_root: workspaceRoot,
           trust_mode: selectedTrustMode,
           mode: selectedMode,
           profile: selectedProfile === "auto" ? undefined : selectedProfile,
@@ -152,7 +198,15 @@ export function App() {
       applySessionView(view);
       return view;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      let message = err instanceof Error ? err.message : String(err);
+      if (isDesktopApp()) {
+        try {
+          const desktopError = await getDesktopBackendLaunchError();
+          if (desktopError) message = desktopError;
+        } catch {
+          // Ignore extra desktop error lookup failures.
+        }
+      }
       setError(message);
       setSessionBootstrapError(message);
       return null;
@@ -176,7 +230,41 @@ export function App() {
         body: JSON.stringify({ default_workspace: workspace }),
       });
       setUiConfig(config);
+      setWorkspaceDraft(config.default_workspace);
       await createSession();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const saveDefaultWorkspace = async (workspace: string) => {
+    setWorkspaceSaveState("saving");
+    try {
+      const config = await api<UiConfig>("/config", {
+        method: "PATCH",
+        body: JSON.stringify({ default_workspace: workspace }),
+      });
+      setUiConfig(config);
+      setWorkspaceDraft(config.default_workspace);
+      return config;
+    } finally {
+      setWorkspaceSaveState("idle");
+    }
+  };
+
+  const handleDefaultWorkspaceChange = (workspace: string) => {
+    setWorkspaceDraft(workspace);
+    void saveDefaultWorkspace(workspace).catch((err) => {
+      setError(err instanceof Error ? err.message : String(err));
+    });
+  };
+
+  const browseDefaultWorkspace = async () => {
+    try {
+      const workspace = await pickDesktopWorkspace();
+      if (!workspace) return;
+      setWorkspaceDraft(workspace);
+      await saveDefaultWorkspace(workspace);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -344,7 +432,7 @@ export function App() {
   const sendDisabledReason = !active
     ? sessionBootstrapError
       ? `No active session. Last session creation attempt failed: ${sessionBootstrapError}`
-      : "No active session. Send will create one automatically, or use New session first."
+      : `No active session. Send will create one automatically${effectiveWorkspaceRoot ? ` in ${effectiveWorkspaceRoot}` : ""}, or use New session first.`
     : null;
 
   const handleApproval = async (requestId: string, grant: boolean) => {
@@ -614,6 +702,10 @@ export function App() {
           onDenyApproval={(requestId) => void handleApproval(requestId, false)}
           theme={uiConfig?.theme ?? "dark"}
           onThemeChange={(theme) => void changeTheme(theme)}
+          defaultWorkspace={workspaceDraft || "."}
+          onDefaultWorkspaceChange={handleDefaultWorkspaceChange}
+          onBrowseDefaultWorkspace={isDesktopApp() ? () => void browseDefaultWorkspace() : undefined}
+          workspaceSaveState={workspaceSaveState}
           onAttachFile={addContextFile}
           sessionFilter={sessionFilter}
           onSessionFilterChange={setSessionFilter}

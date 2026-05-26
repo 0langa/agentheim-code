@@ -19,6 +19,10 @@ interface InspectorProps {
   onDenyApproval: (requestId: string) => void;
   theme: "dark" | "light" | "high_contrast";
   onThemeChange: (theme: "dark" | "light" | "high_contrast") => void;
+  defaultWorkspace: string;
+  onDefaultWorkspaceChange: (workspace: string) => void;
+  onBrowseDefaultWorkspace?: () => void;
+  workspaceSaveState?: "idle" | "saving";
   onAttachFile?: (path: string) => void;
   sessionFilter?: string;
   onSessionFilterChange?: (value: string) => void;
@@ -45,6 +49,10 @@ export function Inspector({
   onDenyApproval,
   theme,
   onThemeChange,
+  defaultWorkspace,
+  onDefaultWorkspaceChange,
+  onBrowseDefaultWorkspace,
+  workspaceSaveState = "idle",
   onAttachFile,
   sessionFilter = "",
   onSessionFilterChange,
@@ -228,6 +236,27 @@ export function Inspector({
                 <option value="high_contrast">High contrast</option>
               </select>
             </label>
+            <label className="settings-field">
+              Default workspace
+              <input
+                aria-label="Default workspace"
+                value={defaultWorkspace}
+                onChange={(event) => onDefaultWorkspaceChange(event.target.value)}
+                placeholder="."
+              />
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {onBrowseDefaultWorkspace && (
+                <button className="secondary small" onClick={onBrowseDefaultWorkspace} type="button">
+                  Browse…
+                </button>
+              )}
+              <span>
+                {workspaceSaveState === "saving"
+                  ? "Saving workspace…"
+                  : "New sessions use this workspace in web, desktop, and CLI-backed UI."}
+              </span>
+            </div>
             <span>mode: {active?.session.mode ?? "code"}</span>
             <span>trust: {active?.session.trust_mode ?? "ask"}</span>
             <span>
@@ -247,17 +276,17 @@ export function Inspector({
             {!profilesConfigured && (
               <EmptyPanel message="No providers configured. Add one to get started." />
             )}
-            {profiles.map((profile) => (
+            {(profiles ?? []).map((profile) => (
               <div key={profile.name} className="provider-row">
                 <span>
                   <strong>{profile.name}</strong>
                   {profile.default && <span className="badge">default</span>}
                 </span>
                 <span>
-                  {profile.providers.map((p) => p.kind).join(", ")}
+                  {(profile.providers ?? []).map((p) => p.kind).join(", ")}
                 </span>
                 <span>
-                  {profile.models.map((m) => m.model).join(", ")}
+                  {(profile.models ?? []).map((m) => m.model).join(", ")}
                 </span>
               </div>
             ))}
@@ -273,7 +302,7 @@ export function Inspector({
 
           <article className="panel-item">
             <strong>Commands</strong>
-            {commands.map((command) => (
+            {(commands ?? []).map((command) => (
               <span key={command.id}>
                 {command.label} · {command.cli}
               </span>

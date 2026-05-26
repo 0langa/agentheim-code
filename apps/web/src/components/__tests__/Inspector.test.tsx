@@ -31,6 +31,17 @@ const commands: CoderCommand[] = [
   { id: "new", label: "New Session", cli: "/new", surface: "cli" },
 ];
 
+const defaultInspectorProps = {
+  onSelectSession: () => undefined,
+  onOpenProviderWizard: () => undefined,
+  onGrantApproval: () => undefined,
+  onDenyApproval: () => undefined,
+  theme: "dark" as const,
+  onThemeChange: () => undefined,
+  defaultWorkspace: ".",
+  onDefaultWorkspaceChange: () => undefined,
+};
+
 const active: SessionView = {
   session: {
     ...makeSession(),
@@ -75,12 +86,7 @@ describe("Inspector", () => {
         sessions={sessions}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
     expect(screen.getByText("listed files")).toBeInTheDocument();
@@ -93,12 +99,7 @@ describe("Inspector", () => {
         sessions={sessions}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
     expect(screen.getByText("pytest")).toBeInTheDocument();
@@ -112,12 +113,7 @@ describe("Inspector", () => {
         sessions={sessions}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
     expect(screen.getByText("trust: ask")).toBeInTheDocument();
@@ -135,10 +131,7 @@ describe("Inspector", () => {
         sessions={sessions}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
+        {...defaultInspectorProps}
         theme="dark"
         onThemeChange={onThemeChange}
       />,
@@ -174,12 +167,9 @@ describe("Inspector", () => {
           ],
         }}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
+        {...defaultInspectorProps}
         onGrantApproval={grant}
         onDenyApproval={deny}
-        theme="dark"
-        onThemeChange={() => undefined}
       />,
     );
 
@@ -211,12 +201,7 @@ describe("Inspector", () => {
           ],
         }}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
 
@@ -234,12 +219,7 @@ describe("Inspector", () => {
         ]}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
 
@@ -275,12 +255,7 @@ describe("Inspector", () => {
           ],
         }}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
 
@@ -297,12 +272,7 @@ describe("Inspector", () => {
         sessions={sessions}
         active={active}
         commands={commands}
-        onSelectSession={() => undefined}
-        onOpenProviderWizard={() => undefined}
-        onGrantApproval={() => undefined}
-        onDenyApproval={() => undefined}
-        theme="dark"
-        onThemeChange={() => undefined}
+        {...defaultInspectorProps}
       />,
     );
 

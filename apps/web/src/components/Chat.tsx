@@ -9,6 +9,32 @@ interface ChatProps {
   active: SessionView | null;
 }
 
+function summarizeRunEffects(active: SessionView): string | null {
+  const changedFiles = active.session.changed_files ?? [];
+  const artifacts = active.artifacts ?? [];
+  const commandResults = active.command_results ?? [];
+  const parts: string[] = [];
+
+  if (changedFiles.length) {
+    parts.push(
+      `Changed files: ${changedFiles.slice(0, 3).join(", ")}${changedFiles.length > 3 ? ` +${changedFiles.length - 3} more` : ""}.`,
+    );
+  }
+  if (artifacts.length) {
+    parts.push(
+      `Artifacts: ${artifacts.slice(0, 3).join(", ")}${artifacts.length > 3 ? ` +${artifacts.length - 3} more` : ""}.`,
+    );
+  }
+  if (commandResults.length) {
+    const latest = commandResults[commandResults.length - 1];
+    if (latest?.command) {
+      parts.push(`Latest command: ${latest.command}.`);
+    }
+  }
+
+  return parts.length ? parts.join(" ") : null;
+}
+
 function textFromNode(node: React.ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(textFromNode).join("");
@@ -102,6 +128,7 @@ function MessageBubble({ entry }: { entry: TranscriptEntry }) {
 
 export function Chat({ active }: ChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastSummaryKeyRef = useRef<string | null>(null);
   const liveMessage = !active
     ? "No active session."
     : active.session.status === "running"
@@ -114,6 +141,26 @@ export function Chat({ active }: ChatProps) {
     active?.session?.transcript,
     active?.session?.current_assistant_message,
   ]);
+
+  const runEffectsSummary = active ? summarizeRunEffects(active) : null;
+  const runEffectsKey = active
+    ? JSON.stringify({
+        sessionId: active.session.session_id,
+        changedFiles: active.session.changed_files ?? [],
+        artifacts: active.artifacts ?? [],
+        commandCount: active.command_results?.length ?? 0,
+      })
+    : null;
+
+  useEffect(() => {
+    if (!runEffectsKey || !runEffectsSummary || active?.session.status === "running") {
+      return;
+    }
+    if (lastSummaryKeyRef.current === runEffectsKey) {
+      return;
+    }
+    lastSummaryKeyRef.current = runEffectsKey;
+  }, [runEffectsKey, runEffectsSummary, active?.session.status]);
 
   if (!active) {
     return (
@@ -179,6 +226,27 @@ export function Chat({ active }: ChatProps) {
             assistant
           </strong>
           <MarkdownMessage content={active.session.current_assistant_message} />
+        </div>
+      )}
+      {runEffectsSummary && active.session.status !== "running" && (
+        <div
+          className="message"
+          style={{
+            alignSelf: "flex-start",
+            borderColor: "color-mix(in srgb, var(--warning) 34%, transparent)",
+            background: "color-mix(in srgb, var(--warning) 8%, transparent)",
+          }}
+        >
+          <strong
+            style={{
+              fontSize: "12px",
+              textTransform: "uppercase",
+              color: "var(--warning)",
+            }}
+          >
+            session effects
+          </strong>
+          <div style={{ fontSize: "13px", lineHeight: 1.5 }}>{runEffectsSummary}</div>
         </div>
       )}
       <div ref={bottomRef} />

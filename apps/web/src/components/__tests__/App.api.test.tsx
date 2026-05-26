@@ -6,9 +6,15 @@ import { App } from "../../App";
 
 const mockApi = vi.fn();
 const mockStreamSessionMessage = vi.fn();
+const mockPickDesktopWorkspace = vi.fn();
+const mockGetDesktopBackendLaunchError = vi.fn();
+const mockIsDesktopApp = vi.fn(() => false);
 vi.mock("../../api", () => ({
   api: <T,>(path: string, init?: RequestInit): Promise<T> => mockApi(path, init) as Promise<T>,
   streamSessionMessage: (...args: unknown[]) => mockStreamSessionMessage(...args),
+  pickDesktopWorkspace: () => mockPickDesktopWorkspace(),
+  getDesktopBackendLaunchError: () => mockGetDesktopBackendLaunchError(),
+  isDesktopApp: () => mockIsDesktopApp(),
   ApiError: class ApiError extends Error {
     constructor(public status: number, message: string) {
       super(message);
@@ -20,9 +26,13 @@ describe("App API integration", () => {
   beforeEach(() => {
     mockApi.mockReset();
     mockStreamSessionMessage.mockReset();
+    mockPickDesktopWorkspace.mockReset();
+    mockGetDesktopBackendLaunchError.mockReset();
+    mockIsDesktopApp.mockReset();
+    mockIsDesktopApp.mockReturnValue(false);
   });
 
-  it("creates session without workspace_root and then fetches /view", async () => {
+  it("creates session with dot workspace_root when default workspace is current directory", async () => {
     mockApi
       .mockResolvedValueOnce({
         onboarding_complete: true,
@@ -69,8 +79,7 @@ describe("App API integration", () => {
       );
       expect(postCall).toBeTruthy();
       const body = JSON.parse(postCall![1].body);
-      expect(body).not.toHaveProperty("workspace_root");
-      expect(body).toEqual({ trust_mode: "ask", mode: "code" });
+      expect(body).toEqual({ workspace_root: ".", trust_mode: "ask", mode: "code" });
     });
 
     await waitFor(() => {
@@ -209,7 +218,7 @@ describe("App API integration", () => {
         session_id: "sess-auto",
         status: "idle",
         mode: "code",
-        workspace_root: ".",
+        workspace_root: "C:/tmp/project",
       })
       .mockResolvedValueOnce({
         session: {
@@ -217,7 +226,7 @@ describe("App API integration", () => {
           status: "idle",
           mode: "code",
           trust_mode: "ask",
-          workspace_root: ".",
+          workspace_root: "C:/tmp/project",
           transcript: [],
           model_selection: { profile: "auto", provider: "auto", model: "auto" },
         },
@@ -235,7 +244,7 @@ describe("App API integration", () => {
           status: "idle",
           mode: "code",
           trust_mode: "ask",
-          workspace_root: ".",
+          workspace_root: "C:/tmp/project",
           transcript: [{ role: "assistant", content: "ok" }],
           model_selection: { profile: "auto", provider: "auto", model: "auto" },
         },
@@ -261,17 +270,118 @@ describe("App API integration", () => {
     await waitFor(() => {
       expect(mockApi).toHaveBeenCalledWith(
         "/coder/sessions",
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({
+          method: "POST",
+          body: expect.any(String),
+        }),
       );
+      const postCall = mockApi.mock.calls.find(
+        (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
+      );
+      expect(postCall).toBeTruthy();
+      expect(JSON.parse(postCall![1].body)).toEqual({
+        workspace_root: ".",
+        trust_mode: "ask",
+        mode: "code",
+      });
       expect(mockStreamSessionMessage).toHaveBeenCalledWith(
         "sess-auto",
         "hello",
         expect.objectContaining({ onToken: expect.any(Function) }),
         expect.any(AbortSignal),
         [],
-        ".",
+        "C:/tmp/project",
       );
     });
+  });
+
+  it("uses configured default workspace when auto-creating a session", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: "C:/work/demo-app",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session_id: "sess-ws",
+        status: "idle",
+        mode: "code",
+        workspace_root: "C:/work/demo-app",
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-ws",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/work/demo-app",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+          changed_files: [],
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-ws",
+          status: "completed",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/work/demo-app",
+          transcript: [{ role: "assistant", content: "done" }],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+          changed_files: ["docs/plan.md", "src/app.ts"],
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [{ command: "write docs/plan.md", timestamp: "now", status: "completed" }],
+        approvals: [],
+        diffs: [],
+        artifacts: ["final_report.md", "run.json"],
+      });
+    mockStreamSessionMessage.mockResolvedValue(undefined);
+
+    render(<App />);
+
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "hello" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.any(String),
+        }),
+      );
+      const postCall = mockApi.mock.calls.find(
+        (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
+      );
+      expect(postCall).toBeTruthy();
+      expect(JSON.parse(postCall![1].body)).toEqual({
+        workspace_root: "C:/work/demo-app",
+        trust_mode: "ask",
+        mode: "code",
+      });
+    });
+
+    expect(await screen.findByText(/session effects/i)).toBeInTheDocument();
+    expect(screen.getByText(/Changed files: docs\/plan.md, src\/app.ts/)).toBeInTheDocument();
   });
 
   it("shows clear session error when auto-create fails", async () => {
@@ -298,6 +408,193 @@ describe("App API integration", () => {
 
     expect(await screen.findByText(/Backend unavailable/)).toBeInTheDocument();
     expect(mockStreamSessionMessage).not.toHaveBeenCalled();
+  });
+
+  it("persists default workspace from settings for consistent new sessions", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: "C:/repo/demo",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-settings",
+        status: "idle",
+        mode: "code",
+        trust_mode: "ask",
+        workspace_root: "C:/repo/demo",
+        model_selection: { profile: "auto", provider: "auto", model: "auto" },
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-settings",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/repo/demo",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.click(screen.getByTitle("Settings"));
+    fireEvent.change(screen.getByLabelText("Default workspace"), {
+      target: { value: "C:/repo/demo" },
+    });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/config",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ default_workspace: "C:/repo/demo" }),
+        }),
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "New session" })[1]);
+
+    await waitFor(() => {
+      const postCall = mockApi.mock.calls.find(
+        (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
+      );
+      expect(JSON.parse(postCall![1].body)).toEqual({
+        workspace_root: "C:/repo/demo",
+        trust_mode: "ask",
+        mode: "code",
+      });
+    });
+  });
+
+  it("uses desktop picker when no workspace is configured", async () => {
+    mockIsDesktopApp.mockReturnValue(true);
+    mockPickDesktopWorkspace.mockResolvedValue("C:/picked/workspace");
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: "",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: "C:/picked/workspace",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-picked",
+        status: "idle",
+        mode: "code",
+        trust_mode: "ask",
+        workspace_root: "C:/picked/workspace",
+        model_selection: { profile: "auto", provider: "auto", model: "auto" },
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-picked",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/picked/workspace",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-picked",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: "C:/picked/workspace",
+          transcript: [{ role: "assistant", content: "ok" }],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        command_results: [],
+        approvals: [],
+        diffs: [],
+        artifacts: [],
+      });
+    mockStreamSessionMessage.mockResolvedValue(undefined);
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.change(screen.getByPlaceholderText(/Ask Agentheim Code/), {
+      target: { value: "hello" },
+    });
+    fireEvent.click(screen.getByText(/Send/));
+
+    await waitFor(() => {
+      expect(mockPickDesktopWorkspace).toHaveBeenCalledTimes(1);
+      expect(mockApi).toHaveBeenCalledWith(
+        "/config",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ default_workspace: "C:/picked/workspace" }),
+        }),
+      );
+    });
+  });
+
+  it("shows desktop backend launch error instead of endless loading", async () => {
+    mockIsDesktopApp.mockReturnValue(true);
+    mockGetDesktopBackendLaunchError.mockResolvedValue("Desktop backend did not become ready for workspace C:/broken.");
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: "C:/broken",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockRejectedValueOnce(new Error("Backend unavailable"));
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+
+    fireEvent.click(screen.getByText(/New session/i));
+
+    expect(
+      await screen.findByText(/Desktop backend did not become ready for workspace C:\/broken\./),
+    ).toBeInTheDocument();
   });
 
   it("keeps workspace_root on session-scoped follow-up calls", async () => {
@@ -434,6 +731,7 @@ describe("App API integration", () => {
         (c) => c[0] === "/coder/sessions" && c[1]?.method === "POST",
       );
       expect(JSON.parse(postCall![1].body)).toEqual({
+        workspace_root: ".",
         trust_mode: "workspace",
         mode: "code",
       });

@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 const DEFAULT_BACKEND_PORT: u16 = 8765;
 const BACKEND_READY_TIMEOUT: Duration = Duration::from_secs(8);
@@ -26,6 +27,7 @@ struct DesktopCoreConfig {
 #[derive(Default)]
 struct BackendState {
     child: Mutex<Option<Child>>,
+    last_error: Mutex<Option<String>>,
 }
 
 #[derive(Debug)]
@@ -172,6 +174,31 @@ fn launch_settings() -> LaunchSettings {
 }
 
 #[tauri::command]
+fn desktop_pick_workspace(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let selection = app
+        .dialog()
+        .file()
+        .set_title("Choose workspace")
+        .blocking_pick_folder();
+    let Some(path) = selection else {
+        return Ok(None);
+    };
+    let path = path
+        .into_path()
+        .map_err(|_| String::from("Selected workspace path is not available."))?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn backend_launch_error(state: tauri::State<'_, BackendState>) -> Result<Option<String>, String> {
+    let error = state
+        .last_error
+        .lock()
+        .map_err(|_| String::from("Desktop backend error state is unavailable."))?;
+    Ok(error.clone())
+}
+
+#[tauri::command]
 fn backend_url(state: tauri::State<'_, BackendState>) -> Result<Option<String>, String> {
     if let Ok(url) = env::var("AGENTHEIM_CODE_BACKEND_URL") {
         return Ok(Some(url));
@@ -180,6 +207,9 @@ fn backend_url(state: tauri::State<'_, BackendState>) -> Result<Option<String>, 
     let settings = launch_settings();
     let url = format!("http://127.0.0.1:{}", settings.port);
     if backend_is_ready(settings.port) {
+        if let Ok(mut error) = state.last_error.lock() {
+            *error = None;
+        }
         return Ok(Some(url));
     }
 
@@ -194,18 +224,38 @@ fn backend_url(state: tauri::State<'_, BackendState>) -> Result<Option<String>, 
     };
 
     if should_spawn {
-        *child_guard = Some(start_backend(&settings.workspace, settings.port)?);
+        match start_backend(&settings.workspace, settings.port) {
+            Ok(child) => {
+                *child_guard = Some(child);
+                if let Ok(mut error) = state.last_error.lock() {
+                    *error = None;
+                }
+            }
+            Err(error) => {
+                if let Ok(mut last_error) = state.last_error.lock() {
+                    *last_error = Some(error.clone());
+                }
+                return Err(error);
+            }
+        }
     }
     drop(child_guard);
 
     if wait_for_backend(settings.port) {
+        if let Ok(mut error) = state.last_error.lock() {
+            *error = None;
+        }
         return Ok(Some(url));
     }
 
-    Err(format!(
+    let message = format!(
         "Desktop backend did not become ready for workspace {}.",
         settings.workspace.display()
-    ))
+    );
+    if let Ok(mut error) = state.last_error.lock() {
+        *error = Some(message.clone());
+    }
+    Err(message)
 }
 
 fn stop_backend(state: &BackendState) {
@@ -225,8 +275,9 @@ fn stop_backend(state: &BackendState) {
 pub fn run() {
     let state = BackendState::default();
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![backend_url])
+        .invoke_handler(tauri::generate_handler![backend_url, desktop_pick_workspace, backend_launch_error])
         .build(tauri::generate_context!())
         .expect("error while building Agentheim Code");
 

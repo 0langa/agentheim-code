@@ -15,6 +15,10 @@ import type {
 const DEFAULT_API_BASE = "/api";
 let resolvedApiBase: Promise<string> | null = null;
 
+function isDesktopRuntime(): boolean {
+  return window.location.protocol === "tauri:" || window.location.hostname === "tauri.localhost";
+}
+
 function newRequestId(): string {
   return crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -27,10 +31,7 @@ async function getApiBase(): Promise<string> {
   if (resolvedApiBase) return resolvedApiBase;
 
   resolvedApiBase = (async () => {
-    if (
-      window.location.protocol !== "tauri:" &&
-      window.location.hostname !== "tauri.localhost"
-    ) {
+    if (!isDesktopRuntime()) {
       return DEFAULT_API_BASE;
     }
 
@@ -47,6 +48,22 @@ async function getApiBase(): Promise<string> {
   })();
 
   return resolvedApiBase;
+}
+
+export function isDesktopApp(): boolean {
+  return isDesktopRuntime();
+}
+
+export async function pickDesktopWorkspace(): Promise<string | null> {
+  if (!isDesktopRuntime()) return null;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string | null>("desktop_pick_workspace");
+}
+
+export async function getDesktopBackendLaunchError(): Promise<string | null> {
+  if (!isDesktopRuntime()) return null;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string | null>("backend_launch_error");
 }
 
 export class ApiError extends Error {
