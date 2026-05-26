@@ -15,6 +15,18 @@ apps/desktop/src-tauri/gen/
 *.log
 .DS_Store
 test-results/
+tmp-*.log
+tmp/
+
+# Local editor/runtime state
+.env
+.env.*
+!.env.example
+*.local
+
+# Local Python envs
+.venv/
+venv/
 
 # External dependency packages (from pip install -e ../agentheim)
 # These should live in the agentheim repo, not this one
@@ -39,3 +51,7 @@ src/tools/memory/
 src/tools/network/
 src/tools/registry.py
 src/tools/tests.py
+
+# Local provider/app config should never be committed
+profiles.toml
+config.toml
