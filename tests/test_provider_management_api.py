@@ -60,6 +60,29 @@ class TestManagementProfiles:
         assert resp.status_code == 200
         assert resp.json()["default_profile"] == "dev"
 
+    def test_invalid_default_profile_is_normalized_on_load(
+        self, client: TestClient, profiles_path: Path
+    ) -> None:
+        save_profiles_document(
+            ProfilesDocument(
+                version=1,
+                default_profile="default",
+                profiles={
+                    "Azure 5.4": {
+                        "name": "Azure 5.4",
+                        "providers": {},
+                        "models": {},
+                        "privacy_mode": "standard",
+                    }
+                },
+            ),
+            path=profiles_path,
+        )
+        resp = client.get("/api/provider-management/profiles")
+        assert resp.status_code == 200
+        assert resp.json()["default_profile"] == "Azure 5.4"
+        assert '"default_profile": "Azure 5.4"' in profiles_path.read_text(encoding="utf-8")
+
     def test_duplicate_profile(self, client: TestClient, profiles_path: Path) -> None:
         client.post("/api/provider-management/profiles", json={"name": "orig"})
         resp = client.post(

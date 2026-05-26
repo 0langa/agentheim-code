@@ -308,6 +308,17 @@ class ProfilesDocument(BaseModel):
     profiles: dict[str, TeamProfile] = Field(default_factory=dict)
 
 
+def _normalize_profiles_document(document: ProfilesDocument) -> tuple[ProfilesDocument, bool]:
+    changed = False
+    if document.profiles and document.default_profile not in document.profiles:
+        document = cast(
+            ProfilesDocument,
+            document.model_copy(update={"default_profile": next(iter(document.profiles))}),
+        )
+        changed = True
+    return document, changed
+
+
 class ProviderTemplate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -609,7 +620,11 @@ def load_profiles_document(path: Path | None = None) -> ProfilesDocument:
         )
     try:
         raw = json.loads(profile_path.read_text(encoding="utf-8"))
-        return cast(ProfilesDocument, ProfilesDocument.model_validate(raw))
+        document = cast(ProfilesDocument, ProfilesDocument.model_validate(raw))
+        document, changed = _normalize_profiles_document(document)
+        if changed:
+            save_profiles_document(document, profile_path)
+        return document
     except ConfigError:
         raise
     except Exception as exc:
