@@ -80,6 +80,25 @@ Check:
 If a turn looks stuck, use `Stop`, then refresh the session view by selecting
 the session again.
 
+If the turn is blocked on approval, the chat now shows an inline assistant
+message plus an `Open approvals` action. Use that instead of waiting for the
+right panel to switch automatically.
+
+## `Failed to fetch` Or Backend Unreachable
+
+The workbench now rewrites raw browser `Failed to fetch` errors into a product
+message, but the root cause is still usually one of these:
+
+- the local backend never started
+- the desktop shell lost its backend subprocess
+- the previous session is pointing at a stale local server
+
+Try:
+
+- fully close and reopen the app
+- relaunch with `agentheim-code app --workspace . --web`
+- or, for desktop mode, relaunch with `agentheim-code app --workspace .`
+
 ## File Context Was Rejected
 
 Current context validation rejects:

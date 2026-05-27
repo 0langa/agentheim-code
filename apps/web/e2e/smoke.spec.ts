@@ -166,6 +166,40 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
       return;
     }
 
+    if (path === "/api/coder/modes") {
+      await json({
+        modes: [
+          {
+            id: "ask",
+            label: "Ask",
+            description: "Answer directly.",
+            edits_expected: false,
+            legacy_aliases: ["plan"],
+          },
+          {
+            id: "code",
+            label: "Code",
+            description: "Implement and verify.",
+            edits_expected: true,
+            legacy_aliases: ["fix", "docs", "test"],
+          },
+          {
+            id: "review",
+            label: "Review",
+            description: "Inspect critically.",
+            edits_expected: false,
+            legacy_aliases: [],
+          },
+        ],
+        trust_modes: [
+          { id: "ask", label: "ask", description: "Pause for risky tools." },
+          { id: "read_only", label: "read_only", description: "Inspect only." },
+          { id: "workspace", label: "workspace", description: "Allow workspace edits." },
+        ],
+      });
+      return;
+    }
+
     if (path === "/api/coder/models") {
       if (state.providersConfigured && state.providers.length > 0) {
         const first = state.providers[0];
@@ -599,7 +633,7 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
       state.activeSessionId = "sess-1";
       const session = {
         session_id: "sess-1",
-        status: "idle",
+        status: withApproval ? "awaiting_approval" : "idle",
         mode: "code",
         trust_mode: "ask",
         workspace_root: ".",
@@ -608,6 +642,9 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
           provider: "ollama",
           model: "llama3.2",
         },
+        pending_assistant_message: withApproval
+          ? "Approval needed."
+          : undefined,
       };
       state.sessions = [session];
       state.view ??= buildSessionView(
@@ -715,6 +752,11 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
     if (path === "/api/coder/sessions/sess-1/approvals/req-1/grant") {
       state.view = {
         ...state.view,
+        session: {
+          ...((state.view?.session as Record<string, unknown>) ?? {}),
+          status: "idle",
+          pending_assistant_message: "",
+        },
         approvals: [],
       };
       await json({
@@ -769,6 +811,8 @@ test.describe("Agentheim Code Web", () => {
     await page.keyboard.press("Tab");
     await page.keyboard.press("Enter");
 
+    await expect(page.getByRole("button", { name: "Open approvals" })).toBeVisible();
+    await page.getByRole("button", { name: "Open approvals" }).click();
     await expect(page.getByRole("heading", { name: "Approvals" })).toBeVisible();
 
     const grant = page.getByRole("button", { name: "Grant" });
@@ -859,6 +903,19 @@ test.describe("Agentheim Code Web", () => {
     await expect(page.getByRole("button", { name: "Models" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Defaults" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Diagnostics" })).toBeVisible();
+  });
+
+  test("composer only exposes the public mode set", async ({ page }) => {
+    await mockApi(page, { modelConfigured: true });
+    await page.goto("/");
+
+    await expect(page.getByRole("button", { name: "ask" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "code" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "review" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "plan" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "fix" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "docs" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "test" })).toHaveCount(0);
   });
 
   test("provider management lifecycle supports draft test, rotation, discovery, import-export, and manual fallback", async ({

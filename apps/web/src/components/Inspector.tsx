@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 
 import { api } from "../api";
-import type { CoderCommand, Session, SessionView, ProviderProfile } from "../types";
+import type {
+  CoderCommand,
+  ModeCatalog,
+  ProviderProfile,
+  Session,
+  SessionView,
+} from "../types";
 import { formatRelativeTime } from "../utils/time";
 import { DiffViewer } from "./DiffViewer";
 import { SessionUsage } from "./SessionUsage";
@@ -19,6 +25,7 @@ interface InspectorProps {
   onDenyApproval: (requestId: string) => void;
   theme: "dark" | "light" | "high_contrast";
   onThemeChange: (theme: "dark" | "light" | "high_contrast") => void;
+  modeCatalog?: ModeCatalog | null;
   defaultWorkspace: string;
   onDefaultWorkspaceChange: (workspace: string) => void;
   onBrowseDefaultWorkspace?: () => void;
@@ -49,6 +56,7 @@ export function Inspector({
   onDenyApproval,
   theme,
   onThemeChange,
+  modeCatalog = null,
   defaultWorkspace,
   onDefaultWorkspaceChange,
   onBrowseDefaultWorkspace,
@@ -308,6 +316,23 @@ export function Inspector({
               </span>
             ))}
           </article>
+
+          {modeCatalog && (
+            <article className="panel-item">
+              <strong>Session Modes</strong>
+              {modeCatalog.modes.map((mode) => (
+                <span key={mode.id}>
+                  <strong>{mode.label}</strong> · {mode.description}
+                </span>
+              ))}
+              <strong style={{ marginTop: 8 }}>Trust Modes</strong>
+              {modeCatalog.trust_modes.map((mode) => (
+                <span key={mode.id}>
+                  <strong>{mode.id}</strong> · {mode.description}
+                </span>
+              ))}
+            </article>
+          )}
 
           <article className="panel-item">
             <strong>Keyboard Shortcuts</strong>

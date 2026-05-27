@@ -5,12 +5,14 @@ import React from "react";
 import { App } from "../../App";
 
 const mockApi = vi.fn();
+const mockFetchModeCatalog = vi.fn();
 const mockStreamSessionMessage = vi.fn();
 const mockPickDesktopWorkspace = vi.fn();
 const mockGetDesktopBackendLaunchError = vi.fn();
 const mockIsDesktopApp = vi.fn(() => false);
 vi.mock("../../api", () => ({
   api: <T,>(path: string, init?: RequestInit): Promise<T> => mockApi(path, init) as Promise<T>,
+  fetchModeCatalog: () => mockFetchModeCatalog(),
   streamSessionMessage: (...args: unknown[]) => mockStreamSessionMessage(...args),
   pickDesktopWorkspace: () => mockPickDesktopWorkspace(),
   getDesktopBackendLaunchError: () => mockGetDesktopBackendLaunchError(),
@@ -25,11 +27,24 @@ vi.mock("../../api", () => ({
 describe("App API integration", () => {
   beforeEach(() => {
     mockApi.mockReset();
+    mockFetchModeCatalog.mockReset();
     mockStreamSessionMessage.mockReset();
     mockPickDesktopWorkspace.mockReset();
     mockGetDesktopBackendLaunchError.mockReset();
     mockIsDesktopApp.mockReset();
     mockIsDesktopApp.mockReturnValue(false);
+    mockFetchModeCatalog.mockResolvedValue({
+      modes: [
+        { id: "ask", label: "Ask", description: "Answer directly.", edits_expected: false, legacy_aliases: ["plan"] },
+        { id: "code", label: "Code", description: "Implement and verify.", edits_expected: true, legacy_aliases: ["fix", "docs", "test"] },
+        { id: "review", label: "Review", description: "Inspect critically.", edits_expected: false, legacy_aliases: [] },
+      ],
+      trust_modes: [
+        { id: "ask", label: "ask", description: "Pause for risky tools." },
+        { id: "read_only", label: "read_only", description: "Inspect only." },
+        { id: "workspace", label: "workspace", description: "Allow workspace edits." },
+      ],
+    });
   });
 
   it("creates session with dot workspace_root when default workspace is current directory", async () => {
@@ -736,6 +751,224 @@ describe("App API integration", () => {
         mode: "code",
       });
     });
+  });
+
+  it("updates the active session when the mode changes", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          session_id: "sess-mode",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+        },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-mode",
+          status: "idle",
+          mode: "ask",
+          trust_mode: "ask",
+          workspace_root: ".",
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-mode",
+        status: "idle",
+        mode: "review",
+        trust_mode: "ask",
+        workspace_root: ".",
+        model_selection: { profile: "auto", provider: "auto", model: "auto" },
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-mode",
+          status: "idle",
+          mode: "review",
+          trust_mode: "ask",
+          workspace_root: ".",
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-mode"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/coder/sessions/sess-mode/view", undefined);
+    });
+
+    await waitFor(() => {
+      expect(
+        within(document.querySelector(".composer .modes") as HTMLElement).getByRole("button", {
+          name: "ask",
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    fireEvent.click(within(document.querySelector(".composer .modes") as HTMLElement).getByRole("button", { name: "review" }));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-mode/mode",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ mode: "review" }),
+        }),
+      );
+    });
+  });
+
+  it("updates the active session when trust mode changes", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          session_id: "sess-trust",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+        },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-trust",
+          status: "idle",
+          mode: "code",
+          trust_mode: "read_only",
+          workspace_root: ".",
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-trust",
+        status: "idle",
+        mode: "code",
+        trust_mode: "workspace",
+        workspace_root: ".",
+        model_selection: { profile: "auto", provider: "auto", model: "auto" },
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-trust",
+          status: "idle",
+          mode: "code",
+          trust_mode: "workspace",
+          workspace_root: ".",
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-trust"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/coder/sessions/sess-trust/view", undefined);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Trust mode")).toHaveValue("read_only");
+    });
+
+    fireEvent.change(screen.getByLabelText("Trust mode"), {
+      target: { value: "workspace" },
+    });
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-trust/trust-mode",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ trust_mode: "workspace" }),
+        }),
+      );
+    });
+  });
+
+  it("does not auto-switch the inspector when approvals are pending", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { session_id: "sess-approval", status: "awaiting_approval", mode: "code", workspace_root: "." },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-approval",
+          status: "awaiting_approval",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+          pending_assistant_message: "Approval needed.",
+        },
+        queued_prompts: [],
+        available_commands: [],
+        events: [],
+        approvals: [
+          {
+            request_id: "req-1",
+            tool_id: "shell.execute",
+            risk_level: "medium",
+            reason: "Run tests",
+            status: "pending",
+            params: { command: ["pytest", "-q"] },
+            target: "pytest -q",
+            action_kind: "shell",
+          },
+        ],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-approval"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith("/coder/sessions/sess-approval/view", undefined);
+    });
+
+    expect(await screen.findByText("Approval needed.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open approvals" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Runs" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Approvals" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Grant")).not.toBeInTheDocument();
   });
 
   it("opens onboarding for fresh config and no providers", async () => {

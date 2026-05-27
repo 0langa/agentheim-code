@@ -79,7 +79,7 @@ export function Onboarding({
             <p>No local Ollama server detected. Add an API provider or skip setup.</p>
           )}
           <button className="secondary" onClick={onOpenProviderWizard} type="button">
-            Add API provider
+            Open Providers &amp; Models
           </button>
         </div>
 

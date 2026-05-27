@@ -74,14 +74,18 @@ from config.config import (
 )
 from core.run_view import RunView, list_run_views
 from workflows.coder.models import (
+    TRUST_MODE_DESCRIPTIONS,
     CoderApproval,
     CoderCommandResult,
     CoderDiff,
     CoderEvent,
     CoderMessage,
+    CoderMode,
     CoderModelSelection,
     CoderSession,
     CoderSessionView,
+    canonical_mode,
+    mode_metadata,
 )
 from workflows.coder.runtime import (
     approve_request,
@@ -99,6 +103,7 @@ from workflows.coder.runtime import (
     resume_session,
     set_session_mode,
     update_session_model,
+    update_session_trust_mode,
 )
 
 
@@ -133,6 +138,10 @@ class CoderSessionModelRequest(BaseModel):
 
 class CoderSessionModeRequest(BaseModel):
     mode: str = "code"
+
+
+class CoderSessionTrustModeRequest(BaseModel):
+    trust_mode: str = "ask"
 
 
 class UiConfigPatch(BaseModel):
@@ -211,6 +220,7 @@ class SessionResponse(BaseModel):
     transcript: list[TranscriptEntryResponse] = Field(default_factory=list)
     current_user_prompt: str | None = None
     current_assistant_message: str | None = None
+    pending_assistant_message: str | None = None
     changed_files: list[str] = Field(default_factory=list)
     repair_attempts: int = 0
     last_failure_reason: str = ""
@@ -263,6 +273,25 @@ class SessionViewResponse(BaseModel):
     diffs: list[SessionDiffResponse] = Field(default_factory=list)
     command_results: list[CommandResultResponse] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
+
+
+class ModeDescriptorResponse(BaseModel):
+    id: str
+    label: str
+    description: str
+    edits_expected: bool
+    legacy_aliases: list[str] = Field(default_factory=list)
+
+
+class TrustModeDescriptorResponse(BaseModel):
+    id: str
+    label: str
+    description: str
+
+
+class ModeCatalogResponse(BaseModel):
+    modes: list[ModeDescriptorResponse]
+    trust_modes: list[TrustModeDescriptorResponse]
 
 
 class ContextPreviewResponse(BaseModel):
@@ -369,16 +398,18 @@ def _model_selection_response(
 
 
 def _session_response(session: CoderSession) -> SessionResponse:
+    normalized_mode = canonical_mode(session.mode)
     return SessionResponse(
         session_id=session.session_id,
         status=session.status.value,
-        mode=session.mode.value,
+        mode=normalized_mode.value,
         trust_mode=session.trust_mode.value,
         workspace_root=session.workspace_root,
         model_selection=_model_selection_response(session.model_selection),
         transcript=[_transcript_entry_response(entry) for entry in session.transcript],
         current_user_prompt=session.current_user_prompt,
         current_assistant_message=session.current_assistant_message,
+        pending_assistant_message=session.pending_assistant_message,
         changed_files=session.changed_files,
         repair_attempts=session.repair_attempts,
         last_failure_reason=session.last_failure_reason,
@@ -466,6 +497,22 @@ def _usage_response(payload: dict[str, Any]) -> UsageResponse:
             for item in cast(list[dict[str, Any]], payload.get("breakdown", []))
         ],
     )
+
+
+def _mode_catalog_response() -> ModeCatalogResponse:
+    modes = [
+        ModeDescriptorResponse.model_validate(mode_metadata(mode))
+        for mode in (CoderMode.ASK, CoderMode.CODE, CoderMode.REVIEW)
+    ]
+    trust_modes = [
+        TrustModeDescriptorResponse(
+            id=trust_mode.value,
+            label=trust_mode.value,
+            description=description,
+        )
+        for trust_mode, description in TRUST_MODE_DESCRIPTIONS.items()
+    ]
+    return ModeCatalogResponse(modes=modes, trust_modes=trust_modes)
 
 
 def _web_dist_dir() -> Path:
@@ -901,6 +948,20 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             set_session_mode(_workspace(workspace_path, workspace_root), session_id, body.mode)
         )
 
+    @app.patch("/api/coder/sessions/{session_id}/trust-mode", response_model=SessionResponse)
+    def api_update_trust_mode(
+        session_id: str,
+        body: CoderSessionTrustModeRequest,
+        workspace_root: str | None = None,
+    ) -> SessionResponse:
+        return _session_response(
+            update_session_trust_mode(
+                _workspace(workspace_path, workspace_root),
+                session_id,
+                body.trust_mode,
+            )
+        )
+
     @app.post("/api/coder/sessions/{session_id}/cancel", response_model=SessionResponse)
     def api_cancel_session(
         session_id: str,
@@ -1104,6 +1165,10 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                     "cost_support": True,
                 }
         return options
+
+    @app.get("/api/coder/modes", response_model=ModeCatalogResponse)
+    def api_modes() -> ModeCatalogResponse:
+        return _mode_catalog_response()
 
     @app.get("/api/providers/health")
     def api_provider_health() -> dict[str, Any]:

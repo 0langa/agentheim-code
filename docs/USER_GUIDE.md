@@ -66,12 +66,31 @@ The active session view keeps:
 
 The composer controls each turn.
 
-- Modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
+- Modes: `ask`, `code`, `review`
 - Trust modes: `ask`, `read_only`, `workspace`
 - Profile and model selectors: choose explicit values or keep `Auto`
 - Send: `Ctrl/Cmd+Enter`
 - Stop: available while streaming
 - Retry: available after a completed turn
+
+What the public modes mean:
+
+- `ask` keeps the turn conversational and answer-first. Use it for questions,
+  explanations, and small next-step guidance.
+- `code` is the implementation mode. It can inspect the workspace, edit files,
+  run commands, and summarize what changed.
+- `review` is analysis-first. It inspects work critically and surfaces findings
+  before recommending or making changes.
+
+Legacy values such as `plan`, `fix`, `docs`, and `test` are still accepted for
+compatibility, but the product now normalizes them internally to the three
+public modes above.
+
+Trust modes mean:
+
+- `read_only` — inspect only, no edits
+- `ask` — pause for risky actions and request approval
+- `workspace` — allow normal workspace edits under policy
 
 ## File Context
 
@@ -139,8 +158,12 @@ Shows command results with:
 
 ### Approvals
 
-Risky actions automatically push the inspector to Approvals when pending items
-exist.
+Risky actions do not steal the right panel anymore. Instead, the workbench
+shows:
+
+- a pending-approval badge in the chrome
+- an inline assistant reply in the chat explaining what is blocked
+- an explicit `Open approvals` action when you want the detailed approval panel
 
 Each approval shows:
 

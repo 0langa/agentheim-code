@@ -1,6 +1,11 @@
 import React from "react";
 import { Play, AlertTriangle } from "lucide-react";
-import type { ContextPreviewItem, FileEntry, ModelOptions } from "../types";
+import type {
+  ContextPreviewItem,
+  FileEntry,
+  ModeCatalog,
+  ModelOptions,
+} from "../types";
 
 interface ComposerProps {
   prompt: string;
@@ -9,6 +14,7 @@ interface ComposerProps {
   selectedProfile: string;
   selectedModel: string;
   modelOptions: ModelOptions | null;
+  modeCatalog: ModeCatalog | null;
   onPromptChange: (value: string) => void;
   onModeChange: (mode: string) => void;
   onTrustModeChange: (mode: string) => void;
@@ -29,7 +35,7 @@ interface ComposerProps {
   contextPreviews?: ContextPreviewItem[];
 }
 
-const MODES = ["ask", "plan", "code", "review", "fix", "docs", "test"];
+const MODES = ["ask", "code", "review"];
 const TRUST_MODES = ["ask", "read_only", "workspace"];
 const TRUST_LABELS: Record<string, string> = {
   read_only: "read_only - inspect only",
@@ -44,6 +50,7 @@ export function Composer({
   selectedProfile,
   selectedModel,
   modelOptions,
+  modeCatalog,
   onPromptChange,
   onModeChange,
   onTrustModeChange,
@@ -68,6 +75,8 @@ export function Composer({
   );
   const plannerModels =
     activeProfile?.models.filter((model) => model.role === "planner") ?? [];
+  const selectedModeInfo = modeCatalog?.modes.find((mode) => mode.id === selectedMode);
+  const selectedTrustInfo = modeCatalog?.trust_modes.find((mode) => mode.id === selectedTrustMode);
 
   const modelHealth = (model: (typeof plannerModels)[number]) => {
     const h = model.health as {
@@ -149,6 +158,20 @@ export function Composer({
           })}
         </select>
       </div>
+      {(selectedModeInfo || selectedTrustInfo) && (
+        <div className="composer-hint" aria-live="polite">
+          {selectedModeInfo && (
+            <span>
+              <strong>{selectedModeInfo.label}:</strong> {selectedModeInfo.description}
+            </span>
+          )}
+          {selectedTrustInfo && (
+            <span>
+              <strong>Trust:</strong> {selectedTrustInfo.description}
+            </span>
+          )}
+        </div>
+      )}
       <textarea
         aria-label="Prompt"
         value={prompt}
@@ -156,10 +179,10 @@ export function Composer({
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
             event.preventDefault();
-            if (prompt.trim()) onSend();
+            if (prompt.trim() && canSend) onSend();
           }
         }}
-        placeholder="Ask Agentheim Code to build, fix, review, test, or explain..."
+        placeholder="Ask Agentheim Code to help, build, review, or explain..."
       />
       {(selectedContextFiles.length > 0 || showFilePicker || contextPreviews.length > 0) && (
         <div className="context-panel">

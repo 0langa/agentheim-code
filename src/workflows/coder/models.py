@@ -44,6 +44,66 @@ class CoderMode(StrEnum):
     TEST = "test"
 
 
+MODE_ALIASES: dict[str, CoderMode] = {
+    CoderMode.ASK.value: CoderMode.ASK,
+    CoderMode.PLAN.value: CoderMode.ASK,
+    CoderMode.CODE.value: CoderMode.CODE,
+    CoderMode.FIX.value: CoderMode.CODE,
+    CoderMode.DOCS.value: CoderMode.CODE,
+    CoderMode.TEST.value: CoderMode.CODE,
+    CoderMode.REVIEW.value: CoderMode.REVIEW,
+}
+
+
+TRUST_MODE_DESCRIPTIONS: dict[TrustMode, str] = {
+    TrustMode.READ_ONLY: "Inspect files and state without writing changes.",
+    TrustMode.ASK: "Pause for risky tools or edits and ask for approval before acting.",
+    TrustMode.WORKSPACE: "Allow workspace edits under policy without pausing for normal changes.",
+}
+
+
+MODE_METADATA: dict[CoderMode, dict[str, object]] = {
+    CoderMode.ASK: {
+        "label": "Ask",
+        "description": "Answer directly, explain clearly, and only act when the request truly needs it.",
+        "edits_expected": False,
+        "legacy_aliases": [CoderMode.PLAN.value],
+    },
+    CoderMode.CODE: {
+        "label": "Code",
+        "description": "Implement, edit, verify, and summarize the result like a real coding partner.",
+        "edits_expected": True,
+        "legacy_aliases": [
+            CoderMode.FIX.value,
+            CoderMode.DOCS.value,
+            CoderMode.TEST.value,
+        ],
+    },
+    CoderMode.REVIEW: {
+        "label": "Review",
+        "description": "Inspect work critically, explain findings first, and stay conversational.",
+        "edits_expected": False,
+        "legacy_aliases": [],
+    },
+}
+
+
+def canonical_mode(mode: CoderMode | str) -> CoderMode:
+    raw = mode.value if isinstance(mode, CoderMode) else str(mode)
+    try:
+        return MODE_ALIASES[raw]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported coder mode: {raw}") from exc
+
+
+def mode_metadata(mode: CoderMode | str) -> dict[str, object]:
+    normalized = canonical_mode(mode)
+    return {
+        "id": normalized.value,
+        **MODE_METADATA[normalized],
+    }
+
+
 class CoderMessage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -184,6 +244,8 @@ class CoderSession(BaseModel):
     pending_approval: PendingApproval | None = None
     current_user_prompt: str | None = None
     current_assistant_message: str | None = None
+    planned_assistant_message: str | None = None
+    pending_assistant_message: str | None = None
     current_summary: str = ""
     planned_actions: list[CoderAction] = Field(default_factory=list)
     next_action_index: int = 0

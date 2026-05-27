@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { Chat } from "../Chat";
 import type { SessionView } from "../../types";
@@ -57,11 +57,21 @@ describe("Chat", () => {
   });
 
   it("renders current_assistant_message from session", () => {
-    render(<Chat active={ACTIVE_VIEW} />);
+    render(
+      <Chat
+        active={{
+          ...ACTIVE_VIEW,
+          session: {
+            ...ACTIVE_VIEW.session,
+            status: "running",
+          },
+        }}
+      />,
+    );
     expect(screen.getByText("Typing...")).toBeInTheDocument();
     expect(screen.getByRole("log", { name: "Conversation transcript" })).toHaveAttribute(
       "aria-busy",
-      "false",
+      "true",
     );
   });
 
@@ -112,5 +122,61 @@ describe("Chat", () => {
       "aria-busy",
       "true",
     );
+  });
+
+  it("does not show a draft assistant message after the turn is completed", () => {
+    render(
+      <Chat
+        active={{
+          ...ACTIVE_VIEW,
+          session: {
+            ...ACTIVE_VIEW.session,
+            status: "completed",
+            current_assistant_message: "Draft that should not linger",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("Draft that should not linger")).not.toBeInTheDocument();
+    expect(screen.getByText("Hi there")).toBeInTheDocument();
+  });
+
+  it("renders an inline approval reply with a CTA while blocked on approval", () => {
+    const onOpenApprovals = vi.fn();
+    render(
+      <Chat
+        active={{
+          ...ACTIVE_VIEW,
+          session: {
+            ...ACTIVE_VIEW.session,
+            status: "awaiting_approval",
+            current_assistant_message: "I already said something else",
+            pending_assistant_message:
+              "This turn is paused until you approve run `pytest -q`. Reason: Run tests.",
+          },
+          approvals: [
+            {
+              request_id: "req-1",
+              tool_id: "shell.execute",
+              risk_level: "medium",
+              reason: "Run tests",
+              status: "pending",
+              params: {},
+              target: "pytest -q",
+              action_kind: "shell",
+            },
+          ],
+        }}
+        onOpenApprovals={onOpenApprovals}
+      />,
+    );
+
+    expect(
+      screen.getByText(/This turn is paused until you approve run/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Open approvals"));
+    expect(onOpenApprovals).toHaveBeenCalled();
+    expect(screen.queryByText("I already said something else")).not.toBeInTheDocument();
   });
 });

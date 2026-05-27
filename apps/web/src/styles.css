@@ -352,6 +352,21 @@ select {
   border-radius: 20px;
 }
 
+.composer-hint {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.composer-hint strong {
+  color: var(--text);
+}
+
 textarea {
   min-height: 132px;
   resize: vertical;

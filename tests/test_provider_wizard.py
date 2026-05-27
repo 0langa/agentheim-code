@@ -165,7 +165,9 @@ class TestCreateProfile:
         # Should fall back to template endpoint
         assert profile.providers["p1"].endpoint != ""
 
-    def test_azure_foundry_uses_longer_default_timeout(self, tmp_path: Any, monkeypatch: Any) -> None:
+    def test_azure_foundry_uses_longer_default_timeout(
+        self, tmp_path: Any, monkeypatch: Any
+    ) -> None:
         profile_path = tmp_path / "profiles.json"
         doc = ProfilesDocument(version=1, default_profile="default", profiles={})
         save_profiles_document(doc, path=profile_path)

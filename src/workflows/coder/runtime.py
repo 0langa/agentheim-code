@@ -3,11 +3,14 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from itertools import islice
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
+
+from pydantic import BaseModel
 
 from config.config import ModelRole, load_profiles_document, load_team_config
 from core.public_api import (
@@ -45,6 +48,7 @@ from workflows.coder.models import (
     PendingApproval,
     SessionStatus,
     TrustMode,
+    canonical_mode,
 )
 
 WORKFLOW_ID = "coder"
@@ -154,6 +158,9 @@ def _load_session(workspace_root: Path, session_id: str) -> CoderSession:
         raise ValueError(f"Session '{session_id}' not found.")
     data = json.loads(paths["session"].read_text(encoding="utf-8"))
     session = CoderSession.model_validate(data)
+    normalized_mode = canonical_mode(session.mode)
+    if session.mode != normalized_mode:
+        session = session.model_copy(update={"mode": normalized_mode})
     transcript: list[CoderMessage] = []
     if paths["transcript"].exists():
         for line in paths["transcript"].read_text(encoding="utf-8").splitlines():
@@ -164,7 +171,10 @@ def _load_session(workspace_root: Path, session_id: str) -> CoderSession:
         for line in paths["activity"].read_text(encoding="utf-8").splitlines():
             if line.strip():
                 activities.append(CoderActivity.model_validate(json.loads(line)))
-    return session.model_copy(update={"transcript": transcript, "activities": activities})
+    return cast(
+        CoderSession,
+        session.model_copy(update={"transcript": transcript, "activities": activities}),
+    )
 
 
 def _save_session(workspace_root: Path, session: CoderSession) -> CoderSession:
@@ -251,7 +261,7 @@ def _last_command_result(workspace_root: Path, session_id: str) -> CoderCommandR
 
 def _tool_result_data(result: Any) -> dict[str, Any]:
     if hasattr(result.data, "model_dump"):
-        return result.data.model_dump()
+        return cast(dict[str, Any], result.data.model_dump())
     if isinstance(result.data, dict):
         return result.data
     return {}
@@ -267,8 +277,8 @@ def _command_exit_code(data: dict[str, Any]) -> int | None:
         return None
 
 
-def _read_jsonl_model(path: Path, model_type):
-    items = []
+def _read_jsonl_model[TModel: BaseModel](path: Path, model_type: type[TModel]) -> list[TModel]:
+    items: list[TModel] = []
     if not path.exists():
         return items
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -304,11 +314,17 @@ def _record_activity(
         ),
     )
     activities = [*session.activities, activity]
-    return session.model_copy(update={"activities": activities, "updated_at": activity.created_at})
+    return cast(
+        CoderSession,
+        session.model_copy(update={"activities": activities, "updated_at": activity.created_at}),
+    )
 
 
 def _set_status(session: CoderSession, status: SessionStatus) -> CoderSession:
-    return session.model_copy(update={"status": status, "updated_at": _utcnow()})
+    return cast(
+        CoderSession,
+        session.model_copy(update={"status": status, "updated_at": _utcnow()}),
+    )
 
 
 def _workspace_scan_summary(workspace_root: Path) -> tuple[dict[str, Any], bool]:
@@ -338,7 +354,15 @@ def _command_ids() -> list[str]:
 
 
 def available_commands() -> list[dict[str, str]]:
-    return command_registry()
+    return [
+        {
+            "id": item["id"],
+            "label": item["label"],
+            "cli": item["cli"],
+            "surface": item["surface"],
+        }
+        for item in command_registry()
+    ]
 
 
 def _normalize_model_selection(
@@ -395,7 +419,7 @@ def _sanitize_plan(plan: CoderTurnPlan) -> CoderTurnPlan:
             if executable in {"mkdir", "md"}:
                 continue
         sanitized.append(action)
-    return plan.model_copy(update={"actions": sanitized})
+    return cast(CoderTurnPlan, plan.model_copy(update={"actions": sanitized}))
 
 
 def _offline_violations(plan: CoderTurnPlan, prompt: str) -> list[str]:
@@ -415,14 +439,97 @@ def _offline_violations(plan: CoderTurnPlan, prompt: str) -> list[str]:
 
 
 def _mode_allows_noop_plan(mode: CoderMode) -> bool:
-    return mode in {CoderMode.ASK, CoderMode.PLAN, CoderMode.REVIEW, CoderMode.DOCS}
+    return canonical_mode(mode) in {CoderMode.ASK, CoderMode.REVIEW}
+
+
+def _mode_planner_guidance(mode: CoderMode) -> str:
+    normalized = canonical_mode(mode)
+    if normalized == CoderMode.ASK:
+        return (
+            "Ask mode: default to a direct conversational answer. "
+            "Only include actions when the user clearly needs real inspection or edits. "
+            "assistant_message should read like a natural chat reply, not a tool status log."
+        )
+    if normalized == CoderMode.REVIEW:
+        return (
+            "Review mode: produce a conversational review response with findings first, then supporting detail. "
+            "Do not pretend to edit code unless the user explicitly asks for changes."
+        )
+    return (
+        "Code mode: behave like a real coding partner. "
+        "assistant_message should summarize what you changed, what you verified, and any remaining issue in natural language."
+    )
+
+
+def _prompt_explicitly_requests_workspace_action(prompt: str) -> bool:
+    lowered = prompt.lower()
+    markers = (
+        "workspace",
+        "repo",
+        "repository",
+        "codebase",
+        "folder",
+        "directory",
+        "file",
+        "files",
+        "diff",
+        "patch",
+        "open ",
+        "read ",
+        "inspect ",
+        "search ",
+        "look through",
+        "run ",
+        "execute ",
+        "edit ",
+        "change ",
+        "update ",
+        "write ",
+        "create ",
+        "delete ",
+        "rename ",
+        "refactor ",
+        "implement ",
+        "build ",
+        "in this workspace",
+        "in the workspace",
+        "in this repo",
+        "in the repo",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def _approval_target_summary(pending: PendingApproval) -> str:
+    if pending.tool_id == "shell.execute":
+        command = pending.params.get("command", [])
+        if isinstance(command, list) and command:
+            return "run `" + " ".join(str(part) for part in command) + "`"
+    path = pending.params.get("path")
+    if path:
+        operation = str(pending.params.get("operation", "update"))
+        return f"{operation} `{path}`"
+    return f"use `{pending.tool_id}`"
+
+
+def _approval_wait_message(session: CoderSession, pending: PendingApproval) -> str:
+    return (
+        f"This turn is paused until you approve {_approval_target_summary(pending)}. "
+        f"Reason: {pending.reason}."
+    )
+
+
+def _approval_denied_message(pending: PendingApproval) -> str:
+    return (
+        f"I stopped because approval was denied for {_approval_target_summary(pending)}. "
+        "You can grant approval on a retry or send a new instruction to take a different path."
+    )
 
 
 class _SessionLock:
     def __init__(self, workspace_root: Path, session_id: str) -> None:
         self.path = _session_paths(workspace_root, session_id)["lock"]
 
-    def __enter__(self):
+    def __enter__(self) -> _SessionLock:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         try:
             fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -432,7 +539,7 @@ class _SessionLock:
             handle.write(_utcnow())
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         with contextlib.suppress(FileNotFoundError):
             self.path.unlink()
 
@@ -451,7 +558,9 @@ def _coder_output_token_budget(model_config: Any) -> tuple[int, int]:
 
 
 def _parse_turn_plan(raw_content: str) -> CoderTurnPlan:
-    return CoderTurnPlan.model_validate(json.loads(repair_json_text(raw_content)))
+    return cast(
+        CoderTurnPlan, CoderTurnPlan.model_validate(json.loads(repair_json_text(raw_content)))
+    )
 
 
 def _content_preview(content: str, limit: int = 500) -> str:
@@ -670,7 +779,7 @@ def _fill_missing_write_contents(
             )
         content = _clean_raw_file_content(response.content)
         actions.append(action.model_copy(update={"content": content}))
-    return plan.model_copy(update={"actions": actions})
+    return cast(CoderTurnPlan, plan.model_copy(update={"actions": actions}))
 
 
 def _plan_turn(
@@ -714,12 +823,13 @@ def _plan_turn(
         "For build, fix, refactor, test, or project-creation tasks, include at least one run_command action that verifies the result locally. "
         "Never claim tests, builds, or smoke checks passed unless a run_command action actually runs them. "
         "Respect explicit offline/local-first requirements. Only use package installs, network actions, external URLs, CDNs, remote assets, or generated dependency downloads when the user request or selected stack makes them necessary and policy allows it. "
-        f"{_planner_command_guidance()}"
+        f"{_planner_command_guidance()} "
+        f"{_mode_planner_guidance(session.mode)}"
     )
     user_prompt = (
         f"Workspace summary: {json.dumps(workspace_summary)}\n"
         f"Trust mode: {session.trust_mode.value}\n"
-        f"Coder mode: {session.mode.value}\n"
+        f"Coder mode: {canonical_mode(session.mode).value}\n"
         f"Model selection: {session.model_selection.model_dump(mode='json')}\n"
         f"Transcript tail: {[m.model_dump(mode='json') for m in session.transcript[-6:]]}\n"
         f"User prompt: {prompt}"
@@ -733,9 +843,32 @@ def _plan_turn(
         ledger=ledger,
     )
     plan = _sanitize_plan(plan)
+    normalized_mode = canonical_mode(session.mode)
+    if (
+        normalized_mode in {CoderMode.ASK, CoderMode.REVIEW}
+        and not _prompt_explicitly_requests_workspace_action(prompt)
+        and plan.actions
+    ):
+        plan = _invoke_planner_json(
+            provider=provider,
+            role=model_config.role,
+            system_prompt=(
+                f"{system_prompt} "
+                "For this request, respond conversationally and do not use any actions. "
+                "Return actions as an empty array."
+            ),
+            user_prompt=user_prompt,
+            max_output_tokens=min(retry_tokens, first_pass_tokens),
+            ledger=ledger,
+        )
+        plan = _sanitize_plan(plan)
+        if plan.actions:
+            plan = plan.model_copy(update={"actions": []})
     if not plan.actions and not _mode_allows_noop_plan(session.mode):
         raise ValueError("Model returned a valid plan with no actions.")
-    needs_verification = _session_has_coding_context(session, prompt)
+    needs_verification = normalized_mode == CoderMode.CODE and _session_has_coding_context(
+        session, prompt
+    )
     write_issues = _write_file_content_issues(plan)
     if write_issues:
         plan = _fill_missing_write_contents(
@@ -872,7 +1005,13 @@ def _invoke_action(
             reason=reason,
             action_index=session.next_action_index,
         )
-        session = session.model_copy(update={"pending_approval": pending})
+        session = session.model_copy(
+            update={
+                "pending_approval": pending,
+                "pending_assistant_message": _approval_wait_message(session, pending),
+                "current_summary": "Waiting for approval",
+            }
+        )
         session = _record_activity(workspace_root, session, ActivityKind.AWAITING_APPROVAL, reason)
         return _set_status(session, SessionStatus.AWAITING_APPROVAL), False
     if not result.success:
@@ -921,6 +1060,7 @@ def _invoke_action(
         update={
             "changed_files": changed_files,
             "next_action_index": session.next_action_index + 1,
+            "pending_assistant_message": None,
             "updated_at": _utcnow(),
         }
     )
@@ -930,12 +1070,22 @@ def _invoke_action(
 def _complete_turn(workspace_root: Path, ledger: RunLedger, session: CoderSession) -> CoderSession:
     message = CoderMessage(
         role="assistant",
-        content=session.current_assistant_message or "Coder turn completed.",
+        content=(
+            session.planned_assistant_message
+            or session.current_assistant_message
+            or "Coder turn completed."
+        ),
         created_at=_utcnow(),
     )
     _append_message(workspace_root, session.session_id, message)
     session = session.model_copy(
-        update={"transcript": [*session.transcript, message], "updated_at": message.created_at}
+        update={
+            "transcript": [*session.transcript, message],
+            "current_assistant_message": None,
+            "planned_assistant_message": None,
+            "pending_assistant_message": None,
+            "updated_at": message.created_at,
+        }
     )
     session = _record_activity(
         workspace_root, session, ActivityKind.COMPLETED, session.current_summary or "Turn completed"
@@ -963,16 +1113,21 @@ def _run_actions(
 
 
 def _apply_plan(session: CoderSession, prompt: str, plan: CoderTurnPlan) -> CoderSession:
-    return session.model_copy(
-        update={
-            "current_user_prompt": prompt,
-            "current_assistant_message": plan.assistant_message,
-            "current_summary": plan.summary,
-            "planned_actions": plan.actions,
-            "next_action_index": 0,
-            "pending_approval": None,
-            "updated_at": _utcnow(),
-        }
+    return cast(
+        CoderSession,
+        session.model_copy(
+            update={
+                "current_user_prompt": prompt,
+                "current_assistant_message": None,
+                "planned_assistant_message": plan.assistant_message,
+                "pending_assistant_message": None,
+                "current_summary": plan.summary,
+                "planned_actions": plan.actions,
+                "next_action_index": 0,
+                "pending_approval": None,
+                "updated_at": _utcnow(),
+            },
+        ),
     )
 
 
@@ -1076,13 +1231,14 @@ def create_session(
 ) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     trust = TrustMode(trust_mode)
+    normalized_mode = canonical_mode(mode)
     scan_summary, git_available = _workspace_scan_summary(workspace)
     ledger = RunLedger.create(workspace, "coder")
     session = CoderSession(
         session_id=ledger.run_dir.name,
         workspace_root=str(workspace),
         trust_mode=trust,
-        mode=CoderMode(mode),
+        mode=normalized_mode,
         model_selection=_normalize_model_selection(profile=profile, provider=provider, model=model),
         created_at=_utcnow(),
         updated_at=_utcnow(),
@@ -1096,7 +1252,7 @@ def create_session(
         "repo_root": str(workspace),
         "created_at": session.created_at,
         "trust_mode": trust.value,
-        "mode": mode,
+        "mode": normalized_mode.value,
         "model_selection": _normalize_model_selection(
             profile=profile, provider=provider, model=model
         ).model_dump(mode="json"),
@@ -1187,7 +1343,7 @@ def list_session_views(workspace_root: str | Path) -> list[CoderSessionView]:
     return [get_session_view(workspace, session.session_id) for session in list_sessions(workspace)]
 
 
-def _iter_file_tree_entries(workspace: Path):
+def _iter_file_tree_entries(workspace: Path) -> Iterator[dict[str, str]]:
     for root, dirnames, filenames in os.walk(workspace):
         current = Path(root)
         relative_root = current.relative_to(workspace)
@@ -1212,7 +1368,7 @@ def browse_file_tree(
     bounded_offset = max(offset, 0)
     bounded_limit = max(1, limit)
 
-    def filtered_entries():
+    def filtered_entries() -> Iterator[dict[str, str]]:
         for item in _iter_file_tree_entries(workspace):
             if normalized_query and normalized_query not in str(item["path"]).lower():
                 continue
@@ -1235,7 +1391,9 @@ def cancel_session(
 ) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     session = _load_session(workspace, session_id)
-    session = session.model_copy(update={"pending_approval": None})
+    session = session.model_copy(
+        update={"pending_approval": None, "pending_assistant_message": None}
+    )
     cancel_details: dict[str, str] = {"status": "cancelled"}
     if session.planned_actions and session.next_action_index < len(session.planned_actions):
         current_action = session.planned_actions[session.next_action_index]
@@ -1302,7 +1460,10 @@ def resume_session(
             resume_details,
             request_id=request_id,
         )
-        session = _set_status(session, SessionStatus.IDLE)
+        session = _set_status(
+            session.model_copy(update={"pending_assistant_message": None}),
+            SessionStatus.IDLE,
+        )
         return _save_session(workspace, session)
 
     # IDLE or COMPLETED: just return
@@ -1337,11 +1498,27 @@ def update_session_model(
     return _save_session(workspace, updated)
 
 
+def update_session_trust_mode(
+    workspace_root: str | Path, session_id: str, trust_mode: str
+) -> CoderSession:
+    workspace = safe_project_path(workspace_root)
+    session = _load_session(workspace, session_id)
+    trust = TrustMode(trust_mode)
+    updated = session.model_copy(update={"trust_mode": trust, "updated_at": _utcnow()})
+    updated = _record_activity(
+        workspace, updated, ActivityKind.THINKING, f"Trust mode changed: {trust.value}"
+    )
+    return _save_session(workspace, updated)
+
+
 def set_session_mode(workspace_root: str | Path, session_id: str, mode: str) -> CoderSession:
     workspace = safe_project_path(workspace_root)
     session = _load_session(workspace, session_id)
-    updated = session.model_copy(update={"mode": CoderMode(mode), "updated_at": _utcnow()})
-    updated = _record_activity(workspace, updated, ActivityKind.THINKING, f"Mode changed: {mode}")
+    normalized = canonical_mode(mode)
+    updated = session.model_copy(update={"mode": normalized, "updated_at": _utcnow()})
+    updated = _record_activity(
+        workspace, updated, ActivityKind.THINKING, f"Mode changed: {normalized.value}"
+    )
     return _save_session(workspace, updated)
 
 
@@ -1470,7 +1647,14 @@ def approve_request(
         ledger.emit_event(
             EventType.APPROVAL_DENIED, tool_id=pending.tool_id, payload={"request_id": request_id}
         )
-        session = session.model_copy(update={"pending_approval": None})
+        session = session.model_copy(
+            update={
+                "pending_approval": None,
+                "planned_assistant_message": None,
+                "pending_assistant_message": _approval_denied_message(pending),
+                "current_summary": "Approval denied",
+            }
+        )
         session = _record_activity(workspace, session, ActivityKind.BLOCKED, "Approval denied.")
         session = _set_status(session, SessionStatus.BLOCKED)
         return _save_session(workspace, session)
@@ -1505,7 +1689,13 @@ def approve_request(
         ),
     )
     if not result.success:
-        session = session.model_copy(update={"pending_approval": None})
+        session = session.model_copy(
+            update={
+                "pending_approval": None,
+                "planned_assistant_message": None,
+                "pending_assistant_message": None,
+            }
+        )
         session = _record_activity(
             workspace, session, ActivityKind.BLOCKED, result.error or "Approved action failed."
         )
@@ -1530,6 +1720,8 @@ def approve_request(
     session = session.model_copy(
         update={
             "pending_approval": None,
+            "current_assistant_message": None,
+            "pending_assistant_message": None,
             "changed_files": changed_files,
             "next_action_index": pending.action_index + 1,
             "updated_at": _utcnow(),

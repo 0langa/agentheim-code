@@ -7,6 +7,7 @@ import type { SessionView, TranscriptEntry } from "../types";
 
 interface ChatProps {
   active: SessionView | null;
+  onOpenApprovals?: () => void;
 }
 
 function summarizeRunEffects(active: SessionView): string | null {
@@ -126,7 +127,7 @@ function MessageBubble({ entry }: { entry: TranscriptEntry }) {
   );
 }
 
-export function Chat({ active }: ChatProps) {
+export function Chat({ active, onOpenApprovals }: ChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastSummaryKeyRef = useRef<string | null>(null);
   const liveMessage = !active
@@ -183,6 +184,11 @@ export function Chat({ active }: ChatProps) {
   }
 
   const entries = active.session.transcript ?? [];
+  const pendingAssistantMessage = active.session.pending_assistant_message;
+  const showApprovalReply =
+    active.session.status === "awaiting_approval" &&
+    Boolean(pendingAssistantMessage) &&
+    active.approvals?.length;
 
   return (
     <section
@@ -206,7 +212,9 @@ export function Chat({ active }: ChatProps) {
       {entries.map((entry, idx) => (
         <MessageBubble key={idx} entry={entry} />
       ))}
-      {active.session.current_assistant_message && (
+      {active.session.status === "running" &&
+        active.session.current_assistant_message &&
+        !showApprovalReply && (
         <div
           className="message"
           style={{
@@ -226,6 +234,35 @@ export function Chat({ active }: ChatProps) {
             assistant
           </strong>
           <MarkdownMessage content={active.session.current_assistant_message} />
+        </div>
+      )}
+      {showApprovalReply && (
+        <div
+          className="message"
+          style={{
+            alignSelf: "flex-start",
+            borderColor: "color-mix(in srgb, var(--warning) 34%, transparent)",
+            background: "color-mix(in srgb, var(--warning) 9%, transparent)",
+          }}
+        >
+          <strong
+            style={{
+              fontSize: "12px",
+              textTransform: "uppercase",
+              color: "var(--warning)",
+            }}
+          >
+            assistant
+          </strong>
+          <MarkdownMessage content={pendingAssistantMessage ?? ""} />
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button className="secondary small" onClick={onOpenApprovals} type="button">
+              Open approvals
+            </button>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+              This turn is paused until you approve or deny the requested action.
+            </span>
+          </div>
         </div>
       )}
       {runEffectsSummary && active.session.status !== "running" && (

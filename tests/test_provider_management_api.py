@@ -54,7 +54,9 @@ class TestManagementProfiles:
         assert data["ok"] is True
         assert data["profile"]["name"] == "dev"
 
-    def test_first_created_profile_becomes_default(self, client: TestClient, profiles_path: Path) -> None:
+    def test_first_created_profile_becomes_default(
+        self, client: TestClient, profiles_path: Path
+    ) -> None:
         client.post("/api/provider-management/profiles", json={"name": "dev"})
         resp = client.get("/api/provider-management/profiles")
         assert resp.status_code == 200

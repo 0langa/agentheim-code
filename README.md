@@ -59,7 +59,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-beta.ps1
 - Release-synced `2.0.0` baseline with verified Python, web, desktop, and packaging checks
 - First-run onboarding with workspace selection and Ollama auto-detection
 - Providers & Models workspace with account/model/profile lifecycle management
-- Session modes: `ask`, `plan`, `code`, `review`, `fix`, `docs`, `test`
+- Session modes: `ask`, `code`, `review`
 - Trust modes: `read_only`, `ask`, `workspace`
 - Streaming chat with markdown and code rendering
 - `@` file context search, validation, preview, and token estimate
@@ -81,6 +81,26 @@ Fresh UI config opens onboarding automatically.
 
 Skipping onboarding only dismisses the first-run dialog. Provider setup remains
 available from Settings.
+
+## Session Modes
+
+- `ask` keeps the interaction conversational and answer-first. It is best for
+  questions, small clarifications, and lightweight guidance.
+- `code` is the default implementation mode. It can inspect files, make edits,
+  run commands, and summarize results like a coding partner.
+- `review` stays analysis-first. It inspects code and behavior critically
+  before recommending or making changes.
+
+Legacy saved sessions or older callers may still send `plan`, `fix`, `docs`,
+or `test`, but the product now normalizes those values internally to the three
+supported public modes above.
+
+## Trust Modes
+
+- `read_only` inspects files and state without writing changes.
+- `ask` pauses for risky tools or edits and asks for approval before acting.
+- `workspace` allows normal workspace edits under policy without pausing for
+  routine changes.
 
 ## Provider Setup
 

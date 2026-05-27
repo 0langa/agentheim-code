@@ -493,6 +493,42 @@ def test_update_session_mode(client: TestClient) -> None:
     assert data["mode"] == "review"
 
 
+def test_update_session_mode_normalizes_legacy_alias(client: TestClient) -> None:
+    resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
+    session_id = resp.json()["session_id"]
+
+    resp = client.patch(
+        f"/api/coder/sessions/{session_id}/mode",
+        json={"mode": "plan"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["mode"] == "ask"
+
+
+def test_update_session_trust_mode(client: TestClient) -> None:
+    resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
+    session_id = resp.json()["session_id"]
+
+    resp = client.patch(
+        f"/api/coder/sessions/{session_id}/trust-mode",
+        json={"trust_mode": "workspace"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["trust_mode"] == "workspace"
+
+
+def test_modes_endpoint_returns_canonical_mode_metadata(client: TestClient) -> None:
+    resp = client.get("/api/coder/modes")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [mode["id"] for mode in data["modes"]] == ["ask", "code", "review"]
+    assert data["modes"][0]["legacy_aliases"] == ["plan"]
+    assert {mode["id"] for mode in data["trust_modes"]} == {"ask", "read_only", "workspace"}
+
+
 def test_update_session_model_endpoint(client: TestClient, workspace_dir: str) -> None:
     resp = client.post("/api/coder/sessions", json={"trust_mode": "ask", "mode": "code"})
     session_id = resp.json()["session_id"]
@@ -540,7 +576,8 @@ def test_session_view_enriches_pending_approval_details(
                 risk_level="medium",
                 reason="Run tests",
                 action_index=0,
-            )
+            ),
+            "pending_assistant_message": "This turn is paused until you approve run `pytest -q`.",
         }
     )
     _save_session(workspace, session)
@@ -548,6 +585,7 @@ def test_session_view_enriches_pending_approval_details(
     resp = client.get(f"/api/coder/sessions/{session_id}/view")
 
     assert resp.status_code == 200
+    assert resp.json()["session"]["pending_assistant_message"].startswith("This turn is paused")
     approval = resp.json()["approvals"][0]
     assert approval["params"] == {"command": ["pytest", "-q"], "cwd": "."}
     assert approval["target"] == "pytest -q"

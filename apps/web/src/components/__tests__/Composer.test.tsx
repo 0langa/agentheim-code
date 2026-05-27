@@ -2,11 +2,24 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { Composer } from "../Composer";
+import type { ModeCatalog } from "../../types";
 
 const baseProps = {
   selectedProfile: "auto",
   selectedModel: "auto",
   modelOptions: null,
+  modeCatalog: {
+    modes: [
+      { id: "ask", label: "Ask", description: "Answer directly.", edits_expected: false, legacy_aliases: ["plan"] },
+      { id: "code", label: "Code", description: "Implement and verify.", edits_expected: true, legacy_aliases: ["fix", "docs", "test"] },
+      { id: "review", label: "Review", description: "Inspect critically.", edits_expected: false, legacy_aliases: [] },
+    ],
+    trust_modes: [
+      { id: "ask", label: "ask", description: "Pause for risky tools." },
+      { id: "read_only", label: "read_only", description: "Inspect only." },
+      { id: "workspace", label: "workspace", description: "Allow workspace edits." },
+    ],
+  } satisfies ModeCatalog,
   onProfileChange: vi.fn(),
   onModelChange: vi.fn(),
   selectedContextFiles: [],
@@ -70,6 +83,27 @@ describe("Composer", () => {
     );
     fireEvent.click(screen.getByText("review"));
     expect(onModeChange).toHaveBeenCalledWith("review");
+  });
+
+  it("only shows the public mode set and explains the selected mode", () => {
+    render(
+      <Composer
+        prompt=""
+        selectedMode="ask"
+        selectedTrustMode="ask"
+        {...baseProps}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ask")).toBeInTheDocument();
+    expect(screen.getByText("code")).toBeInTheDocument();
+    expect(screen.getByText("review")).toBeInTheDocument();
+    expect(screen.queryByText("plan")).not.toBeInTheDocument();
+    expect(screen.getByText(/Answer directly/)).toBeInTheDocument();
   });
 
   it("calls onSend with Ctrl+Enter", () => {

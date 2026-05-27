@@ -31,13 +31,20 @@ export type ContextValidateRequest = ApiSchemas["ContextValidateRequest"];
 export type TranscriptEntry = ApiSchemas["TranscriptEntryResponse"];
 export type ContextPreviewItem = ApiSchemas["ContextPreviewResponse"];
 export type ContextValidationResult = ApiSchemas["ContextValidationResponse"];
-export type Session = ApiSchemas["SessionResponse"];
+export type Session = ApiSchemas["SessionResponse"] & {
+  pending_assistant_message?: string | null;
+};
 export type SessionEvent = ApiSchemas["SessionEventResponse"];
 export type CommandResult = ApiSchemas["CommandResultResponse"];
 export type SessionDiff = ApiSchemas["SessionDiffResponse"];
 export type CoderApproval = ApiSchemas["ApprovalDisplayResponse"];
 export type UsageData = ApiSchemas["UsageResponse"];
-export type SessionView = ApiResponse<"/api/coder/sessions/{session_id}/view", "get">;
+export type SessionView = Omit<
+  ApiResponse<"/api/coder/sessions/{session_id}/view", "get">,
+  "session"
+> & {
+  session: Session;
+};
 export type RunView = ApiSchemas["RunView"];
 
 export type ModelBinding = {
@@ -71,6 +78,25 @@ export type StructuredError = {
   technical_detail?: string;
   recovery_action?: string;
   related_event_id?: string;
+};
+
+export type ModeDescriptor = {
+  id: "ask" | "code" | "review";
+  label: string;
+  description: string;
+  edits_expected: boolean;
+  legacy_aliases: string[];
+};
+
+export type TrustModeDescriptor = {
+  id: "ask" | "read_only" | "workspace";
+  label: string;
+  description: string;
+};
+
+export type ModeCatalog = {
+  modes: ModeDescriptor[];
+  trust_modes: TrustModeDescriptor[];
 };
 
 export type TranscriptRole = "user" | "assistant" | "system";

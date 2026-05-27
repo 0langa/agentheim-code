@@ -197,19 +197,20 @@ def _interactive_loop(workspace: Path, session: Any) -> None:
         current = post_message(workspace.resolve(), current.session_id, entered)
         _render_session(current)
         if current.pending_approval:
+            pending = current.pending_approval
             decision = typer.confirm("Grant the pending approval?", default=False)
             if decision:
                 current = approve_request(
                     workspace.resolve(),
                     current.session_id,
-                    current.pending_approval.request_id,
+                    pending.request_id,
                     grant=True,
                 )
             else:
                 current = approve_request(
                     workspace.resolve(),
                     current.session_id,
-                    current.pending_approval.request_id,
+                    pending.request_id,
                     grant=False,
                 )
             _render_session(current)
@@ -228,7 +229,9 @@ def coder_root(
         "ask", "--trust-mode", help="Trust mode: read_only, ask, workspace."
     ),
     mode: str = typer.Option(
-        "code", "--mode", help="Coder mode: ask, plan, code, review, fix, docs, test."
+        "code",
+        "--mode",
+        help="Coder mode: ask, code, review. Legacy aliases plan->ask and fix/docs/test->code still work.",
     ),
     profile: str | None = typer.Option(
         None, "--profile", help="Provider profile for this coder session."

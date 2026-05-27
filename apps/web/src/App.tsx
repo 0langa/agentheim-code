@@ -3,6 +3,7 @@ import React, { startTransition, useEffect, useState } from "react";
 import {
   api,
   cancelSession,
+  fetchModeCatalog,
   getDesktopBackendLaunchError,
   isDesktopApp,
   pickDesktopWorkspace,
@@ -24,6 +25,7 @@ import type {
   CoderCommand,
   FileEntry,
   ModelOptions,
+  ModeCatalog,
   Session,
   SessionView,
   StructuredError,
@@ -35,6 +37,7 @@ export function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<SessionView | null>(null);
   const [modelOptions, setModelOptions] = useState<ModelOptions | null>(null);
+  const [modeCatalog, setModeCatalog] = useState<ModeCatalog | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [prompt, setPrompt] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -79,6 +82,10 @@ export function App() {
       startTransition(() => {
         setActive(view);
         mergeSession(view.session);
+        setSelectedMode(view.session.mode ?? "code");
+        setSelectedTrustMode(view.session.trust_mode ?? "ask");
+        setSelectedProfile(view.session.model_selection?.profile ?? "auto");
+        setSelectedModel(view.session.model_selection?.model ?? "auto");
       });
     },
     [mergeSession],
@@ -107,11 +114,10 @@ export function App() {
         if (options.default_profile) setSelectedProfile(options.default_profile);
       })
       .catch((err) => setError(err.message));
+    fetchModeCatalog()
+      .then(setModeCatalog)
+      .catch((err) => setError(err.message));
   }, []);
-
-  useEffect(() => {
-    if (active?.approvals?.length) setInspector("approvals");
-  }, [active?.approvals?.length]);
 
   useEffect(() => {
     const theme = uiConfig?.theme ?? window.localStorage.getItem("agentheim-theme") ?? "dark";
@@ -391,6 +397,46 @@ export function App() {
     if (lastPrompt) void sendPrompt(lastPrompt);
   };
 
+  const changeMode = async (mode: string) => {
+    setSelectedMode(mode);
+    if (!active) return;
+    try {
+      const session = await api<Session>(
+        sessionPath(active.session.session_id, "/mode", active.session.workspace_root),
+        {
+          method: "PATCH",
+          body: JSON.stringify({ mode }),
+        },
+      );
+      const view = await api<SessionView>(
+        sessionPath(session.session_id, "/view", active.session.workspace_root),
+      );
+      applySessionView(view);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const changeTrustMode = async (trustMode: string) => {
+    setSelectedTrustMode(trustMode);
+    if (!active) return;
+    try {
+      const session = await api<Session>(
+        sessionPath(active.session.session_id, "/trust-mode", active.session.workspace_root),
+        {
+          method: "PATCH",
+          body: JSON.stringify({ trust_mode: trustMode }),
+        },
+      );
+      const view = await api<SessionView>(
+        sessionPath(session.session_id, "/view", active.session.workspace_root),
+      );
+      applySessionView(view);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const searchContextFiles = async (query: string) => {
     try {
       const matches = await api<FileEntry[]>(
@@ -429,11 +475,16 @@ export function App() {
     setContextPreviews((current) => current.filter((item) => item.path !== path));
   };
 
-  const sendDisabledReason = !active
-    ? sessionBootstrapError
-      ? `No active session. Last session creation attempt failed: ${sessionBootstrapError}`
-      : `No active session. Send will create one automatically${effectiveWorkspaceRoot ? ` in ${effectiveWorkspaceRoot}` : ""}, or use New session first.`
-    : null;
+  const sendDisabledReason =
+    active?.session.status === "running"
+      ? "Wait for the current turn to finish or press Stop."
+      : active?.session.status === "awaiting_approval"
+        ? "This turn is waiting for approval. Open Approvals to continue."
+        : !active
+          ? sessionBootstrapError
+            ? `No active session. Last session creation attempt failed: ${sessionBootstrapError}`
+            : `No active session. Send will create one automatically${effectiveWorkspaceRoot ? ` in ${effectiveWorkspaceRoot}` : ""}, or use New session first.`
+          : null;
 
   const handleApproval = async (requestId: string, grant: boolean) => {
     if (!active) return;
@@ -483,10 +534,6 @@ export function App() {
         active?.session.workspace_root;
       const view = await api<SessionView>(sessionPath(sessionId, "/view", workspaceRoot));
       applySessionView(view);
-      setSelectedMode(view.session.mode ?? "code");
-      setSelectedTrustMode(view.session.trust_mode ?? "ask");
-      setSelectedProfile(view.session.model_selection?.profile ?? "auto");
-      setSelectedModel(view.session.model_selection?.model ?? "auto");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -603,7 +650,12 @@ export function App() {
         />
 
         <section className="work">
-          <TopBar active={active} onNewSession={createSession} />
+          <TopBar
+            active={active}
+            onNewSession={createSession}
+            hasApprovals={Boolean(active?.approvals?.length)}
+            onOpenApprovals={() => setInspector("approvals")}
+          />
 
           {(error || structuredError) && (
             <div
@@ -661,7 +713,7 @@ export function App() {
             </div>
           )}
 
-          <Chat active={active} />
+          <Chat active={active} onOpenApprovals={() => setInspector("approvals")} />
 
           <Composer
             prompt={prompt}
@@ -670,13 +722,19 @@ export function App() {
             selectedProfile={selectedProfile}
             selectedModel={selectedModel}
             modelOptions={modelOptions}
+            modeCatalog={modeCatalog}
             onPromptChange={setPrompt}
-            onModeChange={setSelectedMode}
-            onTrustModeChange={setSelectedTrustMode}
+            onModeChange={changeMode}
+            onTrustModeChange={changeTrustMode}
             onProfileChange={changeProfile}
             onModelChange={changeModel}
             onSend={() => void sendPrompt()}
-            canSend={!isLoading || Boolean(active)}
+            canSend={
+              !isLoading &&
+              !streamAbort &&
+              active?.session.status !== "running" &&
+              active?.session.status !== "awaiting_approval"
+            }
             sendDisabledReason={sendDisabledReason}
             onCancel={stopPrompt}
             onRetry={retryPrompt}
@@ -702,6 +760,7 @@ export function App() {
           onDenyApproval={(requestId) => void handleApproval(requestId, false)}
           theme={uiConfig?.theme ?? "dark"}
           onThemeChange={(theme) => void changeTheme(theme)}
+          modeCatalog={modeCatalog}
           defaultWorkspace={workspaceDraft || "."}
           onDefaultWorkspaceChange={handleDefaultWorkspaceChange}
           onBrowseDefaultWorkspace={isDesktopApp() ? () => void browseDefaultWorkspace() : undefined}

@@ -153,6 +153,32 @@ Body:
 { "mode": "review" }
 ```
 
+Public modes are now:
+
+- `ask`
+- `code`
+- `review`
+
+Legacy aliases are still accepted for compatibility and normalized internally:
+
+- `plan` -> `ask`
+- `fix` -> `code`
+- `docs` -> `code`
+- `test` -> `code`
+
+### `PATCH /api/coder/sessions/{session_id}/trust-mode`
+
+Body:
+
+```json
+{ "trust_mode": "workspace" }
+```
+
+### `GET /api/coder/modes`
+
+Returns the canonical public mode catalog plus trust-mode descriptions used by
+the current frontend.
+
 ### `PATCH /api/coder/sessions/{session_id}/model`
 
 Body:
@@ -334,6 +360,10 @@ pending params:
 - `params`
 - `target`
 - `action_kind`
+
+When a turn is blocked on approval, the session payload also includes a
+`pending_assistant_message` field. The frontend uses this to show a real inline
+assistant reply explaining what is waiting and why.
 
 ## Providers (Legacy)
 

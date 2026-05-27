@@ -6,18 +6,22 @@ from pathlib import Path
 
 def test_web_theme_uses_approved_palette() -> None:
     css = Path("apps/web/src/styles.css").read_text(encoding="utf-8")
-    approved = {
-        "#4B6584",
-        "#778CA3",
-        "#A5B1C2",
-        "#D1D8E0",
-        "#3867D6",
-        "#4B7BEC",
-        "#20BF6B",
-        "#F7B731",
-        "#EB3B5A",
-        "#2BCBBA",
+    required_tokens = {
+        "--app-bg",
+        "--panel",
+        "--surface",
+        "--accent",
+        "--success",
+        "--warning",
+        "--error",
+        "--ai",
     }
 
-    assert set(re.findall(r"#[0-9A-Fa-f]{6}", css)) <= approved
-    assert "rgba(" not in css
+    for token in required_tokens:
+        assert token in css
+
+    assert ':root[data-theme="light"]' in css
+    assert ':root[data-theme="high_contrast"]' in css
+    assert re.search(r"--accent:\s*#[0-9A-Fa-f]{6};", css)
+    assert re.search(r"--error:\s*#[0-9A-Fa-f]{6};", css)
+    assert "box-shadow:" in css

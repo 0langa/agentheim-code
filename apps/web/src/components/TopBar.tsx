@@ -5,9 +5,16 @@ import type { SessionView } from "../types";
 interface TopBarProps {
   active: SessionView | null;
   onNewSession: () => void;
+  hasApprovals?: boolean;
+  onOpenApprovals?: () => void;
 }
 
-export function TopBar({ active, onNewSession }: TopBarProps) {
+export function TopBar({
+  active,
+  onNewSession,
+  hasApprovals = false,
+  onOpenApprovals,
+}: TopBarProps) {
   const modelLabel = React.useMemo(() => {
     const model = active?.session.model_selection;
     if (!model) return "Auto";
@@ -24,6 +31,11 @@ export function TopBar({ active, onNewSession }: TopBarProps) {
         <span className="model-pill" aria-label={`Current model ${modelLabel}`}>
           {modelLabel}
         </span>
+        {hasApprovals && (
+          <button className="secondary" onClick={onOpenApprovals} type="button">
+            Pending approval
+          </button>
+        )}
         <button className="primary" onClick={onNewSession} type="button">
           New session
         </button>

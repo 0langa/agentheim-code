@@ -8,6 +8,7 @@ import type {
   ManagementModelBinding,
   ManagementProfile,
   ManagementProviderAccount,
+  ModeCatalog,
   ProviderTemplate,
   Session,
 } from "./types";
@@ -99,6 +100,10 @@ function extractApiErrorMessage(raw: string): string {
       }
     }
     if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+      if (typeof detail.message === "string" && detail.message.trim()) {
+        const code = typeof detail.code === "string" ? detail.code : "";
+        return code ? `${detail.message} (${code})` : detail.message;
+      }
       const code = typeof detail.code === "string" ? detail.code : "";
       const message = typeof detail.message === "string" ? detail.message : "";
       if (message) return code ? `${message} (${code})` : message;
@@ -109,6 +114,15 @@ function extractApiErrorMessage(raw: string): string {
     // Fall back to raw body text below.
   }
   return raw;
+}
+
+function normalizeNetworkError(error: unknown): Error {
+  if (error instanceof TypeError && /failed to fetch/i.test(error.message)) {
+    return new Error(
+      "Cannot reach the local Agentheim Code backend. Restart the app or reopen the session and try again.",
+    );
+  }
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
@@ -122,7 +136,7 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
       response = await fetch(url, init);
     } catch (error) {
       if (attempt === retries) {
-        throw error;
+        throw normalizeNetworkError(error);
       }
       const delay = Math.min(300 * 2 ** attempt, 2000);
       await new Promise((r) => setTimeout(r, delay));
@@ -206,7 +220,14 @@ function dispatchSseBlock(block: string, handlers: StreamHandlers): void {
   if (event === "done") handlers.onDone?.(payload);
   if (event === "error") {
     const structured = (payload as Record<string, unknown>)?.structured_error;
-    handlers.onError?.(String(payload.error ?? "Stream failed"), structured);
+    const structuredMessage =
+      structured &&
+      typeof structured === "object" &&
+      "message" in structured &&
+      typeof (structured as { message?: unknown }).message === "string"
+        ? (structured as { message: string }).message
+        : null;
+    handlers.onError?.(structuredMessage ?? String(payload.error ?? "Stream failed"), structured);
   }
 }
 
@@ -257,6 +278,10 @@ export async function streamSessionMessage(
   }
 
   if (buffer.trim()) dispatchSseBlock(buffer, handlers);
+}
+
+export async function fetchModeCatalog(): Promise<ModeCatalog> {
+  return api<ModeCatalog>("/coder/modes");
 }
 
 export async function cancelSession(

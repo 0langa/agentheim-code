@@ -2,6 +2,42 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { Composer } from "../components/Composer";
+import type { ModeCatalog } from "../types";
+
+const modeCatalog: ModeCatalog = {
+  modes: [
+    {
+      id: "ask",
+      label: "Ask",
+      description: "Answer directly.",
+      edits_expected: false,
+      legacy_aliases: ["plan"],
+    },
+    {
+      id: "code",
+      label: "Code",
+      description: "Implement and verify.",
+      edits_expected: true,
+      legacy_aliases: ["fix", "docs", "test"],
+    },
+    {
+      id: "review",
+      label: "Review",
+      description: "Inspect critically.",
+      edits_expected: false,
+      legacy_aliases: [],
+    },
+  ],
+  trust_modes: [
+    { id: "ask", label: "ask", description: "Pause for risky tools." },
+    { id: "read_only", label: "read_only", description: "Inspect only." },
+    {
+      id: "workspace",
+      label: "workspace",
+      description: "Allow workspace edits.",
+    },
+  ],
+};
 
 describe("Composer context", () => {
   it("renders context preview items with token estimates", () => {
@@ -13,6 +49,7 @@ describe("Composer context", () => {
         selectedProfile="auto"
         selectedModel="auto"
         modelOptions={null}
+        modeCatalog={modeCatalog}
         onPromptChange={() => {}}
         onModeChange={() => {}}
         onTrustModeChange={() => {}}
@@ -46,6 +83,7 @@ describe("Composer context", () => {
         selectedProfile="auto"
         selectedModel="auto"
         modelOptions={null}
+        modeCatalog={modeCatalog}
         onPromptChange={() => {}}
         onModeChange={() => {}}
         onTrustModeChange={() => {}}
@@ -81,6 +119,7 @@ describe("Composer context", () => {
         selectedProfile="auto"
         selectedModel="auto"
         modelOptions={null}
+        modeCatalog={modeCatalog}
         onPromptChange={() => {}}
         onModeChange={() => {}}
         onTrustModeChange={() => {}}
