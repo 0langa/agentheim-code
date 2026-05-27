@@ -41,8 +41,8 @@ interface ComposerProps {
 const MODES = ["ask", "code", "review"];
 const TRUST_MODES = ["ask", "read_only", "workspace"];
 const TRUST_LABELS: Record<string, string> = {
-  read_only: "read_only - inspect only",
-  ask: "ask - approve risky actions",
+  read_only: "read_only - inspect, no writes",
+  ask: "ask - inspect freely, approve risky actions",
   workspace: "workspace - allow workspace edits",
 };
 

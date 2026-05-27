@@ -71,9 +71,17 @@
 }
 
 * { box-sizing: border-box; }
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  overflow: hidden;
   color: var(--text);
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 11%, transparent), transparent 26%),
@@ -123,8 +131,9 @@ select:focus-visible {
 .shell {
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr) clamp(320px, 24vw, 420px);
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .rail, .topbar, .chat, .composer, .inspector, .palette {
@@ -139,6 +148,8 @@ select:focus-visible {
   align-content: start;
   gap: 12px;
   padding: 18px 14px;
+  min-height: 0;
+  overflow: auto;
 }
 
 .rail button {
@@ -154,13 +165,16 @@ select:focus-visible {
 }
 
 .work {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: clamp(14px, 1.5vw, 22px);
   padding: clamp(18px, 2vw, 28px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .topbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -226,10 +240,12 @@ select {
 }
 
 .chat {
+  flex: 1 1 auto;
   min-height: 0;
   border-radius: 20px;
   padding: clamp(18px, 1.6vw, 26px);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .empty {
@@ -346,6 +362,7 @@ select {
 }
 
 .composer {
+  flex: 0 0 auto;
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -424,9 +441,11 @@ textarea {
 
 .inspector {
   margin: clamp(18px, 2vw, 28px) clamp(18px, 2vw, 28px) clamp(18px, 2vw, 28px) 0;
+  min-height: 0;
   border-radius: 20px;
   padding: 16px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .panel-list {

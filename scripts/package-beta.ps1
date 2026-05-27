@@ -61,6 +61,10 @@ try {
         throw "No built wheel found under dist\\"
     }
 
+    Invoke-Step "Sync wheel into desktop backend interpreter" {
+        & $PythonExe -m pip install --force-reinstall --no-deps $wheelPath
+    }
+
     Invoke-Step "Install wheel into clean venv" {
         & $venvPython -m pip install --upgrade pip
         & $venvPython -m pip install $wheelPath

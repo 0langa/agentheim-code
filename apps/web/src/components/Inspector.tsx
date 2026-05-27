@@ -40,8 +40,8 @@ function EmptyPanel({ message }: { message: string }) {
 }
 
 const TRUST_DESCRIPTIONS: Record<string, string> = {
-  read_only: "Inspect files and state without writes.",
-  ask: "Pause for risky tools before acting.",
+  read_only: "Inspect files and run safe checks without writes.",
+  ask: "Inspect freely, then pause only for risky actions.",
   workspace: "Allow workspace edits under policy.",
 };
 

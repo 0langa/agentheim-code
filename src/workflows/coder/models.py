@@ -56,8 +56,8 @@ MODE_ALIASES: dict[str, CoderMode] = {
 
 
 TRUST_MODE_DESCRIPTIONS: dict[TrustMode, str] = {
-    TrustMode.READ_ONLY: "Inspect files and state without writing changes.",
-    TrustMode.ASK: "Pause for risky tools or edits and ask for approval before acting.",
+    TrustMode.READ_ONLY: "Inspect files and run safe read-only checks without writing changes.",
+    TrustMode.ASK: "Inspect freely, but pause for risky tools or edits and ask for approval before acting.",
     TrustMode.WORKSPACE: "Allow workspace edits under policy without pausing for normal changes.",
 }
 
@@ -65,7 +65,7 @@ TRUST_MODE_DESCRIPTIONS: dict[TrustMode, str] = {
 MODE_METADATA: dict[CoderMode, dict[str, object]] = {
     CoderMode.ASK: {
         "label": "Ask",
-        "description": "Answer directly, explain clearly, and only act when the request truly needs it.",
+        "description": "Answer directly, explain clearly, and inspect the workspace when the question depends on it.",
         "edits_expected": False,
         "legacy_aliases": [CoderMode.PLAN.value],
     },
@@ -81,7 +81,7 @@ MODE_METADATA: dict[CoderMode, dict[str, object]] = {
     },
     CoderMode.REVIEW: {
         "label": "Review",
-        "description": "Inspect work critically, explain findings first, and stay conversational.",
+        "description": "Inspect work critically, read what you need, explain findings first, and stay conversational.",
         "edits_expected": False,
         "legacy_aliases": [],
     },

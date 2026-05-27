@@ -125,6 +125,74 @@ def test_prompt_explicitly_requests_workspace_action_detects_real_actions() -> N
     )
 
 
+def test_workspace_action_request_detects_affirmative_follow_up_after_permission_prompt(
+    tmp_path: Path,
+) -> None:
+    session = _session(tmp_path).model_copy(
+        update={
+            "transcript": [
+                runtime.CoderMessage(
+                    role="assistant",
+                    content=(
+                        "I can inspect the workspace files and run a smoke test if you want me to "
+                        "check whether anything looks broken."
+                    ),
+                    created_at=runtime._utcnow(),
+                )
+            ]
+        }
+    )
+
+    assert runtime._workspace_action_requested(session, "Yes, please do that now.") is True
+
+
+def test_code_mode_allows_noop_plan_for_plain_conversational_prompts(tmp_path: Path) -> None:
+    session = _session(tmp_path).model_copy(update={"mode": CoderMode.CODE})
+
+    assert runtime._allow_noop_plan(session, "Hello") is True
+    assert runtime._allow_noop_plan(session, "Is the weather nice?") is True
+    assert runtime._allow_noop_plan(session, "Read the files in this workspace.") is False
+
+
+def test_future_tense_assistant_messages_are_detected() -> None:
+    assert runtime._assistant_message_reads_like_future_intent("I will inspect the workspace now.")
+    assert runtime._assistant_message_reads_like_future_intent("Let me check the repo.")
+    assert runtime._assistant_message_reads_like_future_intent(
+        "Created the file successfully. Verifying the file content now."
+    )
+    assert not runtime._assistant_message_reads_like_future_intent(
+        "I checked the workspace and found no manifest."
+    )
+
+
+def test_completed_assistant_message_is_normalized_to_past_tense() -> None:
+    assert (
+        runtime._normalize_completed_assistant_message(
+            "Created the file successfully. Verifying the file content."
+        )
+        == "Created the file successfully. Verified the file content."
+    )
+
+
+def test_post_message_falls_back_to_local_inspection_when_simple_code_turn_hits_content_filter(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    (tmp_path / "main.py").write_text("print('ok')\n", encoding="utf-8")
+    session = runtime.create_session(tmp_path, mode="code", trust_mode="read_only")
+
+    def fail_plan(*args: Any, **kwargs: Any) -> CoderTurnPlan:
+        raise ValueError("content_filter")
+
+    monkeypatch.setattr(runtime, "_plan_turn", fail_plan)
+
+    updated = runtime.post_message(tmp_path, session.session_id, "Can you check the workspace now?")
+
+    assert updated.status == SessionStatus.COMPLETED
+    assert updated.transcript[-1].role == "assistant"
+    assert "workspace" in updated.transcript[-1].content.lower()
+
+
 def test_complete_turn_clears_draft_message_after_persisting_reply(tmp_path: Path) -> None:
     ledger = RunLedger.create(tmp_path, "coder")
     session = CoderSession(
@@ -142,7 +210,51 @@ def test_complete_turn_clears_draft_message_after_persisting_reply(tmp_path: Pat
     assert completed.status == SessionStatus.COMPLETED
     assert completed.current_assistant_message is None
     assert completed.planned_assistant_message is None
+    assert completed.current_summary == "Final answer"
     assert completed.transcript[-1].content == "Final answer"
+
+
+def test_approval_pause_keeps_original_turn_summary(tmp_path: Path, monkeypatch: Any) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = CoderSession(
+        session_id=ledger.run_dir.name,
+        workspace_root=str(tmp_path),
+        trust_mode=TrustMode.ASK,
+        created_at=runtime._utcnow(),
+        updated_at=runtime._utcnow(),
+        current_summary="Created the file and verified the result.",
+        next_action_index=0,
+    )
+    action = CoderAction(
+        kind="write_file",
+        path="note.txt",
+        summary="Create note.txt",
+        content="hi\n",
+    )
+
+    class _ApprovalResult:
+        requires_approval = True
+        success = False
+        error = None
+        data = {}
+        policy = type(
+            "_Policy",
+            (),
+            {"risk_level": type("_Risk", (), {"value": "medium"})(), "reason": "approval required"},
+        )()
+
+    class _Invoker:
+        def invoke(self, *_args: Any, **_kwargs: Any) -> Any:
+            return _ApprovalResult()
+
+    monkeypatch.setattr(runtime, "_create_invoker", lambda *_args, **_kwargs: _Invoker())
+
+    updated, should_continue = runtime._invoke_action(tmp_path, ledger, session, action)
+
+    assert should_continue is False
+    assert updated.status == SessionStatus.AWAITING_APPROVAL
+    assert updated.current_summary == "Created the file and verified the result."
+    assert updated.pending_assistant_message is not None
 
 
 def test_repair_uses_prior_coding_context(
