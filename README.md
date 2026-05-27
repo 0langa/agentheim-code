@@ -128,8 +128,8 @@ pip install --upgrade agentheim-code
 Export and import settings for migration or backup:
 
 ```powershell
-agentheim-code config export --path agentheim-code-backup.json
-agentheim-code config import --path agentheim-code-backup.json
+agentheim-code config export --path agentheim-code-config.json
+agentheim-code config import --path agentheim-code-config.json
 ```
 
 ## Docs

@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `agentheim-code app --port` option for non-default backend ports
+- `coder resume --grant` alias for `--approve`
+- `coder ui --no-browser` and `--json` flags
+
+### Changed
+- Hardened chat flow and simplified public modes
+- Hardened session controls, resume flow, and workspace inspection
+- Hardened Azure coding flows on Windows
+- Improved desktop provider flow and session messaging
+- Self-healing for stale provider default profiles
+- Polished desktop visual system and scaling
+
+### Fixed
+- `GET /api/provider-management/.../discovered-models` no longer mutates provider state on refresh
+
 ## [2.0.0] - 2026-05-26
 
 ### Added
@@ -31,6 +47,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Full Playwright coverage now includes files paging/preview and usage-plus-runs-filter flows
 - Draft provider tests now exercise the current unsaved account state instead of only persisted account ids
 - Provider secret rotation is now wired through the main UI instead of being silently ignored
+
+## [1.9.0-rc1-preview1] - 2026-05-25
+
+### Added
+- Finalized truthful 2.0.0 provider management release surface
+- Tightened rc1 contracts and polished workbench docs
+- Scrubbed release artifacts and test fixtures
 
 ## [1.9.0] - 2026-05-24
 
@@ -104,6 +127,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Bumped all Python, web, desktop, and Tauri package versions to `1.0.0`
 - Expanded the workbench documentation around the 1.0 surface
 
+## [0.5.0] - 2026-05-23
+
+### Added
+- Provider bake-off command for cross-provider comparison
+- Provider health checks and persistence
+- Model metadata and capabilities registry
+- Desktop packaging scripts for Windows
+
+### Changed
+- Refined provider configuration templates
+- Improved error classification and retry strategies
+
 ## [0.1.0] - 2026-05-21
 
 ### Added
@@ -126,3 +161,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Comprehensive test suite (Python ≥82% coverage, frontend Vitest, Rust cargo test)
 - CI/CD pipeline with lint, type check, test, and coverage gates
 - Developer tooling: ruff, mypy, pytest-cov
+
+[Unreleased]: https://github.com/agentheim/agentheim-code/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/agentheim/agentheim-code/compare/v1.9.0...v2.0.0
+[1.9.0-rc1-preview1]: https://github.com/agentheim/agentheim-code/compare/v1.9.0...v1.9.0-rc1-preview1
+[1.9.0]: https://github.com/agentheim/agentheim-code/compare/v1.5.0...v1.9.0
+[1.5.0]: https://github.com/agentheim/agentheim-code/compare/v1.0.0...v1.5.0
+[1.0.0]: https://github.com/agentheim/agentheim-code/compare/v0.5.0...v1.0.0
+[0.5.0]: https://github.com/agentheim/agentheim-code/compare/v0.1.0...v0.5.0
+[0.1.0]: https://github.com/agentheim/agentheim-code/releases/tag/v0.1.0

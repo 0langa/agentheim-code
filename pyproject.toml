@@ -55,6 +55,7 @@ agentheim_code = ["web/**/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = ["-m", "not integration"]
 markers = ["integration: marks tests that hit real external APIs (slow, requires secrets)"]
 
 [tool.ruff]

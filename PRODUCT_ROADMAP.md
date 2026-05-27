@@ -1,6 +1,6 @@
 # Product Roadmap
 
-Updated: 2026-05-25
+Updated: 2026-05-28
 
 This roadmap describes the current audited baseline and the next useful product
 moves from here. It intentionally avoids stale phase-complete language and old
@@ -9,7 +9,7 @@ verification counts.
 ## Current Baseline
 
 The repository version is currently `2.0.0`. This is the verified product
-baseline after completing the audited `1.6.0` through `2.0.0` workstreams.
+baseline after completing the audited `1.5.0` through `2.0.0` workstreams.
 
 Confirmed product shape:
 
@@ -33,7 +33,7 @@ Confirmed product shape:
 - broader Playwright smoke coverage for onboarding, provider, and streaming flows
 - CI caching for Rust/cargo and Playwright browsers
 - first-party OCI GenAI provider adapter with the legacy vendored bridge removed
-- Python non-integration coverage gate proven at 90%+
+- Python non-integration coverage gate enforced at 80% (typically ~81%)
 
 ## Verified `2.0.0` Baseline
 
@@ -78,24 +78,30 @@ The current baseline now includes:
 - add stable screenshots and final user-facing polish
 - keep keyboard, onboarding, provider, approval, and streaming flows trustworthy
 
-### 3. Release Sign-Off
+### 3. Release Sign-Off (Completed for 2.0.0)
 
-- refresh `docs/RELEASE_CHECKLIST.md` with fresh verification output only
-- rerun browser, desktop, wheel, and installer smoke from a clean tree
-- sign off the release state only when docs and artifacts match the shipped truth
+- ✅ `docs/RELEASE_CHECKLIST.md` refreshed with fresh verification output
+- ✅ browser, desktop, wheel, and installer smoke rerun from a clean tree
+- ✅ release state signed off when docs and artifacts matched shipped truth
 
-### 4. Provider And Runtime Hardening
+### 4. Provider And Runtime Hardening (In Progress)
 
 - deepen request-id correlation across remaining shared logs and diagnostics
 - expand structured provider/network/filesystem error coverage
 - improve approval preview quality for file edits
 - keep provider discovery claims strictly aligned with real implementation
+- harden chat flow, session controls, resume flow, and workspace inspection
+- self-heal stale provider default profiles
+- repair desktop provider flow and session messaging
+
+## Completed Workstreams
+
+- ✅ OpenAPI-to-TypeScript type generation pipeline
 
 ## Longer-Term Opportunities
 
 - native file watching instead of purely pull-based refresh flows
 - richer provider fallback and circuit-breaker behavior
-- ✅ OpenAPI-to-TypeScript type generation pipeline
 - stable visual regression checks once the UI surface is intentionally frozen
 - optional benchmark suites for model-output quality
 - smarter token estimation than the current fixed heuristic

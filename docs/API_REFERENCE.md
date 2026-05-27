@@ -506,6 +506,16 @@ Removes the account. Use `?cascade=true` to also remove dependent model bindings
 
 Runs a live connection test against the provider.
 
+Optional body:
+
+```json
+{
+  "model_id": "gpt-4o-mini"
+}
+```
+
+If `model_id` is omitted, the test uses the account's default model.
+
 #### `POST /api/provider-management/accounts/test-draft`
 
 Runs a live connection test against an unsaved account payload from the editor.

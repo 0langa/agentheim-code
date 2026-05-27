@@ -94,27 +94,32 @@ not create tags, publish to PyPI, or push to GitHub.
 
 ## Release Record
 
-Last verified: 2026-05-26
+_Last verified: 2026-05-28_
 
-- branch: `codex/provider-model-management`
+- branch: `codex/stability-chat-hardening`
 - version: `2.0.0`
 - `ruff check`: All checks passed
-- `ruff format --check`: 56 files already formatted
-- `mypy`: Success: no issues found in 26 source files
-- `pytest`: 316 passed, 3 deselected, 81.21% coverage
-- `npm --prefix apps/web run test -- --run`: 14 test files, 75 tests passed
+- `ruff format --check`: 55 files already formatted
+- `mypy`: Success, no issues found in 24 source files
+- `pytest`: 341 passed, 3 deselected, 81.57% coverage (coverage gate is 80%)
+- `npm --prefix apps/web run test -- --run`: 14 test files, 95 tests passed
 - `npm --prefix apps/web run build`: passed
-- `npm --prefix apps/web run e2e`: 9 passed (chromium)
-- `cargo test`: 1 passed
+- `npm --prefix apps/web run e2e`: 10 passed (chromium)
+- `cargo test`: 2 passed in `apps/desktop/src-tauri/src/main.rs`
 - `python -m build --wheel`: passed; built `agentheim_code-2.0.0-py3-none-any.whl`
-- `scripts/package-beta.ps1`: passed; clean wheel smoke + NSIS installer lookup succeeded
-- manual browser smoke: passed; `/api/health` returned `status=ok`, `version=2.0.0`, and `/coder` served `<title>Agentheim Code</title>`
-- built desktop shell smoke: passed; `python -m agentheim_code.cli app --workspace .` stayed alive for 12s and logged backend startup on `http://127.0.0.1:9999`
-- provider-management live smoke: passed; create profile, draft test before save, add account, rotate secret, manual fallback discovery, add/set default model, export/import profile, and cleanup all succeeded
-- wheel contents smoke: passed via `scripts/package-beta.ps1` clean venv install + `agentheim-code --help`
+- `scripts/package-beta.ps1`: not run in this baseline cleanup
+- manual browser smoke: not run in this baseline cleanup
+- built desktop shell smoke: not run in this baseline cleanup
+- provider-management live smoke: not run in this baseline cleanup; mocked Playwright provider-management lifecycle passed
+- wheel contents smoke: not run in this baseline cleanup
 
 ### Unverified / Deferred
-- `scripts/release.ps1` local staging flow was not run because no local release bundle was requested
+- `scripts/package-beta.ps1`
+- manual browser smoke
+- built desktop shell smoke
+- provider-management live smoke
+- wheel contents smoke
+- `scripts/release.ps1` local staging flow
 
 ## Windows Signing Strategy
 

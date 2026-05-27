@@ -1400,38 +1400,41 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         except ValidationError as exc:
             return _management_error(exc)
 
+    def _do_discover_models(profile_name: str, account_id: str, *, persist: bool) -> dict[str, Any]:
+        doc = load_profiles_document()
+        profile = doc.profiles.get(profile_name)
+        if not profile:
+            raise ValidationError("profile_not_found", f"Profile '{profile_name}' not found.")
+        account = profile.providers.get(account_id)
+        if not account:
+            raise ValidationError("account_not_found", f"Account '{account_id}' not found.")
+        caps = get_capabilities(account.kind)
+        if not caps.supports_remote_model_listing:
+            return {
+                "ok": True,
+                "supported": False,
+                "discovery_mode": caps.discovery_mode,
+                "models": [],
+            }
+        discovered = list_remote_models(account)
+        if persist:
+            account = account.model_copy(update={"last_model_sync_at": _utcnow()})
+            profile.providers[account_id] = account
+            doc.profiles[profile_name] = profile
+            save_profiles_document(doc)
+        return {
+            "ok": True,
+            "supported": True,
+            "discovery_mode": caps.discovery_mode,
+            "models": [m.to_dict() for m in discovered],
+        }
+
     @app.post(
         "/api/provider-management/profiles/{profile_name}/accounts/{account_id}/discover-models"
     )
     def api_mgmt_discover_models(profile_name: str, account_id: str) -> dict[str, Any]:
         try:
-            doc = load_profiles_document()
-            profile = doc.profiles.get(profile_name)
-            if not profile:
-                raise ValidationError("profile_not_found", f"Profile '{profile_name}' not found.")
-            account = profile.providers.get(account_id)
-            if not account:
-                raise ValidationError("account_not_found", f"Account '{account_id}' not found.")
-            caps = get_capabilities(account.kind)
-            if not caps.supports_remote_model_listing:
-                return {
-                    "ok": True,
-                    "supported": False,
-                    "discovery_mode": caps.discovery_mode,
-                    "models": [],
-                }
-            discovered = list_remote_models(account)
-            # Persist sync timestamp
-            account = account.model_copy(update={"last_model_sync_at": _utcnow()})
-            profile.providers[account_id] = account
-            doc.profiles[profile_name] = profile
-            save_profiles_document(doc)
-            return {
-                "ok": True,
-                "supported": True,
-                "discovery_mode": caps.discovery_mode,
-                "models": [m.to_dict() for m in discovered],
-            }
+            return _do_discover_models(profile_name, account_id, persist=True)
         except ValidationError as exc:
             return _management_error(exc)
 
@@ -1440,7 +1443,10 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
     )
     def api_mgmt_get_discovered_models(profile_name: str, account_id: str) -> dict[str, Any]:
         # Re-run discovery without persisting; useful for UI refresh
-        return cast(dict[str, Any], api_mgmt_discover_models(profile_name, account_id))
+        try:
+            return _do_discover_models(profile_name, account_id, persist=False)
+        except ValidationError as exc:
+            return _management_error(exc)
 
     @app.post("/api/provider-management/profiles/{profile_name}/models")
     def api_mgmt_add_model(profile_name: str, body: dict[str, Any]) -> dict[str, Any]:

@@ -808,8 +808,8 @@ test.describe("Agentheim Code Web", () => {
     await mockApi(page, true);
     await page.goto("/");
 
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Enter");
+    await expect(page.getByRole("combobox", { name: "Provider profile" })).toContainText("local");
+    await page.getByRole("button", { name: "New session" }).first().click();
 
     await expect(page.getByRole("button", { name: "Open approvals" })).toBeVisible();
     await page.getByRole("button", { name: "Open approvals" }).click();

@@ -187,3 +187,105 @@ UI preferences and provider profiles use different files:
   shared compatibility config area
 
 See `docs/adr/0001-config-surface-and-storage.md` for the full boundary.
+
+## Provider Permission Denied / Forbidden
+
+The provider rejected the request with a 403 or permission-denied response.
+
+- Verify the API key has access to the requested model
+- Check provider dashboard for usage limits or access restrictions
+- Run `agentheim-code doctor` to verify provider connectivity
+
+## Provider Authentication Failed
+
+The provider rejected the credentials (401 or auth-related error).
+
+- Check that the API key is set in the secret store and has not expired
+- Verify the `auth_mode` matches the provider template (bearer, api_key, x_api_key, etc.)
+- Run `agentheim-code provider-test <kind> --api-key ...` to test live
+
+## Provider Rate Limit Or Temporary Outage
+
+The provider returned a rate-limit, quota, or temporary-unavailable error.
+
+- Wait briefly and retry
+- Check provider status page for known outages
+- Switch to a different provider or model if the issue persists
+- Run `agentheim-code doctor` to check provider connectivity
+
+## Provider Endpoint / Model Mismatch
+
+The provider returned a model-not-found, deployment-not-found, or bad-request error.
+
+- Verify the model ID is valid for the selected provider
+- Check that the endpoint URL is correct
+- Run `agentheim-code provider-test <kind> --model <model-id>` to test
+
+## Tool Call Blocked
+
+A tool invocation was blocked by the policy engine.
+
+- Review the policy justification in the approval panel
+- Check the current trust mode (`read_only`, `ask`, or `workspace`)
+- For path-related blocks, confirm the file is inside the workspace and not in `.git`
+- For command-related blocks, confirm the command prefix is in the safe allowlist
+
+## Recovering From A Failed Run
+
+A session turn failed and the session is in `failed` or `blocked` state.
+
+- Read the structured error message and machine code in the session timeline
+- Check the terminal panel for command exit codes and output
+- Use `agentheim-code coder resume <session-id>` to reset the session to idle
+- Send a simpler or more specific follow-up prompt
+
+## Run Fails Mid-Execution
+
+A turn starts but fails partway through action execution.
+
+- Check if the failure was caused by a blocked approval — grant or deny it, then resume
+- Check the diff panel for partially applied changes
+- Check the terminal panel for failed verification commands
+- If stuck, cancel the session and start a new turn
+
+## Configuration Issues
+
+Agentheim Code is not configured correctly for the requested operation.
+
+- Run `agentheim-code doctor` to diagnose readiness
+- Verify provider profiles exist with `agentheim-code models`
+- Check UI config and provider profiles are in their correct locations (see **Config Path Confusion** above)
+- Export and inspect config with `agentheim-code config export --path check.json`
+
+## Request Too Large
+
+The prompt or attached context exceeded the 256KB request body limit (`E2008`).
+
+- Reduce the prompt length
+- Remove large attached context files
+- Split the request into smaller turns
+
+## Error Code Quick Reference
+
+| Code | Meaning | Recovery |
+|------|---------|----------|
+| `E1001` | Validation error | Check arguments or request body |
+| `E1002` | Configuration error | Run `agentheim-code doctor` |
+| `E1003` | Authentication failed | Check API key and secret store |
+| `E1004` | Provider error | Retry or switch provider |
+| `E1005` | Policy block | Review trust mode and approval |
+| `E1006` | Integration unavailable | Install missing dependency |
+| `E1007` | Not found | Check IDs and run list |
+| `E1008` | Run failed | Check timeline and retry |
+| `E1009` | Unexpected error | Check logs and report |
+| `E2001` | Session not found | Create or select a valid session |
+| `E2002` | Session locked | Wait or cancel current turn |
+| `E2003` | Context validation failed | Review rejected context files |
+| `E2004` | Cancellation failed | Refresh and retry |
+| `E2005` | Provider returned error | Check settings and retry |
+| `E2006` | Unexpected runtime error | Simplify prompt and retry |
+| `E2007` | Resume invalid state | Wait for completion or create new session |
+| `E2008` | Request too large | Reduce prompt or context size |
+| `E2009` | Network error | Check connection and retry |
+| `E2010` | Filesystem error | Check disk space and permissions |
+| `E2099` | Unknown error | Check timeline and retry |
