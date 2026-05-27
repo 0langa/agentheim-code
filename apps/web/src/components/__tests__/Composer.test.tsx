@@ -167,6 +167,26 @@ describe("Composer", () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
+  it("shows resume control when resume is available", () => {
+    const onResume = vi.fn();
+    render(
+      <Composer
+        prompt=""
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+        onResume={onResume}
+        canResume
+      />,
+    );
+    fireEvent.click(screen.getByText("Resume"));
+    expect(onResume).toHaveBeenCalled();
+  });
+
   it("calls onTrustModeChange when trust mode changes", () => {
     const onTrustModeChange = vi.fn();
     render(
@@ -185,6 +205,26 @@ describe("Composer", () => {
       target: { value: "workspace" },
     });
     expect(onTrustModeChange).toHaveBeenCalledWith("workspace");
+  });
+
+  it("locks mode and model controls while a turn is active", () => {
+    render(
+      <Composer
+        prompt="busy"
+        selectedMode="code"
+        selectedTrustMode="ask"
+        {...baseProps}
+        onPromptChange={vi.fn()}
+        onModeChange={vi.fn()}
+        onTrustModeChange={vi.fn()}
+        onSend={vi.fn()}
+        controlsLocked
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "ask" })).toBeDisabled();
+    expect(screen.getByLabelText("Trust mode")).toBeDisabled();
+    expect(screen.getByLabelText("Provider profile")).toBeDisabled();
   });
 
   it("shows @ file matches and adds removable context chips", () => {

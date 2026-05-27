@@ -971,6 +971,84 @@ describe("App API integration", () => {
     expect(screen.queryByText("Grant")).not.toBeInTheDocument();
   });
 
+  it("surfaces resume when a session is cancelled and calls the resume route", async () => {
+    mockApi
+      .mockResolvedValueOnce({
+        onboarding_complete: true,
+        onboarding_dismissed: false,
+        default_workspace: ".",
+        theme: "dark",
+      })
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { session_id: "sess-resume", status: "cancelled", mode: "code", workspace_root: "." },
+      ])
+      .mockResolvedValueOnce({ configured: false, profiles: [] })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-resume",
+          status: "cancelled",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        approvals: [],
+        events: [],
+        command_results: [],
+        diffs: [],
+        artifacts: [],
+      })
+      .mockResolvedValueOnce({
+        session_id: "sess-resume",
+        status: "idle",
+        mode: "code",
+        trust_mode: "ask",
+        workspace_root: ".",
+        model_selection: { profile: "auto", provider: "auto", model: "auto" },
+      })
+      .mockResolvedValueOnce({
+        session: {
+          session_id: "sess-resume",
+          status: "idle",
+          mode: "code",
+          trust_mode: "ask",
+          workspace_root: ".",
+          transcript: [],
+          model_selection: { profile: "auto", provider: "auto", model: "auto" },
+        },
+        queued_prompts: [],
+        available_commands: [],
+        approvals: [],
+        events: [],
+        command_results: [],
+        diffs: [],
+        artifacts: [],
+      });
+
+    render(<App />);
+    await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(4));
+    fireEvent.click(screen.getByTitle("Runs"));
+    fireEvent.click(await screen.findByText("sess-resume"));
+
+    expect(await screen.findByText("Resume")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Resume"));
+
+    await waitFor(() => {
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-resume/resume",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(mockApi).toHaveBeenCalledWith(
+        "/coder/sessions/sess-resume/view",
+        undefined,
+      );
+    });
+  });
+
   it("opens onboarding for fresh config and no providers", async () => {
     mockApi
       .mockResolvedValueOnce({

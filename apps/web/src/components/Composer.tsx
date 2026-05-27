@@ -26,7 +26,10 @@ interface ComposerProps {
   onCancel?: () => void;
   onRetry?: () => void;
   canRetry?: boolean;
+  onResume?: () => void;
+  canResume?: boolean;
   isSending?: boolean;
+  controlsLocked?: boolean;
   selectedContextFiles?: string[];
   fileMatches?: FileEntry[];
   onContextQuery?: (query: string) => void;
@@ -62,7 +65,10 @@ export function Composer({
   onCancel,
   onRetry,
   canRetry = false,
+  onResume,
+  canResume = false,
   isSending = false,
+  controlsLocked = false,
   selectedContextFiles = [],
   fileMatches = [],
   onContextQuery,
@@ -106,6 +112,7 @@ export function Composer({
             key={mode}
             aria-pressed={mode === selectedMode}
             type="button"
+            disabled={controlsLocked}
             style={
               mode === selectedMode
                 ? { background: "var(--accent)", borderColor: "var(--accent-hover)" }
@@ -119,6 +126,7 @@ export function Composer({
         <select
           aria-label="Trust mode"
           value={selectedTrustMode}
+          disabled={controlsLocked}
           onChange={(event) => onTrustModeChange(event.target.value)}
         >
           {TRUST_MODES.map((mode) => (
@@ -131,7 +139,7 @@ export function Composer({
           aria-label="Provider profile"
           value={selectedProfile}
           onChange={(event) => onProfileChange(event.target.value)}
-          disabled={!modelOptions?.configured}
+          disabled={!modelOptions?.configured || controlsLocked}
         >
           <option value="auto">Auto profile</option>
           {modelOptions?.profiles?.map((profile) => (
@@ -144,7 +152,7 @@ export function Composer({
           aria-label="Planner model"
           value={selectedModel}
           onChange={(event) => onModelChange(event.target.value)}
-          disabled={!activeProfile}
+          disabled={!activeProfile || controlsLocked}
         >
           <option value="auto">Auto model</option>
           {plannerModels.map((model) => {
@@ -261,6 +269,11 @@ export function Composer({
           {canRetry && !isSending && (
             <button className="secondary" onClick={onRetry} type="button">
               Retry
+            </button>
+          )}
+          {canResume && !isSending && (
+            <button className="secondary" onClick={onResume} type="button">
+              Resume
             </button>
           )}
           {isSending ? (

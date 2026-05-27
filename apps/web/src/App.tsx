@@ -486,6 +486,13 @@ export function App() {
             : `No active session. Send will create one automatically${effectiveWorkspaceRoot ? ` in ${effectiveWorkspaceRoot}` : ""}, or use New session first.`
           : null;
 
+  const sessionControlsLocked =
+    active?.session.status === "running" || active?.session.status === "awaiting_approval";
+  const canResumeSession =
+    active?.session.status === "cancelled" ||
+    active?.session.status === "failed" ||
+    active?.session.status === "blocked";
+
   const handleApproval = async (requestId: string, grant: boolean) => {
     if (!active) return;
     setIsLoading(true);
@@ -541,8 +548,29 @@ export function App() {
     }
   };
 
+  const resumeActiveSession = async () => {
+    if (!active) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const session = await api<Session>(
+        sessionPath(active.session.session_id, "/resume", active.session.workspace_root),
+        { method: "POST" },
+      );
+      const view = await api<SessionView>(
+        sessionPath(session.session_id, "/view", active.session.workspace_root),
+      );
+      applySessionView(view);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const supportedCommandIds = new Set([
     "new",
+    "resume",
     "settings",
     "providers",
     "approvals",
@@ -556,6 +584,7 @@ export function App() {
   ]);
   const allCommands: CoderCommand[] = React.useMemo(() => {
     const builtins: CoderCommand[] = [
+      { id: "resume", label: "Resume Session", cli: "/resume", surface: "global" },
       { id: "settings", label: "Open Settings", cli: "/settings", surface: "global" },
       { id: "providers", label: "Open Providers & Models", cli: "/providers", surface: "global" },
       { id: "approvals", label: "Open Approvals", cli: "/approvals", surface: "global" },
@@ -595,6 +624,8 @@ export function App() {
       setInspector("files");
     } else if (command.id === "usage") {
       setInspector("usage");
+    } else if (command.id === "resume") {
+      void resumeActiveSession();
     } else if (command.id === "retry") {
       retryPrompt();
     } else if (command.id === "stop") {
@@ -739,7 +770,10 @@ export function App() {
             onCancel={stopPrompt}
             onRetry={retryPrompt}
             canRetry={Boolean(lastPrompt)}
+            onResume={() => void resumeActiveSession()}
+            canResume={Boolean(canResumeSession)}
             isSending={Boolean(streamAbort)}
+            controlsLocked={Boolean(sessionControlsLocked)}
             selectedContextFiles={selectedContextFiles}
             fileMatches={fileMatches}
             onContextQuery={(query) => void searchContextFiles(query)}
