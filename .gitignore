@@ -28,11 +28,9 @@ tmp/
 .venv/
 venv/
 
-# External dependency packages that still do not belong to this repo
-src/agentheim_core/
-src/agentheim_coder_core/
-
 # Runtime packages owned by this repo live under:
+# - src/agentheim_core
+# - src/agentheim_coder_core
 # - src/config
 # - src/core
 # - src/interfaces
