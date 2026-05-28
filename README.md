@@ -8,7 +8,6 @@ Agentheim Code is a standalone local-first coding workbench with:
 
 Current verified baseline: `2.0.0`
 
-![Agentheim Code workbench overview](docs/assets/workbench-overview.png)
 
 The product flow is simple:
 

@@ -43,7 +43,6 @@ setup later.
 - Center: top bar, chat transcript, composer
 - Right inspector: the currently selected panel
 
-![Workbench overview](assets/workbench-overview.png)
 
 ## Sessions
 
@@ -143,7 +142,6 @@ Shows the current workspace tree with:
 Large workspaces now load in backend pages instead of one capped client-side
 list. Use `Load next 100` to keep browsing without locking the panel.
 
-![Files panel with preview](assets/workbench-files.png)
 
 ### Terminal
 
@@ -181,7 +179,6 @@ available.
 
 Shows aggregated token and cost data when the provider returns usage metadata.
 
-![Usage panel](assets/workbench-usage.png)
 
 ### Settings
 
