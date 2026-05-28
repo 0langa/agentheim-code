@@ -37,7 +37,10 @@ def workspace_dir():
 @pytest.fixture
 def client(workspace_dir: str):
     app = create_app(workspace_dir)
-    return TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
+    client = TestClient(app)
+    client.cookies.set("agentheim_session", app.state.session_secret)
+    client.headers["x-csrf-token"] = app.state.csrf_token
+    return client
 
 
 def test_health_endpoint(client: TestClient, workspace_dir: str) -> None:

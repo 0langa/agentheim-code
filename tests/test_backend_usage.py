@@ -15,7 +15,10 @@ from core.ledger import RunLedger
 @pytest.fixture
 def client(tmp_path: Path) -> TestClient:
     app = create_app(workspace=str(tmp_path))
-    return TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
+    client = TestClient(app)
+    client.cookies.set("agentheim_session", app.state.session_secret)
+    client.headers["x-csrf-token"] = app.state.csrf_token
+    return client
 
 
 class TestSessionUsageEndpoint:

@@ -4,7 +4,9 @@ Used by desktop.py so the backend can have its own working directory
 without affecting the parent process.
 """
 
+import os
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import uvicorn
@@ -31,8 +33,13 @@ def _parse_args(argv: list[str]) -> tuple[Path, int]:
 
 def main(argv: list[str] | None = None) -> None:
     workspace, port = _parse_args(argv or sys.argv)
+    app = create_app(workspace)
+    nonce = os.environ.get("AGENTHEIM_CODE_LAUNCH_NONCE")
+    if nonce:
+        app.state.launch_nonce = nonce
+        app.state.launch_nonce_expires = datetime.now(UTC) + timedelta(seconds=30)
     uvicorn.run(
-        create_app(workspace),  # type: ignore[arg-type]
+        app,  # type: ignore[arg-type]
         host="127.0.0.1",
         port=port,
         log_level="warning",

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+import stat
 from pathlib import Path
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -69,3 +71,57 @@ def safe_workspace_file_path(
         raise ValueError(f"access denied to protected path: {raw_path}")
 
     return target
+
+
+def safe_open_nofollow(
+    path: str | Path,
+    flags: int = os.O_RDONLY,
+    mode: int = 0o666,
+) -> int:
+    """Open *path* without following symlinks (TOCTOU-safe).
+
+    On POSIX systems this uses ``os.O_NOFOLLOW`` for a race-free open.
+    On Windows (which lacks ``O_NOFOLLOW``) we perform an ``lstat`` check
+    immediately before opening and then compare inode/device (or size/mtime
+    as a fallback) between the pre-check and the opened file descriptor.
+    If a swap is detected the descriptor is closed and ``PermissionError``
+    is raised.
+
+    Returns a raw file descriptor.  The caller is responsible for closing it
+    (e.g. by passing it to ``os.fdopen``).
+    """
+    path_obj = Path(path)
+
+    if hasattr(os, "O_NOFOLLOW"):
+        return os.open(str(path_obj), flags | os.O_NOFOLLOW, mode)
+
+    # Windows fallback — no atomic O_NOFOLLOW, so minimise the race window.
+    creating = bool(flags & getattr(os, "O_CREAT", 0))
+
+    try:
+        st1 = os.lstat(path_obj)
+    except FileNotFoundError:
+        if not creating:
+            raise
+        st1 = None
+
+    if st1 is not None and stat.S_ISLNK(st1.st_mode):
+        raise PermissionError(f"cannot open symlink: {path_obj}")
+
+    fd = os.open(str(path_obj), flags, mode)
+
+    if st1 is not None:
+        try:
+            st2 = os.fstat(fd)
+            if st1.st_ino and st2.st_ino:
+                if st1.st_ino != st2.st_ino or st1.st_dev != st2.st_dev:
+                    os.close(fd)
+                    raise PermissionError(f"file was replaced between check and open: {path_obj}")
+            elif st1.st_size != st2.st_size or st1.st_mtime != st2.st_mtime:
+                os.close(fd)
+                raise PermissionError(f"file was replaced between check and open: {path_obj}")
+        except OSError:
+            os.close(fd)
+            raise
+
+    return fd

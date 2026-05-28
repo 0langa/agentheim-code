@@ -8,7 +8,10 @@ which binary is invoked.
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import Any
+
+from core.script_inspector import inspect_python_script
 
 
 class ShellIntent(Enum):
@@ -105,6 +108,16 @@ def classify_shell_intent(command: Any) -> ShellIntent:
                 pass
             else:
                 return ShellIntent.EVAL
+        if head == "python" and len(parts) >= 2 and parts[1].lower().endswith(".py"):
+            script = Path(parts[1])
+            if script.exists():
+                result = inspect_python_script(script)
+                if result == "networked":
+                    return ShellIntent.NETWORKED
+                if result == "eval":
+                    return ShellIntent.EVAL
+                if result == "read_only":
+                    return ShellIntent.READ_ONLY
         if head == "node" and len(parts) >= 2 and parts[1].lower() == "-e":
             return ShellIntent.EVAL
 

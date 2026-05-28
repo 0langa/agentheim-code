@@ -55,20 +55,44 @@ export function isDesktopApp(): boolean {
   return isDesktopRuntime();
 }
 
-async function getAuthToken(): Promise<string | null> {
-  const globalToken = (window as any).__AGENTHEIM_TOKEN__;
-  if (typeof globalToken === "string" && globalToken) {
-    return globalToken;
+let csrfToken: string | null = null;
+
+async function getCsrfToken(): Promise<string | null> {
+  if (csrfToken) {
+    return csrfToken;
   }
+
+  const globalCsrf = (window as any).__AGENTHEIM_CSRF__;
+  if (typeof globalCsrf === "string" && globalCsrf) {
+    csrfToken = globalCsrf;
+    return csrfToken;
+  }
+
   if (isDesktopRuntime()) {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const token = await invoke<string | null>("session_token");
-      if (token) return token;
+      const nonce = await invoke<string | null>("launch_nonce");
+      if (nonce) {
+        const base = await getApiBase();
+        const response = await fetch(`${base}/auth/exchange`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ nonce }),
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = (await response.json()) as { csrf_token?: string };
+          if (data.csrf_token) {
+            csrfToken = data.csrf_token;
+            return csrfToken;
+          }
+        }
+      }
     } catch {
       // ignore
     }
   }
+
   return null;
 }
 
@@ -176,7 +200,7 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   return fetch(url, init);
 }
 
-function mergeHeaders(init?: RequestInit, requestId?: string, authToken?: string | null): Headers {
+function mergeHeaders(init?: RequestInit, requestId?: string, csrf?: string | null): Headers {
   const headers = new Headers(init?.headers);
   if (!headers.has("content-type") && init?.body !== undefined) {
     headers.set("content-type", "application/json");
@@ -184,8 +208,8 @@ function mergeHeaders(init?: RequestInit, requestId?: string, authToken?: string
   if (requestId) {
     headers.set("x-request-id", requestId);
   }
-  if (authToken) {
-    headers.set("x-agentheim-token", authToken);
+  if (csrf) {
+    headers.set("x-csrf-token", csrf);
   }
   return headers;
 }
@@ -199,10 +223,11 @@ function withWorkspaceRoot(path: string, workspaceRoot?: string | null): string 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${await getApiBase()}${path}`;
   const requestId = newRequestId();
-  const authToken = await getAuthToken();
+  const token = await getCsrfToken();
   const response = await fetchWithRetry(url, {
     ...init,
-    headers: mergeHeaders(init, requestId, authToken),
+    headers: mergeHeaders(init, requestId, token),
+    credentials: "include",
   });
   if (!response.ok) {
     const text = await response.text();
@@ -266,14 +291,15 @@ export async function streamSessionMessage(
     context_files: contextFiles,
     use_context_bundle: true,
   } satisfies CoderSessionMessageRequest);
-  const authToken = await getAuthToken();
+  const token = await getCsrfToken();
   const response = await fetch(
     `${apiBase}${withWorkspaceRoot(`/coder/sessions/${sessionId}/messages/stream`, workspaceRoot)}`,
     {
       method: "POST",
-      headers: mergeHeaders({ body }, newRequestId(), authToken),
+      headers: mergeHeaders({ body }, newRequestId(), token),
       body,
       signal,
+      credentials: "include",
     },
   );
   if (!response.ok) {

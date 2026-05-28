@@ -353,7 +353,9 @@ class TestMain:
 class TestBackendHealth:
     def test_backend_health_uses_shared_coder_hub(self, tmp_path: Path) -> None:
         app = create_app(tmp_path)
-        client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
+        client = TestClient(app)
+        client.cookies.set("agentheim_session", app.state.session_secret)
+        client.headers["x-csrf-token"] = app.state.csrf_token
 
         health = client.get("/api/health")
         coder = client.get("/coder")
@@ -374,7 +376,9 @@ class TestBackendHealth:
 
     def test_backend_allows_localhost_origin(self, tmp_path: Path) -> None:
         app = create_app(tmp_path)
-        client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
+        client = TestClient(app)
+        client.cookies.set("agentheim_session", app.state.session_secret)
+        client.headers["x-csrf-token"] = app.state.csrf_token
         response = client.get(
             "/api/health",
             headers={"Origin": "http://127.0.0.1:5173"},

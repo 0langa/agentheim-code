@@ -808,7 +808,8 @@ test.describe("Agentheim Code Web", () => {
     await mockApi(page, true);
     await page.goto("/");
 
-    await expect(page.getByRole("combobox", { name: "Provider profile" })).toContainText("local");
+    await expect(page.getByLabel("Provider profile")).toBeVisible();
+    await expect(page.getByLabel("Provider profile")).toHaveValue("local");
     await page.getByRole("button", { name: "New session" }).first().click();
 
     await expect(page.getByRole("button", { name: "Open approvals" })).toBeVisible();
@@ -909,6 +910,7 @@ test.describe("Agentheim Code Web", () => {
     await mockApi(page, { modelConfigured: true });
     await page.goto("/");
 
+    await expect(page.locator("main.shell")).toBeVisible();
     await expect(page.getByRole("button", { name: "ask" })).toBeVisible();
     await expect(page.getByRole("button", { name: "code" })).toBeVisible();
     await expect(page.getByRole("button", { name: "review" })).toBeVisible();

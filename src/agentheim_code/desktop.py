@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -203,6 +204,9 @@ def launch_desktop(
         "AGENTHEIM_CODE_BACKEND_PORT": str(resolved_port),
         "AGENTHEIM_CODE_BACKEND_URL": f"http://127.0.0.1:{resolved_port}",
     }
+
+    launch_nonce = secrets.token_urlsafe(32)
+    env["AGENTHEIM_CODE_LAUNCH_NONCE"] = launch_nonce
 
     if dev:
         desktop_dir = _find_desktop_dir()

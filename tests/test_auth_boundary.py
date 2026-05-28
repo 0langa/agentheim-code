@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentheim_code.backend import create_app
-from core.path_security import safe_workspace_file_path
+from core.path_security import safe_open_nofollow, safe_workspace_file_path
 from core.policy_engine import PolicyConfig, PolicyEngine
 from core.shell_intent import ShellIntent, classify_shell_intent
 from core.tool_invocation import resolve_operation_risk
@@ -27,10 +27,17 @@ def workspace_dir():
         yield d
 
 
+def _auth_client(app) -> TestClient:
+    client = TestClient(app)
+    client.cookies.set("agentheim_session", app.state.session_secret)
+    client.headers["x-csrf-token"] = app.state.csrf_token
+    return client
+
+
 @pytest.fixture
 def client(workspace_dir: str):
     app = create_app(workspace_dir)
-    return TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
+    return _auth_client(app)
 
 
 @pytest.fixture
@@ -57,16 +64,56 @@ class TestBackendAuth:
         resp = client_no_auth.get("/api/health", headers={"x-agentheim-token": "bad-token"})
         assert resp.status_code == 401
 
-    def test_token_injected_into_index(self, client: TestClient) -> None:
+    def test_csrf_token_injected_into_index(self, client: TestClient) -> None:
         resp = client.get("/coder")
         assert resp.status_code == 200
-        assert "window.__AGENTHEIM_TOKEN__" in resp.text
+        assert "window.__AGENTHEIM_CSRF__" in resp.text
 
-    def test_token_persisted_to_file(self, workspace_dir: str) -> None:
-        app = create_app(workspace_dir)
+    def test_no_session_token_file_written(self, workspace_dir: str) -> None:
+        create_app(workspace_dir)
         token_path = Path(workspace_dir) / ".ai-team" / ".session-token"
-        assert token_path.exists()
-        assert token_path.read_text(encoding="utf-8") == app.state.auth_token
+        assert not token_path.exists()
+
+    def test_missing_csrf_header_rejected(self, workspace_dir: str) -> None:
+        app = create_app(workspace_dir)
+        client = TestClient(app)
+        client.cookies.set("agentheim_session", app.state.session_secret)
+        resp = client.get("/api/health")
+        assert resp.status_code == 401
+
+    def test_wrong_csrf_token_rejected(self, workspace_dir: str) -> None:
+        app = create_app(workspace_dir)
+        client = TestClient(app)
+        client.cookies.set("agentheim_session", app.state.session_secret)
+        client.headers["x-csrf-token"] = "wrong-csrf"
+        resp = client.get("/api/health")
+        assert resp.status_code == 401
+
+    def test_launch_nonce_exchange(self, workspace_dir: str) -> None:
+        app = create_app(workspace_dir)
+        app.state.launch_nonce = "test-nonce-123"
+        from datetime import UTC, datetime, timedelta
+
+        app.state.launch_nonce_expires = datetime.now(UTC) + timedelta(seconds=30)
+
+        client = TestClient(app)
+        resp = client.post("/api/auth/exchange", json={"nonce": "test-nonce-123"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "csrf_token" in data
+        assert data["csrf_token"] == app.state.csrf_token
+        # Nonce should be burned after use
+        assert app.state.launch_nonce is None
+
+        # Subsequent exchange with same nonce should fail
+        resp2 = client.post("/api/auth/exchange", json={"nonce": "test-nonce-123"})
+        assert resp2.status_code == 401
+
+    def test_invalid_launch_nonce_rejected(self, workspace_dir: str) -> None:
+        app = create_app(workspace_dir)
+        client = TestClient(app)
+        resp = client.post("/api/auth/exchange", json={"nonce": "bad-nonce"})
+        assert resp.status_code == 401
 
 
 class TestShellIntentClassification:
@@ -104,7 +151,6 @@ class TestShellIntentClassification:
         assert classify_shell_intent(["curl", "https://example.com"]) == ShellIntent.NETWORKED
 
     def test_unknown_commands(self) -> None:
-        assert classify_shell_intent(["python", "script.py"]) == ShellIntent.UNKNOWN
         assert classify_shell_intent(["node", "script.js"]) == ShellIntent.UNKNOWN
         assert classify_shell_intent(["some_tool"]) == ShellIntent.UNKNOWN
 
@@ -158,7 +204,8 @@ class TestFilesystemBoundary:
         context = ToolContext(allowed_paths=[workspace_dir])
         result = tool.invoke({"operation": "read", "path": "../outside.txt"}, context)
         assert not result.success
-        assert "escapes" in result.error.lower() or "outside" in result.error.lower()
+        error = result.error or ""
+        assert "escapes" in error.lower() or "outside" in error.lower()
 
     def test_symlink_escape_denied(self, workspace_dir: str) -> None:
         workspace = Path(workspace_dir)
@@ -171,21 +218,24 @@ class TestFilesystemBoundary:
         context = ToolContext(allowed_paths=[workspace_dir])
         result = tool.invoke({"operation": "read", "path": "bad_link"}, context)
         assert not result.success
-        assert "escapes" in result.error.lower() or "outside" in result.error.lower()
+        error = result.error or ""
+        assert "escapes" in error.lower() or "outside" in error.lower()
 
     def test_dot_git_denied(self, workspace_dir: str) -> None:
         tool = FilesystemTool(workspace_dir)
         context = ToolContext(allowed_paths=[workspace_dir])
         result = tool.invoke({"operation": "read", "path": ".git/config"}, context)
         assert not result.success
-        assert "protected" in result.error.lower() or "denied" in result.error.lower()
+        error = result.error or ""
+        assert "protected" in error.lower() or "denied" in error.lower()
 
     def test_ai_team_denied(self, workspace_dir: str) -> None:
         tool = FilesystemTool(workspace_dir)
         context = ToolContext(allowed_paths=[workspace_dir])
         result = tool.invoke({"operation": "read", "path": ".ai-team/session-token"}, context)
         assert not result.success
-        assert "protected" in result.error.lower() or "denied" in result.error.lower()
+        error = result.error or ""
+        assert "protected" in error.lower() or "denied" in error.lower()
 
     def test_safe_workspace_file_path_helper(self, tmp_path: Path) -> None:
         assert safe_workspace_file_path(tmp_path, "src/main.py").name == "main.py"
@@ -195,6 +245,50 @@ class TestFilesystemBoundary:
             safe_workspace_file_path(tmp_path, ".git/config")
         with pytest.raises(ValueError, match="protected"):
             safe_workspace_file_path(tmp_path, ".ai-team/token")
+
+    def test_safe_open_nofollow_blocks_symlink(self, tmp_path: Path) -> None:
+        outside = tmp_path / "secret.txt"
+        outside.write_text("secret", encoding="utf-8")
+        link = tmp_path / "link.txt"
+        link.symlink_to(outside)
+
+        with pytest.raises((PermissionError, OSError)):
+            safe_open_nofollow(link)
+
+    def test_safe_open_nofollow_allows_regular_file(self, tmp_path: Path) -> None:
+        regular = tmp_path / "regular.txt"
+        regular.write_text("hello", encoding="utf-8")
+        fd = safe_open_nofollow(regular)
+        try:
+            import os
+
+            with os.fdopen(fd, "r", encoding="utf-8") as fh:
+                assert fh.read() == "hello"
+        except Exception:
+            os.close(fd)
+            raise
+
+    def test_ast_inspection_read_only(self, tmp_path: Path) -> None:
+        script = tmp_path / "read_only.py"
+        script.write_text(
+            "print('hello')\nwith open('file.txt') as f:\n    print(f.read())\n", encoding="utf-8"
+        )
+        assert classify_shell_intent(["python", str(script)]) == ShellIntent.READ_ONLY
+
+    def test_ast_inspection_networked(self, tmp_path: Path) -> None:
+        script = tmp_path / "network.py"
+        script.write_text(
+            "import requests\nrequests.get('https://example.com')\n", encoding="utf-8"
+        )
+        assert classify_shell_intent(["python", str(script)]) == ShellIntent.NETWORKED
+
+    def test_ast_inspection_eval(self, tmp_path: Path) -> None:
+        script = tmp_path / "eval.py"
+        script.write_text("code = input()\neval(code)\n", encoding="utf-8")
+        assert classify_shell_intent(["python", str(script)]) == ShellIntent.EVAL
+
+    def test_ast_inspection_unknown_for_missing_file(self) -> None:
+        assert classify_shell_intent(["python", "/nonexistent/script.py"]) == ShellIntent.UNKNOWN
 
 
 class TestApprovalConsistency:

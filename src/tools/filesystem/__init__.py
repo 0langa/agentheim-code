@@ -5,12 +5,13 @@ Operations: read, write, list, stat with path confinement.
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
 from core.errors import ToolSafetyError
-from core.path_security import safe_workspace_file_path
+from core.path_security import safe_open_nofollow, safe_workspace_file_path
 from core.tool_protocol import (
     BaseTool,
     ParamSchema,
@@ -101,8 +102,15 @@ class FilesystemTool(BaseTool):
                 success=False, error=f"File too large ({size} > {context.max_file_size})"
             )
         try:
-            data = target.read_text(encoding="utf-8", errors="ignore")
-            return ToolResult(success=True, data=data, metadata={"size": size})
+            fd = safe_open_nofollow(target, os.O_RDONLY)
+            try:
+                fh = os.fdopen(fd, "r", encoding="utf-8", errors="ignore")
+            except Exception:
+                os.close(fd)
+                raise
+            with fh:
+                data = fh.read()
+                return ToolResult(success=True, data=data, metadata={"size": size})
         except OSError as exc:
             return ToolResult(success=False, error=str(exc))
 
@@ -110,12 +118,19 @@ class FilesystemTool(BaseTool):
         # Write is MEDIUM risk — policy engine should have already checked
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
-            return ToolResult(
-                success=True,
-                data=str(target.relative_to(self.repo_root)),
-                metadata={"bytes_written": len(content.encode("utf-8"))},
-            )
+            fd = safe_open_nofollow(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+            try:
+                fh = os.fdopen(fd, "w", encoding="utf-8")
+            except Exception:
+                os.close(fd)
+                raise
+            with fh:
+                fh.write(content)
+                return ToolResult(
+                    success=True,
+                    data=str(target.relative_to(self.repo_root)),
+                    metadata={"bytes_written": len(content.encode("utf-8"))},
+                )
         except OSError as exc:
             return ToolResult(success=False, error=str(exc))
 

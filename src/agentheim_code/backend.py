@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
-import os
 import secrets
 import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.responses import Response as StarletteResponse
 
 from agentheim_code import __version__
 from agentheim_code import config as ui_config
@@ -105,8 +106,12 @@ class LocalProviderResponse(BaseModel):
     models: list[str] = Field(default_factory=list)
 
 
+class ExchangeRequest(BaseModel):
+    nonce: str
+
+
 def _version() -> str:
-    return __version__
+    return str(__version__)
 
 
 def _json_model(model: Any) -> dict[str, Any]:
@@ -228,14 +233,10 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     app = FastAPI(title="Agentheim Code", version=_version(), lifespan=build_lifespan())
     app.state.workspace_path = workspace_path
-    app.state.auth_token = secrets.token_urlsafe(32)
-
-    # Persist token so the desktop dev shell can read it via Tauri
-    _token_path = workspace_path / ".ai-team" / ".session-token"
-    _token_path.parent.mkdir(parents=True, exist_ok=True)
-    _token_path.write_text(app.state.auth_token, encoding="utf-8")
-    if hasattr(os, "chmod"):
-        os.chmod(_token_path, 0o600)
+    app.state.session_secret = secrets.token_urlsafe(32)
+    app.state.csrf_token = secrets.token_urlsafe(32)
+    app.state.launch_nonce = None
+    app.state.launch_nonce_expires = None
 
     app.add_middleware(
         CORSMiddleware,
@@ -243,10 +244,27 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
             r"^(http://(127\.0\.0\.1|localhost)(:\d+)?|"
             r"https?://tauri\.localhost|tauri://localhost)$"
         ),
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    def _set_auth_cookie(response: Any) -> None:
+        response.set_cookie(
+            key="agentheim_session",
+            value=app.state.session_secret,
+            httponly=True,
+            samesite="strict",
+            path="/api",
+            max_age=86400,
+        )
+
+    def _auth_ok(request: Request) -> bool:
+        if not request.url.path.startswith("/api/"):
+            return True
+        cookie = request.cookies.get("agentheim_session")
+        csrf = request.headers.get("x-csrf-token")
+        return bool(cookie == app.state.session_secret and csrf == app.state.csrf_token)
 
     @app.middleware("http")
     async def attach_request_context(request: Request, call_next: Any) -> Any:
@@ -270,16 +288,15 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next: Any) -> Any:
-        if request.url.path.startswith("/api/"):
-            expected = request.app.state.auth_token
-            provided = request.headers.get("x-agentheim-token")
-            if provided != expected:
-                request_id = getattr(request.state, "request_id", new_request_id())
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": {**E_UNAUTHORIZED.to_dict(), "request_id": request_id}},
-                    headers={REQUEST_ID_HEADER: request_id},
-                )
+        if request.url.path == "/api/auth/exchange":
+            return await call_next(request)
+        if not _auth_ok(request):
+            request_id = getattr(request.state, "request_id", new_request_id())
+            return JSONResponse(
+                status_code=401,
+                content={"detail": {**E_UNAUTHORIZED.to_dict(), "request_id": request_id}},
+                headers={REQUEST_ID_HEADER: request_id},
+            )
         return await call_next(request)
 
     @app.get("/api/health", response_model=HealthResponse)
@@ -337,21 +354,40 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     @app.get("/coder", response_class=HTMLResponse)
-    def coder_index() -> str:
+    def coder_index() -> Any:
         if index.exists():
             html = index.read_text(encoding="utf-8")
             if "Agentheim Coder" not in html:
                 html = html.replace(
                     '<div id="root"></div>', '<div id="root"></div><!-- Agentheim Coder -->'
                 )
-            token = app.state.auth_token
-            injection = f'<script>window.__AGENTHEIM_TOKEN__="{token}"</script>'
+            csrf = app.state.csrf_token
+            injection = f'<script>window.__AGENTHEIM_CSRF__="{csrf}"</script>'
             if "<head>" in html:
                 html = html.replace("<head>", f"<head>{injection}", 1)
             else:
                 html = injection + html
-            return html
+            response = HTMLResponse(html)
+            _set_auth_cookie(response)
+            return response
         return "<!doctype html><title>Agentheim Code</title><h1>Agentheim Code</h1><p>Run npm --prefix apps/web run build to create the UI bundle.</p>"
+
+    @app.post("/api/auth/exchange")
+    def api_auth_exchange(payload: ExchangeRequest) -> StarletteResponse:
+        expected = app.state.launch_nonce
+        expires = app.state.launch_nonce_expires
+        if (
+            expected is None
+            or expires is None
+            or datetime.now(UTC) > expires
+            or payload.nonce != expected
+        ):
+            raise HTTPException(status_code=401, detail="Invalid or expired launch nonce.")
+        app.state.launch_nonce = None
+        app.state.launch_nonce_expires = None
+        resp = JSONResponse({"csrf_token": app.state.csrf_token})
+        _set_auth_cookie(resp)
+        return resp
 
     if dist.exists():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
