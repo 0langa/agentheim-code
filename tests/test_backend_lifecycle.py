@@ -16,7 +16,8 @@ def test_lifespan_shutdown_completes_cleanly(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr("agentheim_code.lifecycle.logger.info", capture)
 
-    with TestClient(create_app(tmp_path)) as client:
+    app = create_app(tmp_path)
+    with TestClient(app, headers={"x-agentheim-token": app.state.auth_token}) as client:
         response = client.get("/api/health")
         assert response.status_code == 200
 

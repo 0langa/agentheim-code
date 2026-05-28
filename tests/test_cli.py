@@ -352,7 +352,8 @@ class TestMain:
 
 class TestBackendHealth:
     def test_backend_health_uses_shared_coder_hub(self, tmp_path: Path) -> None:
-        client = TestClient(create_app(tmp_path))
+        app = create_app(tmp_path)
+        client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
 
         health = client.get("/api/health")
         coder = client.get("/coder")
@@ -372,7 +373,8 @@ class TestBackendHealth:
             create_app(file_path)
 
     def test_backend_allows_localhost_origin(self, tmp_path: Path) -> None:
-        client = TestClient(create_app(tmp_path))
+        app = create_app(tmp_path)
+        client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
         response = client.get(
             "/api/health",
             headers={"Origin": "http://127.0.0.1:5173"},

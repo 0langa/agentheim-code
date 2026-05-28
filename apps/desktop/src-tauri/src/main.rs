@@ -280,6 +280,16 @@ fn backend_launch_error(state: tauri::State<'_, BackendState>) -> Result<Option<
 }
 
 #[tauri::command]
+fn session_token() -> Result<Option<String>, String> {
+    let settings = launch_settings();
+    let token_path = settings.workspace.join(".ai-team").join(".session-token");
+    match fs::read_to_string(&token_path) {
+        Ok(token) => Ok(Some(token.trim().to_string())),
+        Err(_) => Ok(None),
+    }
+}
+
+#[tauri::command]
 fn backend_url(state: tauri::State<'_, BackendState>) -> Result<Option<String>, String> {
     if let Ok(url) = env::var("AGENTHEIM_CODE_BACKEND_URL") {
         return Ok(Some(url));
@@ -366,7 +376,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![backend_url, desktop_pick_workspace, backend_launch_error])
+        .invoke_handler(tauri::generate_handler![backend_url, desktop_pick_workspace, backend_launch_error, session_token])
         .build(tauri::generate_context!())
         .expect("error while building Agentheim Code");
 

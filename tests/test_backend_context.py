@@ -21,7 +21,7 @@ def workspace_dir():
 @pytest.fixture
 def client(workspace_dir: str):
     app = create_app(workspace_dir)
-    return TestClient(app)
+    return TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
 
 
 def test_context_validation_endpoint_rejects_bad_files(

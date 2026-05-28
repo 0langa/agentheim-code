@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from core.errors import ToolSafetyError
+from core.path_security import safe_workspace_file_path
 from core.tool_protocol import (
     BaseTool,
     ParamSchema,
@@ -112,21 +113,10 @@ class LocalDBTool(BaseTool):
 
     def _resolve_db_path(self, raw_path: str, context: ToolContext) -> Path:
         """Resolve and validate a database path against workspace boundaries."""
-        target = (self.repo_root / raw_path).resolve()
-
-        # Prevent directory traversal outside repo
         try:
-            target.relative_to(self.repo_root)
+            target = safe_workspace_file_path(self.repo_root, raw_path)
         except ValueError as exc:
-            raise ToolSafetyError(f"Database path escapes workspace: {raw_path}") from exc
-
-        # Prevent symlink escape
-        if target.is_symlink():
-            real = target.resolve()
-            try:
-                real.relative_to(self.repo_root)
-            except ValueError as exc:
-                raise ToolSafetyError(f"Symlink escapes workspace: {raw_path}") from exc
+            raise ToolSafetyError(str(exc)) from exc
 
         # Enforce context boundaries
         if not context.path_allowed(target):

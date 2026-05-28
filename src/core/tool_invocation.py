@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,6 +10,7 @@ from core.events import EventType
 from core.ledger import RunLedger
 from core.policy_engine import PolicyConfig, PolicyDecision, PolicyEngine
 from core.redaction import redact_dict
+from core.shell_intent import ShellIntent, classify_shell_intent
 from core.tool_protocol import (
     AsyncBaseTool,
     RiskLevel,
@@ -138,40 +138,18 @@ def resolve_operation_risk(tool_id: str, params: dict[str, Any], default: RiskLe
             return RiskLevel.NONE
         if operation in {"write", "copy"}:
             return RiskLevel.MEDIUM
-    if tool_id == "shell.execute" and _shell_command_is_read_only(params.get("command")):
-        return RiskLevel.LOW
+    if tool_id == "shell.execute":
+        intent = classify_shell_intent(params.get("command"))
+        mapping: dict[ShellIntent, RiskLevel] = {
+            ShellIntent.READ_ONLY: RiskLevel.LOW,
+            ShellIntent.BUILD_TEST: RiskLevel.MEDIUM,
+            ShellIntent.PACKAGE: RiskLevel.HIGH,
+            ShellIntent.EVAL: RiskLevel.HIGH,
+            ShellIntent.NETWORKED: RiskLevel.CRITICAL,
+            ShellIntent.UNKNOWN: RiskLevel.HIGH,
+        }
+        return mapping.get(intent, default)
     return default
-
-
-def _shell_command_is_read_only(command: Any) -> bool:
-    if not isinstance(command, list) or not command:
-        return False
-    parts = [str(part) for part in command]
-    head = parts[0].lower()
-    joined = " ".join(parts).lower()
-    if head in {"dir", "type", "cat", "ls", "rg"}:
-        return True
-    if head == "git" and any(token in joined for token in ("status", "diff", "show", "log")):
-        return True
-    if head == "python" and len(parts) >= 3 and parts[1] == "-c":
-        snippet = parts[2].lower()
-        if not re.search(r"\b(open|read|assert|pathlib|exists|is_file|is_dir)\b", snippet):
-            return False
-        blocked = (
-            "write(",
-            "unlink(",
-            "remove(",
-            "rename(",
-            "replace(",
-            "mkdir(",
-            "rmdir(",
-            "touch(",
-            "chmod(",
-            "subprocess",
-            "os.system",
-        )
-        return not any(token in snippet for token in blocked)
-    return False
 
 
 def _policy_params(params: dict[str, Any], context: ToolContext) -> dict[str, Any]:

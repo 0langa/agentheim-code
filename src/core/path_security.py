@@ -35,3 +35,37 @@ def safe_project_path(value: str | Path) -> Path:
     if not project.is_dir():
         raise ValueError(f"project path is not a directory: {project}")
     return project
+
+
+_DEFAULT_DENIED_NAMES = frozenset({".git", ".ai-team"})
+
+
+def safe_workspace_file_path(
+    root: str | Path,
+    raw_path: str,
+    *,
+    denied_names: set[str] | frozenset[str] | None = None,
+) -> Path:
+    """Resolve *raw_path* inside *root* and reject traversal or protected names.
+
+    - Follows symlinks via ``resolve()`` and verifies the final path stays
+      inside *root*.
+    - Rejects paths whose first component is in *denied_names* (default:
+      ``.git`` and ``.ai-team``).
+
+    Raises ``ValueError`` on any violation.
+    """
+    root_path = Path(root).resolve()
+    target = (root_path / raw_path).resolve()
+
+    try:
+        target.relative_to(root_path)
+    except ValueError as exc:
+        raise ValueError(f"path escapes allowed root: {raw_path}") from exc
+
+    denied = _DEFAULT_DENIED_NAMES if denied_names is None else denied_names
+    rel_parts = target.relative_to(root_path).parts
+    if rel_parts and rel_parts[0] in denied:
+        raise ValueError(f"access denied to protected path: {raw_path}")
+
+    return target

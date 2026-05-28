@@ -100,6 +100,13 @@ E_FILESYSTEM_ERROR = StructuredError(
     recovery_action="Check disk space, file permissions, and workspace path.",
 )
 
+E_UNAUTHORIZED = StructuredError(
+    error_code="E2011",
+    message="Request is not authenticated.",
+    technical_detail="The session token is missing or does not match the current backend instance.",
+    recovery_action="Reload the app to obtain a fresh session token.",
+)
+
 
 def redact_text(text: str) -> str:
     """Remove common secret patterns from text."""

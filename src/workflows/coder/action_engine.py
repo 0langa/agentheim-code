@@ -70,7 +70,7 @@ def _tool_context(workspace_root: Path) -> ToolContext:
     return ToolContext(
         workspace=workspace_root,
         allowed_paths=[str(workspace_root)],
-        denied_paths=[str(workspace_root / ".git")],
+        denied_paths=[str(workspace_root / ".git"), str(workspace_root / ".ai-team")],
         allowed_commands=list(SAFE_COMMANDS),
         network_allowed=False,
     )

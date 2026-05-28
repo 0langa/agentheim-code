@@ -59,7 +59,7 @@ def _make_provider_response(content: str, provider: str = "mock"):
 def test_coder_session_and_usage_endpoint(workspace_dir: str) -> None:
     """Start a session, run a coder command, verify usage appears in the API."""
     app = create_app(workspace_dir)
-    client = TestClient(app)
+    client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
     fake_provider_cls = _make_provider_response("ok")
 
     with patch("core.model_registry.ModelRegistry.create_provider") as mock_create:
@@ -95,7 +95,7 @@ def test_coder_session_and_usage_endpoint(workspace_dir: str) -> None:
 def test_usage_endpoint_no_session(workspace_dir: str) -> None:
     """Querying usage for a non-existent session returns zeros."""
     app = create_app(workspace_dir)
-    client = TestClient(app)
+    client = TestClient(app, headers={"x-agentheim-token": app.state.auth_token})
 
     resp = client.get("/api/coder/sessions/nonexistent/usage")
     assert resp.status_code == 200, resp.text

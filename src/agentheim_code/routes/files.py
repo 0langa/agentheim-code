@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from agentheim_code.routes.utils import workspace_from_request
+from core.path_security import safe_workspace_file_path
 from workflows.coder.runtime import browse_file_tree, list_file_tree
 
 router = APIRouter(prefix="/api/coder")
@@ -42,13 +43,10 @@ def _search_file_tree(workspace: Path, query: str, limit: int) -> list[dict[str,
 def _safe_preview_path(workspace: Path, path: str) -> Path:
     if not path:
         raise HTTPException(status_code=400, detail="Path is required.")
-    if ".." in path:
-        raise HTTPException(status_code=400, detail="Invalid path.")
-    target = workspace / path
     try:
-        target.resolve().relative_to(workspace.resolve())
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Path is outside workspace.") from None
+        target = safe_workspace_file_path(workspace, path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="File not found.")
     return target

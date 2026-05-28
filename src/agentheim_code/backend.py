@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+import os
+import secrets
 import urllib.request
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -19,7 +21,7 @@ from agentheim_code import config as ui_config
 from agentheim_code.http_context import MAX_JSON_BODY_BYTES, REQUEST_ID_HEADER, new_request_id
 from agentheim_code.lifecycle import build_lifespan
 from agentheim_code.routes import coder, files, providers
-from agentheim_code.structured_errors import E_REQUEST_TOO_LARGE
+from agentheim_code.structured_errors import E_REQUEST_TOO_LARGE, E_UNAUTHORIZED
 from workflows.coder import runtime as coder_runtime
 
 _ROUTE_CODER_EXPORTS = set(  # noqa: SIM905 - compact compat export table keeps backend slim.
@@ -226,6 +228,15 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
 
     app = FastAPI(title="Agentheim Code", version=_version(), lifespan=build_lifespan())
     app.state.workspace_path = workspace_path
+    app.state.auth_token = secrets.token_urlsafe(32)
+
+    # Persist token so the desktop dev shell can read it via Tauri
+    _token_path = workspace_path / ".ai-team" / ".session-token"
+    _token_path.parent.mkdir(parents=True, exist_ok=True)
+    _token_path.write_text(app.state.auth_token, encoding="utf-8")
+    if hasattr(os, "chmod"):
+        os.chmod(_token_path, 0o600)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=(
@@ -256,6 +267,20 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
         response = await call_next(request)
         response.headers[REQUEST_ID_HEADER] = request_id
         return response
+
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next: Any) -> Any:
+        if request.url.path.startswith("/api/"):
+            expected = request.app.state.auth_token
+            provided = request.headers.get("x-agentheim-token")
+            if provided != expected:
+                request_id = getattr(request.state, "request_id", new_request_id())
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": {**E_UNAUTHORIZED.to_dict(), "request_id": request_id}},
+                    headers={REQUEST_ID_HEADER: request_id},
+                )
+        return await call_next(request)
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -319,6 +344,12 @@ def create_app(workspace: str | Path = ".") -> FastAPI:
                 html = html.replace(
                     '<div id="root"></div>', '<div id="root"></div><!-- Agentheim Coder -->'
                 )
+            token = app.state.auth_token
+            injection = f'<script>window.__AGENTHEIM_TOKEN__="{token}"</script>'
+            if "<head>" in html:
+                html = html.replace("<head>", f"<head>{injection}", 1)
+            else:
+                html = injection + html
             return html
         return "<!doctype html><title>Agentheim Code</title><h1>Agentheim Code</h1><p>Run npm --prefix apps/web run build to create the UI bundle.</p>"
 

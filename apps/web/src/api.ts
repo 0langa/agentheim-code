@@ -55,6 +55,23 @@ export function isDesktopApp(): boolean {
   return isDesktopRuntime();
 }
 
+async function getAuthToken(): Promise<string | null> {
+  const globalToken = (window as any).__AGENTHEIM_TOKEN__;
+  if (typeof globalToken === "string" && globalToken) {
+    return globalToken;
+  }
+  if (isDesktopRuntime()) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const token = await invoke<string | null>("session_token");
+      if (token) return token;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
 export async function pickDesktopWorkspace(): Promise<string | null> {
   if (!isDesktopRuntime()) return null;
   const { invoke } = await import("@tauri-apps/api/core");
@@ -159,13 +176,16 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   return fetch(url, init);
 }
 
-function mergeHeaders(init?: RequestInit, requestId?: string): Headers {
+function mergeHeaders(init?: RequestInit, requestId?: string, authToken?: string | null): Headers {
   const headers = new Headers(init?.headers);
   if (!headers.has("content-type") && init?.body !== undefined) {
     headers.set("content-type", "application/json");
   }
   if (requestId) {
     headers.set("x-request-id", requestId);
+  }
+  if (authToken) {
+    headers.set("x-agentheim-token", authToken);
   }
   return headers;
 }
@@ -179,9 +199,10 @@ function withWorkspaceRoot(path: string, workspaceRoot?: string | null): string 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${await getApiBase()}${path}`;
   const requestId = newRequestId();
+  const authToken = await getAuthToken();
   const response = await fetchWithRetry(url, {
     ...init,
-    headers: mergeHeaders(init, requestId),
+    headers: mergeHeaders(init, requestId, authToken),
   });
   if (!response.ok) {
     const text = await response.text();
@@ -245,11 +266,12 @@ export async function streamSessionMessage(
     context_files: contextFiles,
     use_context_bundle: true,
   } satisfies CoderSessionMessageRequest);
+  const authToken = await getAuthToken();
   const response = await fetch(
     `${apiBase}${withWorkspaceRoot(`/coder/sessions/${sessionId}/messages/stream`, workspaceRoot)}`,
     {
       method: "POST",
-      headers: mergeHeaders({ body }, newRequestId()),
+      headers: mergeHeaders({ body }, newRequestId(), authToken),
       body,
       signal,
     },

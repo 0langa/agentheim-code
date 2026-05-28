@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from core.events import EventType
 from core.ledger import RunLedger
+from core.shell_intent import ShellIntent, classify_shell_intent
 from core.tool_protocol import RiskLevel, ToolContext
 
 
@@ -104,18 +105,25 @@ class PolicyEngine:
         backward-compatible.
         """
         # 1. local_only mode
-        if self.config.local_only and (
-            tool_id in {"http.request", "git.push", "git.clone"} or tool_id.startswith("http.")
-        ):
-            decision = PolicyDecision(
-                decision="deny",
-                reason=f"Tool '{tool_id}' requires network access but local_only mode is enabled.",
-                policy_id="local_only",
-                risk_level=RiskLevel.HIGH,
-                override_possible=False,
-            )
-            self._emit_policy_event(decision, tool_id, params, ledger, step_id, agent_id)
-            return decision
+        if self.config.local_only:
+            networked = False
+            if tool_id in {"http.request", "git.push", "git.clone"} or tool_id.startswith("http."):
+                networked = True
+            if (
+                tool_id == "shell.execute"
+                and classify_shell_intent(params.get("command")) == ShellIntent.NETWORKED
+            ):
+                networked = True
+            if networked:
+                decision = PolicyDecision(
+                    decision="deny",
+                    reason=f"Tool '{tool_id}' requires network access but local_only mode is enabled.",
+                    policy_id="local_only",
+                    risk_level=RiskLevel.HIGH,
+                    override_possible=False,
+                )
+                self._emit_policy_event(decision, tool_id, params, ledger, step_id, agent_id)
+                return decision
 
         # 2. strict_private mode
         if self.config.strict_private:
