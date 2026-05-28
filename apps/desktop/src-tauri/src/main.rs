@@ -1,8 +1,10 @@
 use serde::Deserialize;
 use std::env;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::{Read, Seek, SeekFrom};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
+use std::process::ExitStatus;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread;
@@ -116,6 +118,76 @@ fn wait_for_backend(port: u16) -> bool {
     false
 }
 
+fn backend_log_path(workspace: &Path) -> PathBuf {
+    workspace.join(".ai-team").join("backend.log")
+}
+
+fn prepare_backend_log(workspace: &Path) -> Result<PathBuf, String> {
+    let log_path = backend_log_path(workspace);
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Unable to create backend log directory {}: {error}", parent.display()))?;
+    }
+    Ok(log_path)
+}
+
+fn tail_backend_log(log_path: &Path) -> String {
+    const MAX_BYTES: u64 = 8192;
+    let Ok(mut file) = OpenOptions::new().read(true).open(log_path) else {
+        return String::new();
+    };
+    let Ok(length) = file.metadata().map(|meta| meta.len()) else {
+        return String::new();
+    };
+    let start = length.saturating_sub(MAX_BYTES);
+    if file.seek(SeekFrom::Start(start)).is_err() {
+        return String::new();
+    }
+    let mut text = String::new();
+    if file.read_to_string(&mut text).is_err() {
+        return String::new();
+    }
+    if start > 0 {
+        if let Some((_, tail)) = text.split_once('\n') {
+            return tail.trim().to_string();
+        }
+    }
+    text.trim().to_string()
+}
+
+fn format_backend_failure(
+    workspace: &Path,
+    log_path: &Path,
+    exit_status: Option<ExitStatus>,
+) -> String {
+    let mut message = match exit_status {
+        Some(status) => format!(
+            "Desktop backend failed to become ready for workspace {} (process exited with {}).",
+            workspace.display(),
+            status
+        ),
+        None => format!(
+            "Desktop backend did not become ready for workspace {} within {} seconds.",
+            workspace.display(),
+            BACKEND_READY_TIMEOUT.as_secs()
+        ),
+    };
+    let tail = tail_backend_log(log_path);
+    if !tail.is_empty() {
+        message.push_str(&format!(
+            " Backend log tail ({}):\n{}",
+            log_path.display(),
+            tail
+        ));
+    } else {
+        message.push_str(&format!(
+            " No backend log output was captured at {}.",
+            log_path.display()
+        ));
+    }
+    message
+}
+
 fn python_launchers() -> Vec<(String, Vec<String>)> {
     let mut launchers = Vec::new();
     if let Ok(command) = env::var("AGENTHEIM_CODE_PYTHON") {
@@ -139,8 +211,17 @@ fn hide_window(command: &mut Command) {
 fn hide_window(_command: &mut Command) {}
 
 fn start_backend(workspace: &Path, port: u16) -> Result<Child, String> {
+    let log_path = prepare_backend_log(workspace)?;
     let mut last_error = String::from("No Python launcher candidates were available.");
     for (program, prefix_args) in python_launchers() {
+        let log_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+            .map_err(|error| format!("Unable to open backend log {}: {error}", log_path.display()))?;
+        let stderr_file = log_file
+            .try_clone()
+            .map_err(|error| format!("Unable to clone backend log handle {}: {error}", log_path.display()))?;
         let mut command = Command::new(&program);
         hide_window(&mut command);
         command
@@ -151,8 +232,8 @@ fn start_backend(workspace: &Path, port: u16) -> Result<Child, String> {
             .arg(port.to_string())
             .current_dir(workspace)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stdout(Stdio::from(log_file))
+            .stderr(Stdio::from(stderr_file));
         match command.spawn() {
             Ok(child) => return Ok(child),
             Err(error) => {
@@ -248,10 +329,18 @@ fn backend_url(state: tauri::State<'_, BackendState>) -> Result<Option<String>, 
         return Ok(Some(url));
     }
 
-    let message = format!(
-        "Desktop backend did not become ready for workspace {}.",
-        settings.workspace.display()
-    );
+    let exit_status = {
+        let mut child_guard = state
+            .child
+            .lock()
+            .map_err(|_| String::from("Desktop backend state is unavailable."))?;
+        match child_guard.as_mut() {
+            Some(child) => child.try_wait().map_err(|error| error.to_string())?,
+            None => None,
+        }
+    };
+    let log_path = backend_log_path(&settings.workspace);
+    let message = format_backend_failure(&settings.workspace, &log_path, exit_status);
     if let Ok(mut error) = state.last_error.lock() {
         *error = Some(message.clone());
     }
