@@ -16,9 +16,9 @@ are preparing.
 Run these fresh:
 
 ```powershell
-ruff check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
-ruff format --check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
-mypy src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell --follow-imports=skip
+ruff check src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows tests/
+ruff format --check src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows tests/
+mypy src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows --follow-imports=skip
 pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
 npm --prefix apps/web run test -- --run
 npm --prefix apps/web run build

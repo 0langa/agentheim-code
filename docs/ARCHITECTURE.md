@@ -28,16 +28,16 @@ CLI / Browser / Tauri shell
 
 ### Shared runtime layers used directly by this product
 
-- `src/agentheim_coder_core`
-  Coder command and runtime contracts.
-- `src/agentheim_core`
-  Readiness, run views, and shared model selection helpers.
 - `src/core`
   Policies, runs, approvals, tools, schemas, and runtime infrastructure.
 - `src/config`
   Shared provider/profile storage and template registry.
+- `src/interfaces`
+  Readiness and other product-facing interface helpers shared by CLI and backend.
 - `src/providers`
   Provider adapters and usage extraction.
+- `src/tools`
+  Tool registry plus filesystem, shell, browser, git, MCP, and test-tool plumbing.
 - `src/workflows`
   Session runtime, persistence, and command execution.
 - `src/workflows/coder/commands.py`
@@ -55,7 +55,8 @@ CLI / Browser / Tauri shell
 
 Most product work starts in `src/agentheim_code`, `apps/web`, and
 `apps/desktop`, but real behavior changes often require coordinated edits in
-the shared runtime modules above.
+the shared runtime modules above. These shared runtime packages are owned by
+this repository and are expected to be present in a fresh clone and wheel.
 
 ## Launch Modes
 

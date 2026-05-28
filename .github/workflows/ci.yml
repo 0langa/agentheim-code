@@ -24,11 +24,11 @@ jobs:
       - name: Install project
         run: pip install -e .[dev]
       - name: Lint
-        run: ruff check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+        run: ruff check src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows tests/
       - name: Format check
-        run: ruff format --check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+        run: ruff format --check src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows tests/
       - name: Type check
-        run: mypy src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell --follow-imports=skip
+        run: mypy src/agentheim_code src/config src/core src/interfaces src/memory src/providers src/tools src/workflows --follow-imports=skip
       - name: Test with coverage
         run: pytest --cov --cov-report=xml --cov-fail-under=80 -m "not integration"
       - name: Build wheel
@@ -40,6 +40,7 @@ jobs:
           /tmp/agentheim-code-wheel/bin/python -m pip install dist/*.whl
           /tmp/agentheim-code-wheel/bin/agentheim-code --help
           /tmp/agentheim-code-wheel/bin/agentheim-code models --json
+          /tmp/agentheim-code-wheel/bin/agentheim-code doctor --json
           /tmp/agentheim-code-wheel/bin/python -c "from agentheim_code.backend import create_app; create_app('.')"
       - name: Upload coverage
         uses: codecov/codecov-action@v4

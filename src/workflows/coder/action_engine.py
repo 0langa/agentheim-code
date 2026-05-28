@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from core.public_api import (
@@ -45,7 +45,7 @@ SAFE_COMMANDS = ("python", "pytest", "git", "npm", "node", "pip", "poetry", "car
 
 
 def _policy_config(trust_mode: TrustMode) -> PolicyConfig:
-    risk_rules = {
+    risk_rules: dict[RiskLevel, Literal["allow", "ask", "deny"]] = {
         RiskLevel.NONE: "allow",
         RiskLevel.LOW: "allow",
         RiskLevel.MEDIUM: "ask",

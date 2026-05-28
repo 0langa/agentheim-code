@@ -99,3 +99,12 @@ class ShellTool(BaseTool):
             )
         except SandboxViolation as exc:
             return ToolResult(success=False, error=str(exc))
+
+    def execute(self, command: list[str], timeout_seconds: int = 120) -> ShellResult:
+        result = self._sandbox.execute(command, timeout=timeout_seconds)
+        return ShellResult(
+            command=command,
+            returncode=result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr,
+        )

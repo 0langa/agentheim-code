@@ -21,9 +21,9 @@ from agentheim_code.config import ensure_default_config, load_config
 from agentheim_code.desktop import DesktopLaunchError, launch_desktop
 from agentheim_code.diagnostics import write_diagnostics_bundle
 from agentheim_code.provider_wizard import verify_provider_connection
-from agentheim_coder_core.runtime import list_model_options
-from agentheim_core.readiness import build_readiness_state
 from core.run_view import list_run_views
+from interfaces.readiness import build_readiness_state
+from workflows.coder.runtime import list_model_options
 
 app = typer.Typer(
     help="Agentheim Code: focused local coding-agent client.",

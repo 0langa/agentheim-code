@@ -28,34 +28,17 @@ tmp/
 .venv/
 venv/
 
-# External dependency packages (from pip install -e ../agentheim)
-# These should live in the agentheim repo, not this one
+# External dependency packages that still do not belong to this repo
 src/agentheim_core/
 src/agentheim_coder_core/
-src/config/
-src/core/
-src/interfaces/
-src/providers/
-src/workflows/
-!src/workflows/
-src/workflows/*
-!src/workflows/coder/
-src/workflows/coder/*
-!src/workflows/coder/*.py
 
-# External tool packages (only src/tools/shell/ is owned by this repo)
-src/tools/__init__.py
-src/tools/browser/
-src/tools/filesystem/
-src/tools/git/
-src/tools/http/
-src/tools/integrations/
-src/tools/local_db/
-src/tools/mcp/
-src/tools/memory/
-src/tools/network/
-src/tools/registry.py
-src/tools/tests.py
+# Runtime packages owned by this repo live under:
+# - src/config
+# - src/core
+# - src/interfaces
+# - src/providers
+# - src/tools
+# - src/workflows
 
 # Local provider/app config should never be committed
 profiles.toml
