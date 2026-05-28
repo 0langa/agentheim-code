@@ -37,6 +37,11 @@ src/core/
 src/interfaces/
 src/providers/
 src/workflows/
+!src/workflows/
+src/workflows/*
+!src/workflows/coder/
+src/workflows/coder/*
+!src/workflows/coder/*.py
 
 # External tool packages (only src/tools/shell/ is owned by this repo)
 src/tools/__init__.py

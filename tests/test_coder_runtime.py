@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import base64
+import json
+import os
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+
+import pytest
 
 from core.ledger import RunLedger
 from workflows.coder import runtime
@@ -80,6 +85,48 @@ def test_create_session_normalizes_legacy_mode(tmp_path: Path) -> None:
     session = runtime.create_session(tmp_path, mode="plan", trust_mode="ask")
 
     assert session.mode == CoderMode.ASK
+
+
+def test_session_lock_replaces_dead_pid_lock(tmp_path: Path) -> None:
+    session = _session(tmp_path)
+    lock_path = runtime._session_paths(tmp_path, session.session_id)["lock"]
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(
+        json.dumps({"pid": 999_999_999, "created_at": runtime._utcnow()}),
+        encoding="utf-8",
+    )
+
+    with runtime._SessionLock(tmp_path, session.session_id):
+        payload = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert payload["pid"] == os.getpid()
+
+    assert not lock_path.exists()
+
+
+def test_session_lock_blocks_live_pid_lock(tmp_path: Path) -> None:
+    session = _session(tmp_path)
+    lock_path = runtime._session_paths(tmp_path, session.session_id)["lock"]
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(
+        json.dumps({"pid": os.getpid(), "created_at": runtime._utcnow()}),
+        encoding="utf-8",
+    )
+
+    with (
+        pytest.raises(RuntimeError, match="already running"),
+        runtime._SessionLock(tmp_path, session.session_id),
+    ):
+        pass
+
+
+def test_coder_output_token_budget_reads_model_config_metadata() -> None:
+    model_config = SimpleNamespace(
+        provider="custom",
+        model="neutral-model",
+        metadata={"planner_output_tokens": {"first_pass": 1234, "retry": 5678}},
+    )
+
+    assert runtime._coder_output_token_budget(model_config) == (1234, 5678)
 
 
 def test_post_message_persists_exactly_one_user_and_one_assistant_message(

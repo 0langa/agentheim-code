@@ -37,8 +37,11 @@ from agentheim_code.provider_management import (
 )
 from config.config import (
     ModelBinding,
+    ModelRole,
     ProfilesDocument,
     ProviderAccount,
+    TeamProfile,
+    list_provider_templates,
     save_profiles_document,
 )
 
@@ -76,6 +79,55 @@ def sample_profile(empty_doc: Path):
     )
     add_model("test-profile", model)
     return empty_doc
+
+
+def test_provider_templates_expose_planner_token_budgets() -> None:
+    templates = {
+        template["kind"]: template
+        for template in list_provider_templates(include_experimental=True)
+    }
+
+    assert templates["aws_bedrock"]["planner_output_tokens"] == {
+        "first_pass": 9000,
+        "retry": 9000,
+    }
+    assert templates["oci_genai"]["planner_output_tokens"] == {
+        "first_pass": 3000,
+        "retry": 5000,
+    }
+    assert templates["gemini"]["planner_output_tokens"] == {
+        "first_pass": 6000,
+        "retry": 8000,
+    }
+
+
+def test_team_config_propagates_template_token_budget_to_model_config() -> None:
+    profile = TeamProfile(
+        name="p",
+        providers={
+            "gemini": ProviderAccount(
+                id="gemini",
+                kind="gemini",
+                endpoint="https://generativelanguage.googleapis.com",
+                auth_mode="none",
+            )
+        },
+        models={
+            "planner": ModelBinding(
+                id="planner",
+                role=ModelRole.PLANNER,
+                provider="gemini",
+                model="gemini-2.5-pro",
+            )
+        },
+    )
+
+    model_config = profile.to_team_config().resolve_role(ModelRole.PLANNER)
+
+    assert model_config.metadata["planner_output_tokens"] == {
+        "first_pass": 6000,
+        "retry": 8000,
+    }
 
 
 class TestProfileCrud:

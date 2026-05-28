@@ -268,6 +268,16 @@ class TeamProfile(BaseModel):
         return self
 
     def to_team_config(self) -> TeamConfig:
+        def _provider_metadata(provider: ProviderAccount) -> dict[str, Any]:
+            metadata = dict(provider.metadata)
+            template = PROVIDER_TEMPLATES.get(provider.kind)
+            if template is not None:
+                metadata.setdefault(
+                    "planner_output_tokens",
+                    template.planner_output_tokens.model_dump(),
+                )
+            return metadata
+
         providers = {
             pid: ProviderConfig(
                 id=provider.id,
@@ -277,7 +287,7 @@ class TeamProfile(BaseModel):
                 secret_ref=provider.secret_ref,
                 timeout_seconds=provider.timeout_seconds,
                 headers=provider.headers,
-                metadata=provider.metadata,
+                metadata=_provider_metadata(provider),
             )
             for pid, provider in self.providers.items()
         }
@@ -371,8 +381,17 @@ def _normalize_profiles_document(document: ProfilesDocument) -> tuple[ProfilesDo
             changed = True
         normalized_profiles[name] = profile
     if changed:
-        document = cast(ProfilesDocument, document.model_copy(update={"profiles": normalized_profiles}))
+        document = cast(
+            ProfilesDocument, document.model_copy(update={"profiles": normalized_profiles})
+        )
     return document, changed
+
+
+class PlannerOutputTokenBudget(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    first_pass: int = Field(default=12000, ge=1)
+    retry: int = Field(default=16000, ge=1)
 
 
 class ProviderTemplate(BaseModel):
@@ -389,6 +408,9 @@ class ProviderTemplate(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     support_state: str = "unknown"
     default_timeout_seconds: int = 60
+    planner_output_tokens: PlannerOutputTokenBudget = Field(
+        default_factory=lambda: PlannerOutputTokenBudget()
+    )
 
 
 PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
@@ -433,6 +455,7 @@ PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
         docs_url="https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html",
         metadata={"region": "eu-central-1"},
         support_state="experimental",
+        planner_output_tokens=PlannerOutputTokenBudget(first_pass=9000, retry=9000),
     ),
     "oci_genai": ProviderTemplate(
         kind="oci_genai",
@@ -443,6 +466,7 @@ PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
         capabilities=["text", "json"],
         docs_url="https://docs.oracle.com/en-us/iaas/tools/python/latest/api/generative_ai_inference/client/oci.generative_ai_inference.GenerativeAiInferenceClient.html",
         support_state="experimental",
+        planner_output_tokens=PlannerOutputTokenBudget(first_pass=3000, retry=5000),
     ),
     "xai_grok": ProviderTemplate(
         kind="xai_grok",
@@ -463,6 +487,7 @@ PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
         capabilities=["text", "json", "vision", "tools", "streaming"],
         docs_url="https://ai.google.dev/gemini-api/docs/api-key",
         support_state="beta",
+        planner_output_tokens=PlannerOutputTokenBudget(first_pass=6000, retry=8000),
     ),
     "vertex_ai": ProviderTemplate(
         kind="vertex_ai",
@@ -473,6 +498,7 @@ PROVIDER_TEMPLATES: dict[str, ProviderTemplate] = {
         capabilities=["text", "json", "vision", "tools"],
         docs_url="https://cloud.google.com/vertex-ai/docs/authentication",
         support_state="beta",
+        planner_output_tokens=PlannerOutputTokenBudget(first_pass=6000, retry=8000),
     ),
     "anthropic": ProviderTemplate(
         kind="anthropic",
@@ -759,7 +785,12 @@ def provider_account_from_template(
         secret_ref=secret_ref,
         timeout_seconds=timeout_seconds or template.default_timeout_seconds,
         headers={**template.headers, **(headers or {})},
-        metadata={"template": template_id, **template.metadata, **(metadata or {})},
+        metadata={
+            "template": template_id,
+            "planner_output_tokens": template.planner_output_tokens.model_dump(),
+            **template.metadata,
+            **(metadata or {}),
+        },
     )
 
 
