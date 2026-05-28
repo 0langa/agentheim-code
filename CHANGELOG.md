@@ -18,9 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Improved desktop provider flow and session messaging
 - Self-healing for stale provider default profiles
 - Polished desktop visual system and scaling
+- **Backend split**: `backend.py` decomposed into `routes/coder.py`, `routes/providers.py`, `routes/files.py`, and `routes/utils.py`
+- **Runtime decomposition**: `workflows/coder/runtime.py` decomposed into `session_store.py`, `planner.py`, `prompt_builder.py`, `action_engine.py`, and `repair.py`
 
 ### Fixed
 - `GET /api/provider-management/.../discovered-models` no longer mutates provider state on refresh
+- Session lock now detects stale locks via PID-based dead-lock replacement
+- Token budgets now read from `PlannerOutputTokenBudget` in model metadata instead of hardcoded provider values
 
 ## [2.0.0] - 2026-05-26
 

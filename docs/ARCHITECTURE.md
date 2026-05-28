@@ -17,6 +17,10 @@ CLI / Browser / Tauri shell
 - `src/agentheim_code`
   Product CLI, app launcher, FastAPI backend, onboarding/config APIs,
   diagnostics, provider-management APIs, onboarding wrapper, context bundle adapter, packaged web assets.
+- `src/agentheim_code/routes`
+  FastAPI route modules: `coder.py` (sessions, messages, streaming, approvals),
+  `providers.py` (templates, profiles, accounts, models, discovery),
+  `files.py` (workspace browser, search, preview), and `utils.py` (shared request helpers).
 - `apps/web`
   React/Vite workbench UI.
 - `apps/desktop`
@@ -36,6 +40,18 @@ CLI / Browser / Tauri shell
   Provider adapters and usage extraction.
 - `src/workflows`
   Session runtime, persistence, and command execution.
+- `src/workflows/coder/commands.py`
+  Built-in command registry exposed to the CLI slash commands and frontend palette.
+- `src/workflows/coder/session_store.py`
+  Session persistence, file I/O, filesystem locking, and session lifecycle helpers.
+- `src/workflows/coder/planner.py`
+  LLM turn planning with JSON schema enforcement, 3-tier retry ladder, and plan validation.
+- `src/workflows/coder/prompt_builder.py`
+  Prompt construction, mode guidance, trust-mode restrictions, and noop-plan heuristics.
+- `src/workflows/coder/action_engine.py`
+  Action execution, policy-gated tool invocation, diff/command recording, and turn completion.
+- `src/workflows/coder/repair.py`
+  Automatic repair loop for failed verification commands.
 
 Most product work starts in `src/agentheim_code`, `apps/web`, and
 `apps/desktop`, but real behavior changes often require coordinated edits in

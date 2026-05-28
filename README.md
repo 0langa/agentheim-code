@@ -173,9 +173,9 @@ See `docs/adr/0002-api-type-generation.md` for details.
 Canonical verification commands:
 
 ```powershell
-ruff check src/agentheim_code src/memory src/tools/shell tests/
-ruff format --check src/agentheim_code src/memory src/tools/shell tests/
-mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
+ruff check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+ruff format --check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+mypy src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell --follow-imports=skip
 pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
 npm --prefix apps/web run test -- --run
 npm --prefix apps/web run build

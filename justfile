@@ -30,9 +30,9 @@ test-rust:
 
 # Lint product-owned code and focused tests
 lint:
-    ruff check src/agentheim_code src/memory src/tools/shell tests/
-    ruff format --check src/agentheim_code src/memory src/tools/shell tests/
-    mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
+    ruff check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+    ruff format --check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+    mypy src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell --follow-imports=skip
 
 # Future cleanup target for copied shared/runtime modules
 lint-all:
@@ -45,8 +45,8 @@ type-all:
 
 # Auto-fix formatting and lint issues
 fix:
-    ruff check --fix src/agentheim_code src/memory src/tools/shell tests/
-    ruff format src/agentheim_code src/memory src/tools/shell tests/
+    ruff check --fix src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+    ruff format src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
 
 # Build the web frontend
 build-web:

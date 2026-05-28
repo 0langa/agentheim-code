@@ -16,9 +16,9 @@ are preparing.
 Run these fresh:
 
 ```powershell
-ruff check src/agentheim_code src/memory src/tools/shell tests/
-ruff format --check src/agentheim_code src/memory src/tools/shell tests/
-mypy src/agentheim_code src/memory src/tools/shell --follow-imports=skip
+ruff check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+ruff format --check src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell tests/
+mypy src/agentheim_code src/workflows/coder src/config src/memory src/tools/shell --follow-imports=skip
 pytest --cov --cov-report=term-missing --cov-fail-under=80 -m "not integration"
 npm --prefix apps/web run test -- --run
 npm --prefix apps/web run build
@@ -96,12 +96,12 @@ not create tags, publish to PyPI, or push to GitHub.
 
 _Last verified: 2026-05-28_
 
-- branch: `codex/stability-chat-hardening`
+- branch: `main`
 - version: `2.0.0`
 - `ruff check`: All checks passed
-- `ruff format --check`: 55 files already formatted
-- `mypy`: Success, no issues found in 24 source files
-- `pytest`: 341 passed, 3 deselected, 81.57% coverage (coverage gate is 80%)
+- `ruff format --check`: 99 files already formatted
+- `mypy`: Success, no issues found in 36 source files
+- `pytest`: 346 passed, 3 deselected, 81.57% coverage (coverage gate is 80%)
 - `npm --prefix apps/web run test -- --run`: 14 test files, 95 tests passed
 - `npm --prefix apps/web run build`: passed
 - `npm --prefix apps/web run e2e`: 10 passed (chromium)

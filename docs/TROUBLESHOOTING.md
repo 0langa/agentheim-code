@@ -269,15 +269,15 @@ The prompt or attached context exceeded the 256KB request body limit (`E2008`).
 
 | Code | Meaning | Recovery |
 |------|---------|----------|
-| `E1001` | Validation error | Check arguments or request body |
-| `E1002` | Configuration error | Run `agentheim-code doctor` |
-| `E1003` | Authentication failed | Check API key and secret store |
-| `E1004` | Provider error | Retry or switch provider |
-| `E1005` | Policy block | Review trust mode and approval |
-| `E1006` | Integration unavailable | Install missing dependency |
-| `E1007` | Not found | Check IDs and run list |
-| `E1008` | Run failed | Check timeline and retry |
-| `E1009` | Unexpected error | Check logs and report |
+| `E1001` | The input you provided is invalid or incomplete. | Check arguments or request body. Run the command with `--help` to see valid options. |
+| `E1002` | Agentheim Code is not configured correctly for this operation. | Run `agentheim-code doctor`. Review your provider profile and secret store. |
+| `E1003` | Authentication failed. Your API key or credentials are missing, invalid, or expired. | Check that your API key is set in the secret store. Run `agentheim-code doctor` to verify provider authentication. |
+| `E1004` | The AI provider returned an error or is temporarily unreachable. | Wait a moment and retry. Run `agentheim-code doctor` to check provider connectivity. Switch to a different provider if the issue persists. |
+| `E1005` | This action was blocked by a safety or policy rule. | Review the policy justification and adjust your request. If you believe this is a mistake, run with `--no-confirm` after reviewing risks. |
+| `E1006` | An optional integration or dependency is not installed or not reachable. | Install the missing integration or dependency. Run `agentheim-code doctor` to check optional integrations. |
+| `E1007` | The requested run, preset, or resource could not be found. | Check the run ID or preset name for typos. Run `agentheim-code runs` to see available runs. |
+| `E1008` | The run failed during execution, planning, or verification. | Check the run report for details. Run `agentheim-code runs inspect <run-id>` or resume from the relevant workflow surface. |
+| `E1009` | An unexpected error occurred. This is likely a bug. | Check the logs for a traceback. Report the issue with the machine code and steps to reproduce. |
 | `E2001` | Session not found | Create or select a valid session |
 | `E2002` | Session locked | Wait or cancel current turn |
 | `E2003` | Context validation failed | Review rejected context files |
