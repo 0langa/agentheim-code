@@ -60,3 +60,6 @@ src/tools/tests.py
 # Local provider/app config should never be committed
 profiles.toml
 config.toml
+
+# Internal local-only planning/docs
+docs/internal/
