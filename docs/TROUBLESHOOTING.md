@@ -276,7 +276,7 @@ The prompt or attached context exceeded the 256KB request body limit (`E2008`).
 | `E1005` | This action was blocked by a safety or policy rule. | Review the policy justification and adjust your request. If you believe this is a mistake, run with `--no-confirm` after reviewing risks. |
 | `E1006` | An optional integration or dependency is not installed or not reachable. | Install the missing integration or dependency. Run `agentheim-code doctor` to check optional integrations. |
 | `E1007` | The requested run, preset, or resource could not be found. | Check the run ID or preset name for typos. Run `agentheim-code runs` to see available runs. |
-| `E1008` | The run failed during execution, planning, or verification. | Check the run report for details. Run `agentheim-code runs inspect <run-id>` or resume from the relevant workflow surface. |
+| `E1008` | The run failed during execution, planning, or verification. | Check the run report for details. Resume with `agentheim-code coder resume <session-id>` or inspect the run artifacts in `.ai-team/runs/<session-id>/`. |
 | `E1009` | An unexpected error occurred. This is likely a bug. | Check the logs for a traceback. Report the issue with the machine code and steps to reproduce. |
 | `E2001` | Session not found | Create or select a valid session |
 | `E2002` | Session locked | Wait or cancel current turn |
