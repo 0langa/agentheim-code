@@ -115,9 +115,18 @@ class PatchApplier:
             target.write_text(change.before_text, encoding="utf-8")
 
     def _render_after_text(self, before_text: str, file_change: dict[str, Any]) -> str:
-        patch = file_change.get("patch", "")
-        if file_change["change_type"] == "delete":
+        change_type = file_change.get("change_type", "update")
+        if change_type == "delete":
             return ""
+        old_string = file_change.get("old_string")
+        new_string = file_change.get("new_string")
+        if old_string is not None and new_string is not None:
+            if old_string not in before_text:
+                raise PatchApplicationError(
+                    f"old_string not found in file: {file_change.get('path', '?')!r}"
+                )
+            return before_text.replace(old_string, new_string, 1)
+        patch = file_change.get("patch", "")
         if patch:
             return str(patch)
         return str(file_change.get("after_text", before_text))

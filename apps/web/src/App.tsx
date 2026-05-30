@@ -27,6 +27,7 @@ import type {
   ModelOptions,
   ModeCatalog,
   Session,
+  SessionEvent,
   SessionView,
   StructuredError,
   UiConfig,
@@ -347,6 +348,18 @@ export function App() {
                   ...current.session,
                   current_assistant_message: `${current.session.current_assistant_message ?? ""}${token}`,
                 },
+              };
+            });
+          },
+          onActivity: (event) => {
+            setActive((current) => {
+              if (!current || current.session.session_id !== sessionId) return current;
+              const ev = event as SessionEvent;
+              const existing = current.events ?? [];
+              if (existing.some((e) => e.event_id === ev.event_id)) return current;
+              return {
+                ...current,
+                events: [...existing, ev],
               };
             });
           },

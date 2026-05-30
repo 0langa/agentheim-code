@@ -5,10 +5,16 @@ from pathlib import Path
 
 from core.public_api import EventType, RunLedger
 from workflows.coder.action_engine import _apply_plan, _run_actions
-from workflows.coder.models import ActivityKind, CoderAction, CoderSession, SessionStatus
+from workflows.coder.models import (
+    ActivityKind,
+    CoderAction,
+    CoderSession,
+    SessionStatus,
+)
 from workflows.coder.planner import _plan_turn
 from workflows.coder.prompt_builder import _session_has_coding_context
 from workflows.coder.session_store import _last_command_result, _record_activity, _set_status
+from workflows.coder.verification import _classify_repair_context
 
 WORKFLOW_ID = "coder"
 
@@ -48,6 +54,12 @@ def _repair_failed_verification(
             ActivityKind.THINKING,
             f"Repairing failed verification ({attempt}/{max_attempts}).",
         )
+        repair_ctx = _classify_repair_context(
+            list(last_result.command),
+            last_result.exit_code,
+            last_result.stdout,
+            last_result.stderr,
+        )
         repair_prompt = (
             "Repair the current workspace so it satisfies the user's original coding request. "
             "Keep the chosen language, framework, and architecture unless changing them is the smallest reliable fix. "
@@ -58,6 +70,8 @@ def _repair_failed_verification(
             f"Original request:\n{original_prompt}\n\n"
             f"Failed command: {' '.join(last_result.command)}\n"
             f"Exit code: {last_result.exit_code}\n"
+            f"Failure type: {repair_ctx.kind.value}\n"
+            f"Failure reason: {repair_ctx.message}\n"
             f"stdout:\n{last_result.stdout[-4000:]}\n"
             f"stderr:\n{last_result.stderr[-4000:]}"
         )

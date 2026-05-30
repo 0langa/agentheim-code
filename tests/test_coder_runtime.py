@@ -18,6 +18,9 @@ from workflows.coder.models import (
     CoderTurnPlan,
     SessionStatus,
     TrustMode,
+    VerificationProfile,
+    VerificationStep,
+    VerificationStepKind,
 )
 
 
@@ -371,3 +374,132 @@ def test_repair_uses_prior_coding_context(
 
     assert repaired.status == SessionStatus.COMPLETED
     assert ["node", "tests/smoke-test.js"] in observed_commands
+
+
+def test_apply_patch_with_old_string_new_string(tmp_path: Path) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    target = tmp_path / "hello.py"
+    target.write_text("print('hello')\n", encoding="utf-8")
+    action = CoderAction(
+        kind="apply_patch",
+        path="hello.py",
+        summary="Change greeting",
+        old_string="print('hello')",
+        new_string="print('world')",
+    )
+    updated, should_continue = runtime._invoke_action(tmp_path, ledger, session, action)
+    assert should_continue is True
+    assert target.read_text(encoding="utf-8") == "print('world')\n"
+    assert "hello.py" in updated.changed_files
+
+
+def test_apply_patch_missing_path_returns_blocked(tmp_path: Path) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    action = CoderAction(kind="apply_patch", summary="Missing path")
+    updated, should_continue = runtime._invoke_action(tmp_path, ledger, session, action)
+    assert should_continue is False
+    assert updated.status == SessionStatus.BLOCKED
+
+
+def test_apply_patch_missing_patch_content_returns_blocked(tmp_path: Path) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    action = CoderAction(kind="apply_patch", path="hello.py", summary="Missing patch data")
+    updated, should_continue = runtime._invoke_action(tmp_path, ledger, session, action)
+    assert should_continue is False
+    assert updated.status == SessionStatus.BLOCKED
+
+
+def test_apply_patch_full_text_replacement(tmp_path: Path) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    target = tmp_path / "config.json"
+    target.write_text('{"key": "old"}\n', encoding="utf-8")
+    action = CoderAction(
+        kind="apply_patch",
+        path="config.json",
+        summary="Update config",
+        patch='{"key": "new"}\n',
+    )
+    updated, should_continue = runtime._invoke_action(tmp_path, ledger, session, action)
+    assert should_continue is True
+    assert target.read_text(encoding="utf-8") == '{"key": "new"}\n'
+    assert "config.json" in updated.changed_files
+
+
+def test_create_session_detects_verification_profiles(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[tool.ruff]\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    session = runtime.create_session(tmp_path, trust_mode="workspace")
+    assert len(session.verification_profiles) >= 1
+    assert any(p.name == "python" for p in session.verification_profiles)
+
+
+def test_run_actions_auto_verification_after_edits(tmp_path: Path, monkeypatch: Any) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    session = session.model_copy(
+        update={
+            "trust_mode": TrustMode.WORKSPACE,
+            "verification_profiles": [
+                VerificationProfile(
+                    name="python",
+                    detected=True,
+                    steps=[
+                        VerificationStep(
+                            kind=VerificationStepKind.TEST,
+                            command=["python", "-c", "print('ok')"],
+                            description="Smoke test",
+                            required=True,
+                        )
+                    ],
+                )
+            ],
+            "planned_actions": [
+                CoderAction(
+                    kind="write_file",
+                    path="hello.py",
+                    summary="Create hello.py",
+                    content="print('hello')\n",
+                )
+            ],
+        }
+    )
+    completed = runtime._run_actions(tmp_path, ledger, session, verify_prompt="build app")
+    assert completed.status == SessionStatus.COMPLETED
+
+
+def test_run_actions_blocks_when_auto_verification_fails(tmp_path: Path, monkeypatch: Any) -> None:
+    ledger = RunLedger.create(tmp_path, "coder")
+    session = _session(tmp_path)
+    session = session.model_copy(
+        update={
+            "trust_mode": TrustMode.WORKSPACE,
+            "verification_profiles": [
+                VerificationProfile(
+                    name="python",
+                    detected=True,
+                    steps=[
+                        VerificationStep(
+                            kind=VerificationStepKind.TEST,
+                            command=["python", "-c", "import sys; sys.exit(1)"],
+                            description="Failing test",
+                            required=True,
+                        )
+                    ],
+                )
+            ],
+            "planned_actions": [
+                CoderAction(
+                    kind="write_file",
+                    path="hello.py",
+                    summary="Create hello.py",
+                    content="print('hello')\n",
+                )
+            ],
+        }
+    )
+    blocked = runtime._run_actions(tmp_path, ledger, session, verify_prompt="build app")
+    assert blocked.status == SessionStatus.BLOCKED

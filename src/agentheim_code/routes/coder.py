@@ -129,7 +129,7 @@ class SessionEventResponse(BaseModel):
     type: str
     message: str
     timestamp: str
-    payload: dict[str, str] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class CommandResultResponse(BaseModel):

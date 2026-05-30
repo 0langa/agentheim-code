@@ -178,24 +178,29 @@ def _read_jsonl_model[TModel: BaseModel](path: Path, model_type: type[TModel]) -
 def _record_activity(
     workspace_root: Path,
     session: CoderSession,
-    kind: ActivityKind,
+    kind: ActivityKind | str,
     message: str,
-    details: dict[str, str] | None = None,
+    details: dict[str, Any] | None = None,
     request_id: str = "",
 ) -> CoderSession:
+    activity_kind = kind if isinstance(kind, ActivityKind) else ActivityKind.THINKING
     activity = CoderActivity(
-        kind=kind, message=message, created_at=_utcnow(), details=details or {}
+        kind=activity_kind,
+        message=message,
+        created_at=_utcnow(),
+        details={str(k): str(v) for k, v in (details or {}).items()},
     )
     _append_activity(workspace_root, session.session_id, activity)
     event_details = dict(details or {})
     if request_id:
         event_details["request_id"] = request_id
+    event_kind = kind.value if isinstance(kind, ActivityKind) else str(kind)
     _append_event(
         workspace_root,
         session.session_id,
         CoderEvent(
             event_id=uuid4().hex,
-            kind=kind.value,
+            kind=event_kind,
             message=message,
             created_at=activity.created_at,
             details=event_details,

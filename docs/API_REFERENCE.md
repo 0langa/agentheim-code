@@ -247,6 +247,12 @@ The stream endpoint emits:
 - `done`
 - `error`
 
+`activity` events carry real-time turn progress with kinds such as:
+`turn_started`, `planner_result`, `tool_proposed`, `approval_requested`,
+`tool_output`, `patch_proposed`, `patch_applied`, `verification_started`,
+`verification_failed`, `verification_passed`, `turn_completed`, `turn_failed`,
+`repair_started`, `repair_completed`, `repair_exhausted`.
+
 The frontend currently parses these events manually in `apps/web/src/api.ts`.
 
 ## Files, Context, Runs, Diffs, Usage

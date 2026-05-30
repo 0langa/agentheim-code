@@ -112,13 +112,16 @@ def _turn_plan_response_schema() -> dict[str, Any]:
         "properties": {
             "kind": {
                 "type": "STRING",
-                "enum": ["list_files", "read_file", "write_file", "run_command"],
+                "enum": ["list_files", "read_file", "write_file", "apply_patch", "run_command"],
             },
             "summary": {"type": "STRING"},
             "path": {"type": "STRING"},
             "content": {"type": "STRING"},
             "content_lines": {"type": "ARRAY", "items": {"type": "STRING"}},
             "content_base64": {"type": "STRING"},
+            "patch": {"type": "STRING"},
+            "old_string": {"type": "STRING"},
+            "new_string": {"type": "STRING"},
             "command": {"type": "ARRAY", "items": {"type": "STRING"}},
         },
         "required": ["kind", "summary"],
@@ -348,8 +351,10 @@ def _plan_turn(
     first_pass_tokens, retry_tokens = _coder_output_token_budget(model_config)
     system_prompt = (
         "You are Agentheim Code, a local coding agent. Return only valid JSON, no markdown, no prose outside JSON. "
-        'Schema: {"assistant_message":"string","summary":"string","actions":[{"kind":"list_files|read_file|write_file|run_command","summary":"string","path":"optional relative path","content":"optional full file contents","content_lines":["optional file line"],"content_base64":"optional UTF-8 base64 full file contents","command":["optional","command"]}],"next_actions":["string"]}. '
-        "For write_file actions, put the full file contents in content_lines or content_base64. Avoid large multiline content strings. "
+        'Schema: {"assistant_message":"string","summary":"string","actions":[{"kind":"list_files|read_file|write_file|apply_patch|run_command","summary":"string","path":"optional relative path","content":"optional full file contents","content_lines":["optional file line"],"content_base64":"optional UTF-8 base64 full file contents","patch":"optional full replacement text","old_string":"optional existing text to find","new_string":"optional replacement text","command":["optional","command"]}],"next_actions":["string"]}. '
+        "For existing files, prefer apply_patch with old_string + new_string for precise edits instead of full-file write_file. "
+        "For new files or complete rewrites, use write_file with full contents in content_lines or content_base64. "
+        "Avoid large multiline content strings. "
         "Choose the language, framework, file layout, and architecture that best fit the user's request; do not force a static web app unless that is the right solution. "
         "For empty-workspace project builds, create every necessary source/config/test/doc file in this response; do not promise later file creation. "
         "For non-trivial project builds, include appropriate tests or smoke-check files and clear run instructions for the chosen stack. "

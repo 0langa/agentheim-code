@@ -740,6 +740,7 @@ async function mockApi(page: Page, options: boolean | MockApiOptions = {}) {
         status: 200,
         contentType: "text/event-stream",
         body: [
+          'event: activity\ndata: {"session_id":"sess-1","event":{"event_id":"ev-1","kind":"turn_started","message":"Turn started.","timestamp":"2026-05-29T00:00:00Z","payload":{}}}',
           'event: token\ndata: {"token":"Done "}',
           'event: token\ndata: {"token":"from stream."}',
           'event: done\ndata: {"session_id":"sess-1"}',

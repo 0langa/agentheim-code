@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import shlex
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -32,6 +32,30 @@ class ActivityKind(StrEnum):
     AWAITING_APPROVAL = "awaiting_approval"
     COMPLETED = "completed"
     BLOCKED = "blocked"
+
+
+class RuntimeEventKind(StrEnum):
+    """Fine-grained runtime events for real-time UI streaming."""
+
+    TURN_STARTED = "turn_started"
+    PLANNER_RESULT = "planner_result"
+    TOOL_PROPOSED = "tool_proposed"
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_GRANTED = "approval_granted"
+    APPROVAL_DENIED = "approval_denied"
+    TOOL_OUTPUT = "tool_output"
+    PATCH_PROPOSED = "patch_proposed"
+    PATCH_APPLIED = "patch_applied"
+    WRITE_FILE = "write_file"
+    VERIFICATION_STARTED = "verification_started"
+    VERIFICATION_FAILED = "verification_failed"
+    VERIFICATION_PASSED = "verification_passed"
+    TURN_COMPLETED = "turn_completed"
+    TURN_FAILED = "turn_failed"
+    TURN_CANCELLED = "turn_cancelled"
+    REPAIR_STARTED = "repair_started"
+    REPAIR_COMPLETED = "repair_completed"
+    REPAIR_EXHAUSTED = "repair_exhausted"
 
 
 class CoderMode(StrEnum):
@@ -115,13 +139,16 @@ class CoderMessage(BaseModel):
 class CoderAction(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    kind: Literal["list_files", "read_file", "write_file", "run_command"]
+    kind: Literal["list_files", "read_file", "write_file", "run_command", "apply_patch"]
     summary: str = ""
     path: str | None = None
     content: str | None = None
     content_lines: list[str] = Field(default_factory=list)
     content_base64: str | None = None
     command: list[str] = Field(default_factory=list)
+    patch: str | None = None
+    old_string: str | None = None
+    new_string: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -194,7 +221,7 @@ class CoderEvent(BaseModel):
     kind: str
     message: str
     created_at: str
-    details: dict[str, str] = Field(default_factory=dict)
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class CoderDiff(BaseModel):
@@ -205,6 +232,51 @@ class CoderDiff(BaseModel):
     after: str
     status: Literal["planned", "applied"] = "applied"
     created_at: str
+
+
+class VerificationStepKind(StrEnum):
+    LINT = "lint"
+    TYPECHECK = "typecheck"
+    TEST = "test"
+    BUILD = "build"
+    CUSTOM = "custom"
+
+
+class VerificationStep(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: VerificationStepKind
+    command: list[str] = Field(default_factory=list)
+    description: str = ""
+    required: bool = True
+
+
+class VerificationProfile(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    detected: bool = False
+    steps: list[VerificationStep] = Field(default_factory=list)
+
+
+class RepairContextKind(StrEnum):
+    TEST_FAILURE = "test_failure"
+    LINT_TYPE_FAILURE = "lint_type_failure"
+    PERMISSION_DENIED = "permission_denied"
+    TIMEOUT = "timeout"
+    ENV_CONFIG_FAILURE = "env_config_failure"
+    UNKNOWN = "unknown"
+
+
+class RepairContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: RepairContextKind = RepairContextKind.UNKNOWN
+    command: list[str] = Field(default_factory=list)
+    exit_code: int | None = None
+    stdout: str = ""
+    stderr: str = ""
+    message: str = ""
 
 
 class CoderCommandResult(BaseModel):
@@ -255,6 +327,7 @@ class CoderSession(BaseModel):
     last_failure_reason: str = ""
     last_verification_command: list[str] = Field(default_factory=list)
     last_verification_exit_code: int | None = None
+    verification_profiles: list[VerificationProfile] = Field(default_factory=list)
 
 
 class CoderSessionView(BaseModel):

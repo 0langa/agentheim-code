@@ -29,6 +29,7 @@ from workflows.coder.models import (
     CoderModelSelection,
     CoderSession,
     CoderSessionView,
+    RuntimeEventKind,
     SessionStatus,
     TrustMode,
     canonical_mode,
@@ -55,6 +56,7 @@ from workflows.coder.session_store import (
     _set_status,
     _utcnow,
 )
+from workflows.coder.verification import _detect_verification_profiles
 
 WORKFLOW_ID = "coder"
 PRESET_ID = "coder"
@@ -83,7 +85,7 @@ def _simple_workspace_health_reply(summary: dict[str, Any]) -> str:
 
 
 def _command_ids() -> list[str]:
-    return command_ids()
+    return list(command_ids())
 
 
 def available_commands() -> list[dict[str, str]]:
@@ -178,6 +180,7 @@ def create_session(
     normalized_mode = canonical_mode(mode)
     scan_summary, git_available = _workspace_scan_summary(workspace)
     ledger = RunLedger.create(workspace, "coder")
+    verification_profiles = _detect_verification_profiles(workspace)
     session = CoderSession(
         session_id=ledger.run_dir.name,
         workspace_root=str(workspace),
@@ -187,6 +190,7 @@ def create_session(
         created_at=_utcnow(),
         updated_at=_utcnow(),
         git_available=git_available,
+        verification_profiles=verification_profiles,
     )
     run_json_payload: dict[str, Any] = {
         "run_id": session.session_id,
@@ -479,6 +483,13 @@ def post_message(
         session = session.model_copy(update={"transcript": [*session.transcript, user_message]})
         session = _set_status(session, SessionStatus.RUNNING)
         session = _record_activity(
+            workspace,
+            session,
+            RuntimeEventKind.TURN_STARTED,
+            "Turn started.",
+            details={"prompt": prompt, "mode": session.mode.value, "request_id": request_id},
+        )
+        session = _record_activity(
             workspace, session, ActivityKind.THINKING, "Planning next turn.", request_id=request_id
         )
         session = _record_activity(
@@ -492,6 +503,17 @@ def post_message(
         ledger = _open_ledger(workspace, session_id)
         try:
             plan = _plan_turn(workspace, session, prompt, ledger=ledger)
+            session = _record_activity(
+                workspace,
+                session,
+                RuntimeEventKind.PLANNER_RESULT,
+                f"Planner produced {len(plan.actions)} action(s).",
+                details={
+                    "action_count": len(plan.actions),
+                    "action_kinds": [a.kind for a in plan.actions],
+                    "summary": plan.summary,
+                },
+            )
         except Exception as exc:
             if _should_use_local_workspace_fallback(session, prompt, exc):
                 session = _complete_local_workspace_fallback(workspace, session, prompt)
@@ -509,6 +531,13 @@ def post_message(
                     "request_id": request_id,
                 },
             )
+            session = _record_activity(
+                workspace,
+                session,
+                RuntimeEventKind.TURN_FAILED,
+                f"Turn failed during planning: {structured.message}",
+                details={"error_type": type(exc).__name__, "error": structured.message},
+            )
             session = session.model_copy(
                 update={
                     "current_summary": "Coder turn failed",
@@ -521,7 +550,47 @@ def post_message(
 
         session = _apply_plan(session, prompt, plan)
         session = _run_actions(workspace, ledger, session, verify_prompt=prompt)
-        session = _repair_failed_verification(workspace, ledger, session, prompt)
+        if session.status == SessionStatus.BLOCKED:
+            session = _record_activity(
+                workspace,
+                session,
+                RuntimeEventKind.REPAIR_STARTED,
+                "Verification failed; starting repair.",
+                details={
+                    "last_verification_command": session.last_verification_command,
+                    "last_verification_exit_code": session.last_verification_exit_code,
+                },
+            )
+            session = _repair_failed_verification(workspace, ledger, session, prompt)
+            if session.status == SessionStatus.BLOCKED:
+                session = _record_activity(
+                    workspace,
+                    session,
+                    RuntimeEventKind.REPAIR_EXHAUSTED,
+                    "Repair attempts exhausted.",
+                    details={
+                        "repair_attempts": session.repair_attempts,
+                        "last_verification_command": session.last_verification_command,
+                    },
+                )
+            elif session.status == SessionStatus.COMPLETED:
+                session = _record_activity(
+                    workspace,
+                    session,
+                    RuntimeEventKind.REPAIR_COMPLETED,
+                    "Repair succeeded.",
+                )
+        if session.status == SessionStatus.COMPLETED:
+            session = _record_activity(
+                workspace,
+                session,
+                RuntimeEventKind.TURN_COMPLETED,
+                session.current_summary or "Turn completed.",
+                details={
+                    "changed_files": session.changed_files,
+                    "summary": session.current_summary,
+                },
+            )
         return _save_session(workspace, session)
 
 

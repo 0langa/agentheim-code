@@ -843,7 +843,7 @@ export interface components {
             timestamp: string;
             /** Payload */
             payload?: {
-                [key: string]: string;
+                [key: string]: unknown;
             };
         };
         /** SessionModelSelectionResponse */
